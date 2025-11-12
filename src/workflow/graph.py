@@ -1,11 +1,14 @@
 """LangGraph workflow graph construction"""
 
+from typing import cast
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
 from src.models.workflow import WorkflowState
 from src.workflow.nodes.ingestion import ingest_emails
 from src.workflow.nodes.extraction import extract_products
 from src.workflow.nodes.reporting import generate_report
+from langchain_core.globals import set_llm_cache
+from langchain_community.cache import SQLiteCache
 
 
 def create_workflow_graph() -> CompiledStateGraph:
@@ -36,8 +39,12 @@ def create_workflow_graph() -> CompiledStateGraph:
     # Set entry point
     workflow.set_entry_point("ingestion")
 
+    set_llm_cache(SQLiteCache(database_path=".cache.db"))
+
+    graph = workflow.compile().with_config({"recursion_limit": 50})
+
     # Compile and return
-    return workflow.compile()
+    return graph
 
 
 def run_workflow(input_directory: str, output_path: str) -> WorkflowState:
@@ -60,9 +67,10 @@ def run_workflow(input_directory: str, output_path: str) -> WorkflowState:
         "report_path": output_path,
         "errors": [],
     }
-
     # Create and run workflow
     workflow_graph = create_workflow_graph()
-    final_state = workflow_graph.invoke(initial_state)
+    final_state: WorkflowState = cast(
+        WorkflowState, workflow_graph.invoke(initial_state)
+    )
 
     return final_state
