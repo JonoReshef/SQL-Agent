@@ -1,12 +1,37 @@
 """Excel report generation for product analysis"""
 
+from datetime import datetime
 from pathlib import Path
 from typing import List
 from openpyxl import Workbook
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.worksheet.worksheet import Worksheet
 from src.models.product import ProductMention, ProductAnalytics
 from src.models.email import Email
+
+
+def sanitize_for_excel(value):
+    """
+    Sanitize values for Excel compatibility.
+    
+    - Removes illegal characters from strings
+    - Strips timezone info from datetime objects
+    
+    Args:
+        value: Value to sanitize
+        
+    Returns:
+        Sanitized value safe for Excel cells
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        # Excel doesn't support timezone-aware datetimes
+        return value.replace(tzinfo=None)
+    if isinstance(value, str):
+        return ILLEGAL_CHARACTERS_RE.sub('', value)
+    return value
 
 
 def generate_excel_report(
@@ -90,17 +115,17 @@ def create_product_mentions_sheet(
         # Format properties as string
         props_str = ", ".join([f"{p.name}={p.value}" for p in product.properties])
 
-        ws.cell(row=row_idx, column=1, value=product.product_name)
-        ws.cell(row=row_idx, column=2, value=product.product_category)
-        ws.cell(row=row_idx, column=3, value=props_str)
+        ws.cell(row=row_idx, column=1, value=sanitize_for_excel(product.product_name))
+        ws.cell(row=row_idx, column=2, value=sanitize_for_excel(product.product_category))
+        ws.cell(row=row_idx, column=3, value=sanitize_for_excel(props_str))
         ws.cell(row=row_idx, column=4, value=product.quantity)
-        ws.cell(row=row_idx, column=5, value=product.unit)
-        ws.cell(row=row_idx, column=6, value=product.context)
-        ws.cell(row=row_idx, column=7, value=product.date_requested)
-        ws.cell(row=row_idx, column=8, value=product.email_subject)
-        ws.cell(row=row_idx, column=9, value=product.email_sender)
-        ws.cell(row=row_idx, column=10, value=product.email_date)
-        ws.cell(row=row_idx, column=11, value=product.email_file)
+        ws.cell(row=row_idx, column=5, value=sanitize_for_excel(product.unit))
+        ws.cell(row=row_idx, column=6, value=sanitize_for_excel(product.context))
+        ws.cell(row=row_idx, column=7, value=sanitize_for_excel(product.date_requested))
+        ws.cell(row=row_idx, column=8, value=sanitize_for_excel(product.email_subject))
+        ws.cell(row=row_idx, column=9, value=sanitize_for_excel(product.email_sender))
+        ws.cell(row=row_idx, column=10, value=sanitize_for_excel(product.email_date))
+        ws.cell(row=row_idx, column=11, value=sanitize_for_excel(product.email_file))
 
     # Auto-fit columns
     for col in ws.columns:
@@ -162,14 +187,14 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
         # Format contexts
         contexts_str = ", ".join(analytic.contexts)
 
-        ws.cell(row=row_idx, column=1, value=analytic.product_name)
-        ws.cell(row=row_idx, column=2, value=analytic.product_category)
+        ws.cell(row=row_idx, column=1, value=sanitize_for_excel(analytic.product_name))
+        ws.cell(row=row_idx, column=2, value=sanitize_for_excel(analytic.product_category))
         ws.cell(row=row_idx, column=3, value=analytic.total_mentions)
-        ws.cell(row=row_idx, column=4, value=analytic.first_mention)
-        ws.cell(row=row_idx, column=5, value=analytic.last_mention)
+        ws.cell(row=row_idx, column=4, value=sanitize_for_excel(analytic.first_mention))
+        ws.cell(row=row_idx, column=5, value=sanitize_for_excel(analytic.last_mention))
         ws.cell(row=row_idx, column=6, value=analytic.total_quantity)
-        ws.cell(row=row_idx, column=7, value=props_str)
-        ws.cell(row=row_idx, column=8, value=contexts_str)
+        ws.cell(row=row_idx, column=7, value=sanitize_for_excel(props_str))
+        ws.cell(row=row_idx, column=8, value=sanitize_for_excel(contexts_str))
 
     # Auto-fit columns
     for col in ws.columns:
@@ -219,11 +244,11 @@ def create_email_summary_sheet(ws: Worksheet, emails: List[Email]) -> None:
         has_attachments = "Yes" if email.attachments else "No"
         body_length = len(email.cleaned_body) if email.cleaned_body else len(email.body)
 
-        ws.cell(row=row_idx, column=1, value=email.file_path)
-        ws.cell(row=row_idx, column=2, value=email.metadata.subject)
-        ws.cell(row=row_idx, column=3, value=email.metadata.sender)
-        ws.cell(row=row_idx, column=4, value=recipients_str)
-        ws.cell(row=row_idx, column=5, value=email.metadata.date)
+        ws.cell(row=row_idx, column=1, value=sanitize_for_excel(email.file_path))
+        ws.cell(row=row_idx, column=2, value=sanitize_for_excel(email.metadata.subject))
+        ws.cell(row=row_idx, column=3, value=sanitize_for_excel(email.metadata.sender))
+        ws.cell(row=row_idx, column=4, value=sanitize_for_excel(recipients_str))
+        ws.cell(row=row_idx, column=5, value=sanitize_for_excel(email.metadata.date))
         ws.cell(row=row_idx, column=6, value=has_attachments)
         ws.cell(row=row_idx, column=7, value=body_length)
 
