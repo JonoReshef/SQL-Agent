@@ -8,6 +8,35 @@ from src.models.email import Email
 from src.models.product import ProductMention, ProductProperty
 from src.llm.client import get_llm_client
 from src.config.config_loader import load_config
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict
+
+
+class ProductExtractionItem(BaseModel):
+    """Single product extraction from email"""
+
+    product_name: str = Field(description="Name of the product")
+    product_category: str = Field(description="Category of the product")
+    properties: list[ProductProperty] = Field(
+        default_factory=list, description="Product properties as key-value pairs"
+    )
+    quantity: Optional[float] = Field(None, description="Quantity mentioned")
+    unit: Optional[str] = Field(None, description="Unit of measurement")
+    context: str = Field(
+        description="Context of the mention (e.g., quote_request, order)"
+    )
+
+
+class ProductExtractionResult(BaseModel):
+    """Result of product extraction from an email"""
+
+    products: List[ProductExtractionItem] = Field(
+        default_factory=list, description="List of extracted products"
+    )
+
+
+llm = get_llm_client()
+structured_llm = llm.with_structured_output(ProductExtractionResult)
 
 
 def build_extraction_prompt(email: Email) -> str:
@@ -60,7 +89,7 @@ def build_extraction_prompt(email: Email) -> str:
                 {{
                     "product_name": "string",
                     "product_category": "string",
-                    "properties": {{"property_name": "value"}},
+                    "properties": [{{"name": "string", "value": "string", "confidence": "test"}}],
                     "quantity": number or null,
                     "unit": "string or null",
                     "context": "string"
@@ -86,23 +115,15 @@ def extract_products_from_email(email: Email) -> List[ProductMention]:
         List of ProductMention objects
     """
     try:
-        # Get LLM client
-        llm = get_llm_client()
-
         # Build prompt
         prompt = build_extraction_prompt(email)
 
         # Call LLM (synchronous invoke)
-        response = llm.invoke([HumanMessage(content=prompt)])
-
-        # Parse JSON response
         try:
-            content = response.content
-            if isinstance(content, str):
-                result = json.loads(content)
-            else:
-                # If content is not a string, try to convert it
-                result = json.loads(str(content))
+            response: ProductExtractionResult = structured_llm.invoke(
+                [HumanMessage(content=prompt)]
+            )  # type: ignore
+
         except json.JSONDecodeError:
             print(
                 f"Warning: Failed to parse LLM response as JSON for {email.file_path}"
@@ -111,25 +132,11 @@ def extract_products_from_email(email: Email) -> List[ProductMention]:
 
         # Convert to ProductMention objects
         products = []
-        for product_data in result.get("products", []):
+        for product in response.products:
             try:
-                # Convert properties dict to List[ProductProperty]
-                properties = []
-                for prop_name, prop_value in product_data.get("properties", {}).items():
-                    properties.append(
-                        ProductProperty(
-                            name=prop_name, value=str(prop_value), confidence=1.0
-                        )
-                    )
-
                 # Create ProductMention with email metadata
                 mention = ProductMention(
-                    product_name=product_data["product_name"],
-                    product_category=product_data["product_category"],
-                    properties=properties,
-                    quantity=product_data.get("quantity"),
-                    unit=product_data.get("unit"),
-                    context=product_data.get("context", "unknown"),
+                    **product.model_dump(),
                     date_requested=None,  # TODO: Parse dates from email
                     email_subject=email.metadata.subject,
                     email_sender=email.metadata.sender,
@@ -139,9 +146,7 @@ def extract_products_from_email(email: Email) -> List[ProductMention]:
 
                 products.append(mention)
             except Exception as e:
-                print(
-                    f"Warning: Failed to create ProductMention from {product_data}: {e}"
-                )
+                print(f"Warning: Failed to create ProductMention from {product}: {e}")
                 continue
 
         return products
@@ -163,7 +168,7 @@ def extract_products_batch(emails: List[Email]) -> List[ProductMention]:
     """
     all_products = []
 
-    for email in tqdm(emails):
+    for email in tqdm(emails, desc="Extracting products from emails"):
         products = extract_products_from_email(email)
         all_products.extend(products)
 
