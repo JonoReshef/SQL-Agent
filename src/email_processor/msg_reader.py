@@ -4,6 +4,8 @@ import extract_msg
 from pathlib import Path
 from typing import List
 from datetime import datetime
+
+from tqdm import tqdm
 from src.models.email import Email, EmailMetadata
 
 
@@ -107,11 +109,14 @@ def read_msg_files_from_directory(
 
     # Get all .msg files
     if recursive:
-        msg_files = directory.rglob("*.msg")
+        msg_files = list(directory.rglob("*.msg"))[:50]
     else:
-        msg_files = directory.glob("*.msg")
+        msg_files = list(directory.glob("*.msg"))
 
-    for msg_file in msg_files:
+    for msg_file in tqdm(
+        msg_files,
+        desc="Reading .msg files",
+    ):
         try:
             email = read_msg_file(msg_file)
             emails.append(email)
