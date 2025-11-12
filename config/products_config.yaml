@@ -1,0 +1,226 @@
+# Product Configuration for WestBrand Email Analysis
+# This file defines the products and properties to extract from emails
+
+products:
+  - name: 'Fasteners'
+    category: 'Fasteners'
+    aliases:
+      - 'bolts'
+      - 'nuts'
+      - 'screws'
+      - 'washers'
+      - 'hex bolts'
+      - 'cap screws'
+    properties:
+      - name: 'grade'
+        type: 'string'
+        examples:
+          - '2'
+          - '5'
+          - '8'
+          - 'A490'
+          - 'A325'
+          - 'B7'
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '1/4-20'
+          - '1/2-13'
+          - '3/4-10'
+          - 'M12'
+          - 'M16'
+      - name: 'length'
+        type: 'string'
+        examples:
+          - '1"'
+          - '2 inches'
+          - '50mm'
+          - '3"'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'steel'
+          - 'stainless'
+          - 'stainless steel'
+          - 'brass'
+          - 'carbon steel'
+      - name: 'finish'
+        type: 'string'
+        examples:
+          - 'zinc plated'
+          - 'galvanized'
+          - 'plain'
+          - 'black oxide'
+          - 'hot dip galvanized'
+      - name: 'head_type'
+        type: 'string'
+        examples:
+          - 'hex'
+          - 'socket'
+          - 'flat'
+          - 'pan'
+          - 'round'
+
+  - name: 'Threaded Rod'
+    category: 'Threaded Rod'
+    aliases:
+      - 'all-thread'
+      - 'threaded bar'
+      - 'stud'
+      - 'anchor rod'
+    properties:
+      - name: 'diameter'
+        type: 'string'
+        examples:
+          - '1/2"'
+          - '3/4"'
+          - '1"'
+          - 'M12'
+          - 'M16'
+      - name: 'length'
+        type: 'string'
+        examples:
+          - '12 ft'
+          - '10 feet'
+          - '3 meters'
+          - '36"'
+      - name: 'grade'
+        type: 'string'
+        examples:
+          - 'B7'
+          - 'A36'
+          - 'Grade 5'
+          - 'Grade 8'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'steel'
+          - 'stainless'
+          - 'galvanized'
+      - name: 'thread_type'
+        type: 'string'
+        examples:
+          - 'UNC'
+          - 'UNF'
+          - 'metric'
+
+  - name: 'Anchor Bolts'
+    category: 'Anchor Bolts'
+    aliases:
+      - 'foundation bolts'
+      - 'anchor'
+      - 'j-bolts'
+      - 'l-bolts'
+    properties:
+      - name: 'diameter'
+        type: 'string'
+        examples:
+          - '1/2"'
+          - '3/4"'
+          - '1"'
+      - name: 'length'
+        type: 'string'
+        examples:
+          - '12"'
+          - '18"'
+          - '24"'
+      - name: 'grade'
+        type: 'string'
+        examples:
+          - 'A36'
+          - 'A307'
+          - 'F1554'
+      - name: 'type'
+        type: 'string'
+        examples:
+          - 'J-bolt'
+          - 'L-bolt'
+          - 'straight'
+          - 'bent'
+
+  - name: 'Nuts'
+    category: 'Nuts'
+    aliases:
+      - 'hex nuts'
+      - 'lock nuts'
+      - 'jam nuts'
+    properties:
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '1/4-20'
+          - '1/2-13'
+          - 'M12'
+      - name: 'grade'
+        type: 'string'
+        examples:
+          - '2'
+          - '5'
+          - '8'
+      - name: 'type'
+        type: 'string'
+        examples:
+          - 'hex'
+          - 'lock'
+          - 'jam'
+          - 'nylon insert'
+      - name: 'finish'
+        type: 'string'
+        examples:
+          - 'zinc plated'
+          - 'plain'
+          - 'galvanized'
+
+  - name: 'Washers'
+    category: 'Washers'
+    aliases:
+      - 'flat washers'
+      - 'lock washers'
+    properties:
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '1/4"'
+          - '1/2"'
+          - '3/4"'
+          - 'M12'
+      - name: 'type'
+        type: 'string'
+        examples:
+          - 'flat'
+          - 'lock'
+          - 'split lock'
+          - 'fender'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'steel'
+          - 'stainless'
+      - name: 'finish'
+        type: 'string'
+        examples:
+          - 'zinc plated'
+          - 'plain'
+          - 'galvanized'
+
+# Extraction rules for parsing email content
+extraction_rules:
+  # Regex patterns for identifying quantities
+  quantity_patterns:
+    - "\\d+\\s*pcs?"
+    - "\\d+\\s*pieces?"
+    - "\\d+\\s*units?"
+    - "\\d+\\s*ea"
+    - "\\d+\\s*each"
+    - "\\d+\\s*pc"
+    - "\\d+\\s*qty"
+
+  # Date format strings for parsing dates
+  date_formats:
+    - '%m/%d/%Y'
+    - '%d/%m/%Y'
+    - '%Y-%m-%d'
+    - '%d-%m-%Y'
+    - '%B %d, %Y'
+    - '%b %d, %Y'
+    - '%m-%d-%Y'
