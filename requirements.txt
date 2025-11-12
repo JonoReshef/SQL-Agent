@@ -29,6 +29,7 @@ langgraph-prebuilt==1.0.2
 langgraph-sdk==0.2.9
 langsmith==0.4.42
 lark==1.1.9
+mail-parser==3.15.0
 msoffcrypto-tool==5.4.2
 numpy==2.3.4
 olefile==0.47
