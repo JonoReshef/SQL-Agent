@@ -5,26 +5,11 @@ from typing import List
 from langchain_core.messages import HumanMessage
 from tqdm import tqdm
 from src.models.email import Email
-from src.models.product import ProductMention, ProductProperty
+from src.models.product import ProductExtractionItem, ProductMention
 from src.llm.client import get_llm_client
 from src.config.config_loader import load_config
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
-
-
-class ProductExtractionItem(BaseModel):
-    """Single product extraction from email"""
-
-    product_name: str = Field(description="Name of the product")
-    product_category: str = Field(description="Category of the product")
-    properties: list[ProductProperty] = Field(
-        default_factory=list, description="Product properties as key-value pairs"
-    )
-    quantity: Optional[float] = Field(None, description="Quantity mentioned")
-    unit: Optional[str] = Field(None, description="Unit of measurement")
-    context: str = Field(
-        description="Context of the mention (e.g., quote_request, order)"
-    )
+from typing import List
 
 
 class ProductExtractionResult(BaseModel):
@@ -54,10 +39,9 @@ def build_extraction_prompt(email: Email) -> str:
     # Build product definitions section
     products_info = []
     for product in config.products:
-        props = [prop.name for prop in product.properties]
         products_info.append(
-            f"- {product.name} ({product.category}): "
-            f"aliases={product.aliases}, properties={props}"
+            f"- {product.name} ({product.category}) full configuration: "
+            f"{product.model_dump_json()}"
         )
 
     products_section = "\n".join(products_info)
@@ -67,6 +51,8 @@ def build_extraction_prompt(email: Email) -> str:
 
     prompt = f"""
         You are analyzing business emails about industrial products and fasteners.
+
+        Below are the key product types to search for in the emails. They include examples of the product configurations which should help you identify relevant products in the email. Do not use these values directly, only use them to guide extraction.
 
         PRODUCT DEFINITIONS:
         {products_section}
@@ -87,6 +73,7 @@ def build_extraction_prompt(email: Email) -> str:
         {{
             "products": [
                 {{
+                    "exact_product_text": "string",
                     "product_name": "string",
                     "product_category": "string",
                     "properties": [{{"name": "string", "value": "string", "confidence": "test"}}],

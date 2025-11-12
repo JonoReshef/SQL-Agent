@@ -23,7 +23,40 @@ class ProductProperty(BaseModel):
     )
 
 
-class ProductMention(BaseModel):
+class ProductExtractionItem(BaseModel):
+    """Single product extraction from email"""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "product_name": "Hex Bolt",
+                "product_category": "Fasteners",
+                "properties": [
+                    {"name": "grade", "value": "8", "confidence": 0.95},
+                    {"name": "size", "value": "1/2-13", "confidence": 0.90},
+                ],
+                "quantity": 100,
+                "unit": "pcs",
+                "context": "quote_request",
+            }
+        }
+    )
+    exact_product_text: str = Field(
+        ..., description="The exact text from the email that identified the product"
+    )
+    product_name: str = Field(description="Name of the product")
+    product_category: str = Field(description="Category of the product")
+    properties: list[ProductProperty] = Field(
+        default_factory=list, description="Product properties as key-value pairs"
+    )
+    quantity: Optional[float] = Field(None, description="Quantity mentioned")
+    unit: Optional[str] = Field(None, description="Unit of measurement")
+    context: str = Field(
+        description="Context of the mention (e.g., quote_request, order)"
+    )
+
+
+class ProductMention(ProductExtractionItem):
     """A product mentioned in an email"""
 
     model_config = ConfigDict(
@@ -45,15 +78,6 @@ class ProductMention(BaseModel):
             }
         }
     )
-
-    product_name: str = Field(..., description="Product name or identifier")
-    product_category: str = Field(..., description="Product category/type")
-    properties: List[ProductProperty] = Field(
-        default_factory=list, description="Product properties"
-    )
-    quantity: Optional[int] = Field(None, description="Quantity mentioned")
-    unit: Optional[str] = Field(None, description="Unit of measurement (pcs, kg, etc.)")
-    context: str = Field(..., description="Context of mention (quote, order, inquiry)")
     date_requested: Optional[datetime] = Field(
         None, description="Date mentioned in email"
     )
