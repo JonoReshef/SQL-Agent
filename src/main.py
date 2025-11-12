@@ -62,6 +62,9 @@ def main(input_dir: str, output_path: str):
 
 
 if __name__ == "__main__":
+    from datetime import datetime
+
     src_email = "data/sales@westbrand.ca/Recoverable-Items/Deletions"
-    output_report = "output/report.xlsx"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_report = f"output/report_{timestamp}.xlsx"
     main(src_email, output_report)

@@ -3,6 +3,7 @@
 import json
 from typing import List
 from langchain_core.messages import HumanMessage
+from tqdm import tqdm
 from src.models.email import Email
 from src.models.product import ProductMention, ProductProperty
 from src.llm.client import get_llm_client
@@ -35,40 +36,41 @@ def build_extraction_prompt(email: Email) -> str:
     # Use cleaned body if available, otherwise raw body
     email_content = email.cleaned_body if email.cleaned_body else email.body
 
-    prompt = f"""You are analyzing business emails about industrial products and fasteners.
+    prompt = f"""
+        You are analyzing business emails about industrial products and fasteners.
 
-PRODUCT DEFINITIONS:
-{products_section}
+        PRODUCT DEFINITIONS:
+        {products_section}
 
-TASK:
-Extract all product mentions from the email below. For each product, identify:
-1. Product name and category (from the definitions above)
-2. Properties (grade, size, material, finish, etc.)
-3. Quantity if mentioned
-4. Context (quote_request, order, inquiry, pricing_request, etc.)
-5. Any dates mentioned related to the product request
+        TASK:
+        Extract all product mentions from the email below. For each product, identify:
+        1. Product name and category (from the definitions above)
+        2. Properties (grade, size, material, finish, etc.)
+        3. Quantity if mentioned
+        4. Context (quote_request, order, inquiry, pricing_request, etc.)
+        5. Any dates mentioned related to the product request
 
-EMAIL SUBJECT: {email.metadata.subject}
-EMAIL BODY:
-{email_content}
+        EMAIL SUBJECT: {email.metadata.subject}
+        EMAIL BODY:
+        {email_content}
 
-Return a JSON object with this structure:
-{{
-    "products": [
+        Return a JSON object with this structure:
         {{
-            "product_name": "string",
-            "product_category": "string",
-            "properties": {{"property_name": "value"}},
-            "quantity": number or null,
-            "unit": "string or null",
-            "context": "string"
+            "products": [
+                {{
+                    "product_name": "string",
+                    "product_category": "string",
+                    "properties": {{"property_name": "value"}},
+                    "quantity": number or null,
+                    "unit": "string or null",
+                    "context": "string"
+                }}
+            ]
         }}
-    ]
-}}
 
-If no products are found, return {{"products": []}}.
-Only return valid JSON, no additional text.
-"""
+        If no products are found, return {{"products": []}}.
+        Only return valid JSON, no additional text.
+        """
 
     return prompt
 
@@ -161,7 +163,7 @@ def extract_products_batch(emails: List[Email]) -> List[ProductMention]:
     """
     all_products = []
 
-    for email in emails:
+    for email in tqdm(emails):
         products = extract_products_from_email(email)
         all_products.extend(products)
 
