@@ -60,6 +60,13 @@ products:
           - 'flat'
           - 'pan'
           - 'round'
+      - name: 'thread_length'
+        type: 'string'
+        examples:
+          - '6"'
+          - '3"'
+          - 'full thread'
+          - '2 inches'
 
   - name: 'Threaded Rod'
     category: 'Threaded Rod'
@@ -103,6 +110,14 @@ products:
           - 'UNC'
           - 'UNF'
           - 'metric'
+          - 'left hand'
+          - 'right hand'
+      - name: 'threads_per_end'
+        type: 'string'
+        examples:
+          - '6" of threads on each end'
+          - 'full thread'
+          - 'partially threaded'
 
   - name: 'Anchor Bolts'
     category: 'Anchor Bolts'
@@ -191,6 +206,7 @@ products:
           - 'lock'
           - 'split lock'
           - 'fender'
+          - 'Nord Lock'
       - name: 'material'
         type: 'string'
         examples:
@@ -202,6 +218,104 @@ products:
           - 'zinc plated'
           - 'plain'
           - 'galvanized'
+      - name: 'thickness'
+        type: 'string'
+        examples:
+          - '0.177"'
+          - '1/8"'
+          - '3/16"'
+
+  - name: 'Gaskets'
+    category: 'Gaskets'
+    aliases:
+      - 'gasket'
+      - 'seals'
+      - 'seal kits'
+      - 'ring gaskets'
+    properties:
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '1"'
+          - '2"'
+          - '3"'
+          - '4"'
+          - '6"'
+          - '8"'
+          - '10"'
+          - '12"'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'EPDM'
+          - 'Viton'
+          - 'nitrile'
+          - 'neoprene'
+          - 'rubber'
+      - name: 'pressure_rating'
+        type: 'string'
+        examples:
+          - '150#'
+          - '150LB'
+          - '300#'
+          - '2500'
+      - name: 'thickness'
+        type: 'string'
+        examples:
+          - '1/8"'
+          - '1/16"'
+          - '3/16"'
+      - name: 'type'
+        type: 'string'
+        examples:
+          - 'ring'
+          - 'full face'
+          - 'ribbed'
+          - 'flat'
+      - name: 'standard'
+        type: 'string'
+        examples:
+          - 'ASME B16.21'
+          - 'ASME B16.20'
+
+  - name: 'Casing Spacers'
+    category: 'Casing Spacers'
+    aliases:
+      - 'spacers'
+      - 'pipe spacers'
+      - 'IPS spacers'
+    properties:
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '42x48'
+          - '2 X 1.5 X 7'
+      - name: 'carrier_pipe_od'
+        type: 'string'
+        examples:
+          - '1093mm'
+          - '42"'
+      - name: 'sleeve_pipe_id'
+        type: 'string'
+        examples:
+          - '1486mm'
+          - '48"'
+      - name: 'application'
+        type: 'string'
+        examples:
+          - 'IPS OD'
+          - 'SDR35 pipe'
+      - name: 'model'
+        type: 'string'
+        examples:
+          - 'APS Model SI12'
+          - 'Equivalent'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'glass molded'
+          - 'HDPE'
+          - 'polypropylene'
 
 # Extraction rules for parsing email content
 extraction_rules:
