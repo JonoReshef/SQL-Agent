@@ -1,11 +1,12 @@
 """Email signature and footer cleaning utilities"""
 
+from copy import deepcopy
 import re
 from bs4 import BeautifulSoup
 from typing import Optional
 
 
-def clean_signature(body: Optional[str]) -> str:
+def clean_signature(original_body: Optional[str]) -> str:
     """
     Clean email signatures, footers, and quoted text from email body.
 
@@ -15,6 +16,7 @@ def clean_signature(body: Optional[str]) -> str:
     Returns:
         Cleaned email body text
     """
+    body = deepcopy(original_body)
     if not body:
         return ""
 
@@ -73,16 +75,6 @@ def clean_signature(body: Optional[str]) -> str:
             cleaned_lines.append(line)
 
     body = "\n".join(cleaned_lines)
-
-    # Remove common signature phrases (keep more conservative)
-    signature_phrases = [
-        r"\n(Best regards?|Regards?|Sincerely|Thanks?|Cheers),?\s*\n.*",
-        r"\n(Kind regards?|Warm regards?),?\s*\n.*",
-        r"\nThis email.*?confidential.*",
-    ]
-
-    for pattern in signature_phrases:
-        body = re.sub(pattern, "", body, flags=re.IGNORECASE | re.DOTALL)
 
     # Clean up excessive whitespace
     body = re.sub(r"\n{3,}", "\n\n", body)
