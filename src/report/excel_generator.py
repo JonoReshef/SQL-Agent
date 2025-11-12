@@ -6,6 +6,7 @@ from typing import List
 from openpyxl import Workbook
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 from src.models.product import ProductMention, ProductAnalytics
 from src.models.email import Email
@@ -14,13 +15,13 @@ from src.models.email import Email
 def sanitize_for_excel(value):
     """
     Sanitize values for Excel compatibility.
-    
+
     - Removes illegal characters from strings
     - Strips timezone info from datetime objects
-    
+
     Args:
         value: Value to sanitize
-        
+
     Returns:
         Sanitized value safe for Excel cells
     """
@@ -30,7 +31,7 @@ def sanitize_for_excel(value):
         # Excel doesn't support timezone-aware datetimes
         return value.replace(tzinfo=None)
     if isinstance(value, str):
-        return ILLEGAL_CHARACTERS_RE.sub('', value)
+        return ILLEGAL_CHARACTERS_RE.sub("", value)
     return value
 
 
@@ -116,7 +117,9 @@ def create_product_mentions_sheet(
         props_str = ", ".join([f"{p.name}={p.value}" for p in product.properties])
 
         ws.cell(row=row_idx, column=1, value=sanitize_for_excel(product.product_name))
-        ws.cell(row=row_idx, column=2, value=sanitize_for_excel(product.product_category))
+        ws.cell(
+            row=row_idx, column=2, value=sanitize_for_excel(product.product_category)
+        )
         ws.cell(row=row_idx, column=3, value=sanitize_for_excel(props_str))
         ws.cell(row=row_idx, column=4, value=product.quantity)
         ws.cell(row=row_idx, column=5, value=sanitize_for_excel(product.unit))
@@ -128,9 +131,9 @@ def create_product_mentions_sheet(
         ws.cell(row=row_idx, column=11, value=sanitize_for_excel(product.email_file))
 
     # Auto-fit columns
-    for col in ws.columns:
+    for col_idx, col in enumerate(ws.columns, start=1):
         max_length = 0
-        column = col[0].column_letter
+        column = get_column_letter(col_idx)
         for cell in col:
             if cell.value:
                 max_length = max(max_length, len(str(cell.value)))
@@ -188,7 +191,9 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
         contexts_str = ", ".join(analytic.contexts)
 
         ws.cell(row=row_idx, column=1, value=sanitize_for_excel(analytic.product_name))
-        ws.cell(row=row_idx, column=2, value=sanitize_for_excel(analytic.product_category))
+        ws.cell(
+            row=row_idx, column=2, value=sanitize_for_excel(analytic.product_category)
+        )
         ws.cell(row=row_idx, column=3, value=analytic.total_mentions)
         ws.cell(row=row_idx, column=4, value=sanitize_for_excel(analytic.first_mention))
         ws.cell(row=row_idx, column=5, value=sanitize_for_excel(analytic.last_mention))
@@ -197,9 +202,9 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
         ws.cell(row=row_idx, column=8, value=sanitize_for_excel(contexts_str))
 
     # Auto-fit columns
-    for col in ws.columns:
+    for col_idx, col in enumerate(ws.columns, start=1):
         max_length = 0
-        column = col[0].column_letter
+        column = get_column_letter(col_idx)
         for cell in col:
             if cell.value:
                 max_length = max(max_length, len(str(cell.value)))
@@ -253,9 +258,9 @@ def create_email_summary_sheet(ws: Worksheet, emails: List[Email]) -> None:
         ws.cell(row=row_idx, column=7, value=body_length)
 
     # Auto-fit columns
-    for col in ws.columns:
+    for col_idx, col in enumerate(ws.columns, start=1):
         max_length = 0
-        column = col[0].column_letter
+        column = get_column_letter(col_idx)
         for cell in col:
             if cell.value:
                 max_length = max(max_length, len(str(cell.value)))
