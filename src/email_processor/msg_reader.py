@@ -7,6 +7,11 @@ from datetime import datetime
 
 from tqdm import tqdm
 from src.models.email import Email, EmailMetadata
+from email.utils import parsedate_to_datetime
+import logging
+
+# Suppress INFO messages from extract_msg
+logging.getLogger("extract_msg").setLevel(logging.ERROR)
 
 
 def read_msg_file(file_path: Path) -> Email:
@@ -27,7 +32,7 @@ def read_msg_file(file_path: Path) -> Email:
         raise FileNotFoundError(f"File not found: {file_path}")
 
     # Parse the .msg file using extract-msg
-    msg = extract_msg.Message(str(file_path))
+    msg = extract_msg.Message(str(file_path), skip_attachments=False)
 
     # Extract metadata
     metadata = EmailMetadata(
@@ -147,8 +152,6 @@ def _parse_email_date(date_value) -> datetime | None:
     # If it's a string, try to parse it
     if isinstance(date_value, str):
         try:
-            from email.utils import parsedate_to_datetime
-
             return parsedate_to_datetime(date_value)
         except Exception:
             return None
