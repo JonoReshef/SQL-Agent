@@ -3,6 +3,18 @@
 from datetime import datetime
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field, ConfigDict
+from typing import Literal
+
+QuoteContext = Literal[
+    "quote_request",
+    "price_request",
+    "order",
+    "inquiry",
+    "rfi",
+    "rfq",
+    "purchase_order",
+    "quote_response",
+]
 
 
 class ProductProperty(BaseModel):
@@ -29,6 +41,7 @@ class ProductExtractionItem(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
+                "exact_product_text": "100 pcs of grade 8 hex bolts",
                 "product_name": "Hex Bolt",
                 "product_category": "Fasteners",
                 "properties": [
@@ -38,6 +51,8 @@ class ProductExtractionItem(BaseModel):
                 "quantity": 100,
                 "unit": "pcs",
                 "context": "quote_request",
+                "requestor": "customer@example.com",
+                "date_requested": "2025-02-15 14:30:00",
             }
         }
     )
@@ -51,12 +66,15 @@ class ProductExtractionItem(BaseModel):
     )
     quantity: Optional[float] = Field(None, description="Quantity mentioned")
     unit: Optional[str] = Field(None, description="Unit of measurement")
-    context: str = Field(
-        description="Context of the mention (e.g., quote_request, order)"
+    context: QuoteContext | str = Field(
+        description="Context of the mention (e.g., quote_request, order). If not one of the predefined contexts, use 'other' and specify."
     )
     requestor: Optional[str] = Field(
         None,
         description="Person or entity requesting the product. Default to email address otherwise use any available PII.",
+    )
+    date_requested: Optional[str] = Field(
+        None, description="Date mentioned in email related to the product request"
     )
 
 
@@ -71,28 +89,6 @@ class ProductExtractionResult(BaseModel):
 class ProductMention(ProductExtractionItem):
     """A product mentioned in an email"""
 
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "product_name": "Hex Bolt",
-                "product_category": "Fasteners",
-                "properties": [
-                    {"name": "grade", "value": "8", "confidence": 0.95},
-                    {"name": "size", "value": "1/2-13", "confidence": 0.90},
-                ],
-                "quantity": 100,
-                "unit": "pcs",
-                "context": "quote_request",
-                "date_requested": "2025-01-20T00:00:00",
-                "email_subject": "RFQ for Bolts",
-                "email_sender": "customer@example.com",
-                "email_date": "2025-01-15T10:30:00",
-            }
-        }
-    )
-    date_requested: Optional[datetime] = Field(
-        None, description="Date mentioned in email"
-    )
     email_subject: str = Field(..., description="Subject of email containing mention")
     email_sender: str = Field(..., description="Sender of email")
     email_date: Optional[datetime] = Field(None, description="Date of email")
