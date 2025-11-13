@@ -8,7 +8,7 @@ from src.workflow.nodes.ingestion import ingest_emails
 from src.workflow.nodes.extraction import extract_products
 from src.workflow.nodes.reporting import generate_report
 from langchain_core.globals import set_llm_cache
-from langchain_community.cache import SQLiteCache
+from langchain_redis import RedisCache
 
 
 def create_workflow_graph() -> CompiledStateGraph:
@@ -39,7 +39,8 @@ def create_workflow_graph() -> CompiledStateGraph:
     # Set entry point
     workflow.set_entry_point("ingestion")
 
-    set_llm_cache(SQLiteCache(database_path=".cache.db"))
+    redis_cache = RedisCache(redis_url="redis://localhost:6379")
+    set_llm_cache(redis_cache)
 
     graph = workflow.compile().with_config({"recursion_limit": 50})
 

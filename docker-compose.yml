@@ -1,0 +1,22 @@
+services:
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: westbrand-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - westbrand-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+networks:
+  westbrand-network:
+    driver: bridge
