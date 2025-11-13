@@ -9,7 +9,7 @@ from src.models.email import Email, EmailMetadata
 class TestProductExtraction:
     """Test suite for LLM product extraction. NOTE this is using real LLM calls to verify end-to-end processing. It will be slower, possible non-deterministic and incur costs but is useful for verifying the full integration."""
 
-    @pytest.mark.unit
+    @pytest.mark.ai
     def test_extract_products_basic(self):
         """Test basic product extraction with mocked LLM"""
         email = Email(
@@ -32,7 +32,7 @@ class TestProductExtraction:
         assert products[0].quantity == 100
         assert products[0].email_sender == "customer@example.com"
 
-    @pytest.mark.unit
+    @pytest.mark.ai
     def test_extract_products_multiple(self):
         """Test extraction of multiple products from one email"""
         email = Email(
@@ -54,7 +54,7 @@ class TestProductExtraction:
         assert products[0].quantity == 50
         assert products[1].quantity == 200
 
-    @pytest.mark.unit
+    @pytest.mark.ai
     def test_extract_products_no_products(self):
         """Test extraction when no products found"""
         email = Email(
@@ -74,7 +74,7 @@ class TestProductExtraction:
 
         assert len(products) == 0
 
-    @pytest.mark.unit
+    @pytest.mark.ai
     def test_extract_products_llm_error(self):
         """Test handling of LLM errors"""
         email = Email(
@@ -95,7 +95,7 @@ class TestProductExtraction:
         # Should return empty list on error, not raise
         assert len(products) == 0
 
-    @pytest.mark.unit
+    @pytest.mark.ai
     def test_extract_products_invalid_json(self):
         """Test handling of invalid JSON response"""
         email = Email(
@@ -116,7 +116,7 @@ class TestProductExtraction:
         # Should return empty list on parse error
         assert len(products) == 0
 
-    @pytest.mark.unit
+    @pytest.mark.ai
     def test_product_mention_metadata(self):
         """Test that email metadata is copied to product mentions"""
         email = Email(
