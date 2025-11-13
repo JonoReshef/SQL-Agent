@@ -43,14 +43,6 @@ def clean_signature(original_body: Optional[str]) -> str:
         flags=re.IGNORECASE | re.DOTALL,
     )
 
-    # Remove "From:", "Sent:", "To:" headers typical in forwards/replies
-    body = re.sub(
-        r"\n(From|Sent|To|Subject|Date):\s+.*?\n",
-        "\n",
-        body,
-        flags=re.MULTILINE | re.IGNORECASE,
-    )
-
     # Remove quoted reply text (lines starting with >)
     lines = body.split("\n")
     cleaned_lines = []
