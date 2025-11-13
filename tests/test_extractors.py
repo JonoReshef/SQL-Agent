@@ -1,15 +1,13 @@
 """Unit tests for LLM-based product extraction"""
 
 import pytest
-import json
-from unittest.mock import Mock, patch
 from datetime import datetime
 from src.llm.extractors import extract_products_from_email
 from src.models.email import Email, EmailMetadata
 
 
 class TestProductExtraction:
-    """Test suite for LLM product extraction"""
+    """Test suite for LLM product extraction. NOTE this is using real LLM calls to verify end-to-end processing. It will be slower, possible non-deterministic and incur costs but is useful for verifying the full integration."""
 
     @pytest.mark.unit
     def test_extract_products_basic(self):
@@ -27,36 +25,12 @@ class TestProductExtraction:
             file_path="test.msg",
         )
 
-        # Mock LLM response
-        mock_response = {
-            "products": [
-                {
-                    "product_name": "Hex Bolt",
-                    "product_category": "Fasteners",
-                    "properties": {
-                        "grade": "8",
-                        "size": "1/2-13",
-                        "length": '2"',
-                        "finish": "zinc plated",
-                    },
-                    "quantity": 100,
-                    "unit": "pcs",
-                    "context": "quote_request",
-                }
-            ]
-        }
+        products = extract_products_from_email(email)
 
-        with patch("src.llm.extractors.get_llm_client") as mock_get_client:
-            mock_llm = Mock()
-            mock_llm.invoke.return_value.content = json.dumps(mock_response)
-            mock_get_client.return_value = mock_llm
-
-            products = extract_products_from_email(email)
-
-            assert len(products) == 1
-            assert products[0].product_name == "Hex Bolt"
-            assert products[0].quantity == 100
-            assert products[0].email_sender == "customer@example.com"
+        assert len(products) == 1
+        assert products[0].product_name == "Hex Bolt"
+        assert products[0].quantity == 100
+        assert products[0].email_sender == "customer@example.com"
 
     @pytest.mark.unit
     def test_extract_products_multiple(self):
@@ -74,37 +48,11 @@ class TestProductExtraction:
             file_path="test2.msg",
         )
 
-        mock_response = {
-            "products": [
-                {
-                    "product_name": "Bolt",
-                    "product_category": "Fasteners",
-                    "properties": {"grade": "5"},
-                    "quantity": 50,
-                    "unit": "pcs",
-                    "context": "request",
-                },
-                {
-                    "product_name": "Washer",
-                    "product_category": "Washers",
-                    "properties": {},
-                    "quantity": 200,
-                    "unit": "pcs",
-                    "context": "request",
-                },
-            ]
-        }
+        products = extract_products_from_email(email)
 
-        with patch("src.llm.extractors.get_llm_client") as mock_get_client:
-            mock_llm = Mock()
-            mock_llm.invoke.return_value.content = json.dumps(mock_response)
-            mock_get_client.return_value = mock_llm
-
-            products = extract_products_from_email(email)
-
-            assert len(products) == 2
-            assert products[0].quantity == 50
-            assert products[1].quantity == 200
+        assert len(products) == 2
+        assert products[0].quantity == 50
+        assert products[1].quantity == 200
 
     @pytest.mark.unit
     def test_extract_products_no_products(self):
@@ -122,16 +70,9 @@ class TestProductExtraction:
             file_path="test3.msg",
         )
 
-        mock_response = {"products": []}
+        products = extract_products_from_email(email)
 
-        with patch("src.llm.extractors.get_llm_client") as mock_get_client:
-            mock_llm = Mock()
-            mock_llm.invoke.return_value.content = json.dumps(mock_response)
-            mock_get_client.return_value = mock_llm
-
-            products = extract_products_from_email(email)
-
-            assert len(products) == 0
+        assert len(products) == 0
 
     @pytest.mark.unit
     def test_extract_products_llm_error(self):
@@ -149,15 +90,10 @@ class TestProductExtraction:
             file_path="test4.msg",
         )
 
-        with patch("src.llm.extractors.get_llm_client") as mock_get_client:
-            mock_llm = Mock()
-            mock_llm.invoke.side_effect = Exception("API Error")
-            mock_get_client.return_value = mock_llm
+        products = extract_products_from_email(email)
 
-            products = extract_products_from_email(email)
-
-            # Should return empty list on error, not raise
-            assert len(products) == 0
+        # Should return empty list on error, not raise
+        assert len(products) == 0
 
     @pytest.mark.unit
     def test_extract_products_invalid_json(self):
@@ -175,15 +111,10 @@ class TestProductExtraction:
             file_path="test5.msg",
         )
 
-        with patch("src.llm.extractors.get_llm_client") as mock_get_client:
-            mock_llm = Mock()
-            mock_llm.invoke.return_value.content = "Not valid JSON"
-            mock_get_client.return_value = mock_llm
+        products = extract_products_from_email(email)
 
-            products = extract_products_from_email(email)
-
-            # Should return empty list on parse error
-            assert len(products) == 0
+        # Should return empty list on parse error
+        assert len(products) == 0
 
     @pytest.mark.unit
     def test_product_mention_metadata(self):
@@ -197,32 +128,14 @@ class TestProductExtraction:
                 date=datetime(2025, 2, 1, 14, 30),
             ),
             body="Test",
-            cleaned_body="Test",
+            cleaned_body="A screwdriver, qty 10, is needed.",
             file_path="/path/to/test.msg",
         )
 
-        mock_response = {
-            "products": [
-                {
-                    "product_name": "Test Product",
-                    "product_category": "Test",
-                    "properties": {},
-                    "quantity": 10,
-                    "unit": "pcs",
-                    "context": "test",
-                }
-            ]
-        }
+        products = extract_products_from_email(email)
 
-        with patch("src.llm.extractors.get_llm_client") as mock_get_client:
-            mock_llm = Mock()
-            mock_llm.invoke.return_value.content = json.dumps(mock_response)
-            mock_get_client.return_value = mock_llm
-
-            products = extract_products_from_email(email)
-
-            assert len(products) == 1
-            assert products[0].email_subject == "Test Subject"
-            assert products[0].email_sender == "sender@example.com"
-            assert products[0].email_file == "/path/to/test.msg"
-            assert products[0].email_date == datetime(2025, 2, 1, 14, 30)
+        assert len(products) == 1
+        assert products[0].email_subject == "Test Subject"
+        assert products[0].email_sender == "sender@example.com"
+        assert products[0].email_file == "/path/to/test.msg"
+        assert products[0].email_date == datetime(2025, 2, 1, 14, 30)
