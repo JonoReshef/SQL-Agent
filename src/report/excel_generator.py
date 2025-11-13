@@ -89,7 +89,7 @@ def create_product_mentions_sheet(
     """
     # Define headers
     headers = [
-        "Product extracted",
+        "Email information",
         "Category",
         "Properties",
         "Requestor",
@@ -162,7 +162,6 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
     """
     # Define headers
     headers = [
-        "Product",
         "Category",
         "Total Mentions",
         "First Mention",
@@ -194,16 +193,15 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
         # Format contexts
         contexts_str = ", ".join(analytic.contexts)
 
-        ws.cell(row=row_idx, column=1, value=sanitize_for_excel(analytic.product_name))
         ws.cell(
-            row=row_idx, column=2, value=sanitize_for_excel(analytic.product_category)
+            row=row_idx, column=1, value=sanitize_for_excel(analytic.product_category)
         )
-        ws.cell(row=row_idx, column=3, value=analytic.total_mentions)
-        ws.cell(row=row_idx, column=4, value=sanitize_for_excel(analytic.first_mention))
-        ws.cell(row=row_idx, column=5, value=sanitize_for_excel(analytic.last_mention))
-        ws.cell(row=row_idx, column=6, value=analytic.total_quantity)
-        ws.cell(row=row_idx, column=7, value=sanitize_for_excel(props_str))
-        ws.cell(row=row_idx, column=8, value=sanitize_for_excel(contexts_str))
+        ws.cell(row=row_idx, column=2, value=analytic.total_mentions)
+        ws.cell(row=row_idx, column=3, value=sanitize_for_excel(analytic.first_mention))
+        ws.cell(row=row_idx, column=4, value=sanitize_for_excel(analytic.last_mention))
+        ws.cell(row=row_idx, column=5, value=analytic.total_quantity)
+        ws.cell(row=row_idx, column=6, value=sanitize_for_excel(props_str))
+        ws.cell(row=row_idx, column=7, value=sanitize_for_excel(contexts_str))
 
     # Auto-fit columns
     for col_idx, col in enumerate(ws.columns, start=1):
