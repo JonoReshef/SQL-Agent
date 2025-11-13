@@ -118,6 +118,11 @@ products:
           - '6" of threads on each end'
           - 'full thread'
           - 'partially threaded'
+      - name: 'model'
+        type: 'string'
+        examples:
+          - 'Anvil Fig 253'
+          - 'standard'
 
   - name: 'Anchor Bolts'
     category: 'Anchor Bolts'
@@ -252,6 +257,9 @@ products:
           - 'nitrile'
           - 'neoprene'
           - 'rubber'
+          - 'Sigma 600'
+          - 'Durlon 9600'
+          - 'SF3300'
       - name: 'pressure_rating'
         type: 'string'
         examples:
@@ -277,6 +285,24 @@ products:
         examples:
           - 'ASME B16.21'
           - 'ASME B16.20'
+      - name: 'color'
+        type: 'string'
+        examples:
+          - 'orange'
+          - 'black'
+          - 'red'
+          - 'blue'
+      - name: 'durometer'
+        type: 'string'
+        examples:
+          - '70D'
+          - '60A'
+          - '75A'
+      - name: 'brand'
+        type: 'string'
+        examples:
+          - 'GPT'
+          - 'Integra'
 
   - name: 'Casing Spacers'
     category: 'Casing Spacers'
@@ -316,6 +342,88 @@ products:
           - 'glass molded'
           - 'HDPE'
           - 'polypropylene'
+
+  - name: 'Stud Kits'
+    category: 'Stud Kits'
+    aliases:
+      - 'stud kit'
+      - 'bolt up kit'
+      - 'complete bolt up'
+      - 'stud packs'
+    properties:
+      - name: 'diameter'
+        type: 'string'
+        examples:
+          - '6"'
+          - '18"'
+          - '20"'
+          - '24"'
+          - '30"'
+      - name: 'connection_type'
+        type: 'string'
+        examples:
+          - 'HDPE x HDPE'
+          - 'HDPE x Steel'
+          - 'Steel x Steel'
+      - name: 'pressure_rating'
+        type: 'string'
+        examples:
+          - '150 lb'
+          - '150#'
+          - '300 lb'
+      - name: 'grade'
+        type: 'string'
+        examples:
+          - 'DR7'
+          - 'DR17'
+          - 'DR21'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'HDPE SS'
+          - 'stainless steel'
+          - 'galvanized'
+      - name: 'length'
+        type: 'string'
+        examples:
+          - '10-1/4"'
+          - '17"'
+          - '20-1/4"'
+
+  - name: 'Seal Kits'
+    category: 'Seal Kits'
+    aliases:
+      - 'seal kit'
+      - 'seals'
+      - 'innerlynx'
+      - 'replacement seals'
+    properties:
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '2"'
+          - 'IL275S316'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'Viton'
+          - 'EPDM'
+          - 'nitrile'
+      - name: 'pressure_rating'
+        type: 'string'
+        examples:
+          - '2500'
+          - '150#'
+      - name: 'application'
+        type: 'string'
+        examples:
+          - 'Integra II SSA'
+          - 'valve seal'
+      - name: 'model'
+        type: 'string'
+        examples:
+          - 'IL275S316'
+          - 'Innerlynx'
 
 # Extraction rules for parsing email content
 extraction_rules:
