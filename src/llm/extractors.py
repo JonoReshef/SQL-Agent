@@ -1,5 +1,6 @@
 """LLM-based product extraction from emails"""
 
+from concurrent.futures import ThreadPoolExecutor
 import json
 from typing import List
 from langchain_core.messages import HumanMessage
@@ -12,6 +13,10 @@ from src.models.product import (
 from src.llm.client import get_llm_client
 from src.config.config_loader import load_config
 from typing import List
+
+import logging
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 llm = get_llm_client()
@@ -44,47 +49,54 @@ def build_extraction_prompt(email: Email) -> str:
     email_content = email.cleaned_body if email.cleaned_body else email.body
 
     prompt = f"""
-        You are analyzing business emails about industrial products and fasteners.
+        You are analyzing business emails about industrial products.
 
-        Below are the key product types to search for in the emails. They include examples of the product configurations which should help you identify relevant products in the email. Do not use these values directly, only use them to guide extraction.
+        Extract every individual product mention separately. If the product is mentioned multiple times with variations, explicitly identify each mention separately, even if they refer to the same product type with different properties or quantities.
 
-        PRODUCT DEFINITIONS:
-        {products_section}
+        Extract all product mentions from the email below. The following details should be identified for each product:
+        0. A comprehensive free text snippet from the email that identified the product. Include any surrounding context that that helps identify the product. Focus on the extracting product details accurately. This should only contain the details of a single product with a single combination of properties, quantity, and unit.
+        1. The category of product (using the supplied definitions) extracted from the free text snippet.
+        2. Properties (using the supplied definitions) extracted from the free text snippet.
+        3. Quantity if mentioned extracted from the free text snippet.
+        4. Unit of measurement if mentioned extracted from the free text snippet.
+        5. Context explaining the intent of the message from the overall email (quote_request, order, inquiry, pricing_request, etc.).
+        6. Identify who is requesting the product in the 'requestor' attribute. This should be identifiable from the email content where the email address of the person is labelled "From" or similar above the content. Use the email sender's address if present and ONLY use the email. If this is not available then use other relevant information available in the email that indicates the requestor.
+        7. The date the product was requested if mentioned in the free text snippet. This is identifiable from the email metadata which often includes a datetime stamp of when the email was sent.
 
-        TASK:
-        Extract all product mentions from the email below. For each product, identify:
-        1. Product name and category (from the definitions above)
-        2. Properties (grade, size, material, finish, etc.)
-        3. Quantity if mentioned
-        4. Context (quote_request, order, inquiry, pricing_request, etc.)
-        5. Any dates mentioned related to the product request
-
-        Extract every individual product mention separately, even if multiple mentions refer to the same product type with different properties or quantities.
-
-        Identify who is requesting the product in the 'requestor' attribute. This should be identifiable from the email content where the email address of the person is labelled "From" or similar. Default to using the email sender's address if present and ONLY use the email. If this is not available then use other relevant information available in the email that indicates the requestor. 
-
-        EMAIL SUBJECT: {email.metadata.subject}
-        EMAIL BODY:
-        {email_content}
-
-        Return a JSON object with this structure:
+        Follow the below output structure:
         {{
             "products": [
                 {{
                     "exact_product_text": "string",
-                    "product_name": "string",
                     "product_category": "string",
-                    "properties": [{{"name": "string", "value": "string", "confidence": "test"}}],
+                    "properties": [
+                        {{
+                            "name": "string", 
+                            "value": "string", 
+                            "confidence": "test"
+                        }}
+                    ] as List[ProductProperty],
                     "quantity": number or null,
                     "unit": "string or null",
-                    "context": "string",
-                    "requestor": "string"
+                    "context": "QuoteContext or string",
+                    "requestor": "string",
+                    "date_requested": "string or null"
                 }}
             ]
         }}
 
         If no products are found, return {{"products": []}}.
-        Only return valid JSON, no additional text.
+
+        Below are the key product types to search for in the emails. They include examples of the product configurations which should help identify relevant products in the email. Do not use these values directly, only use them to guide extraction.
+
+        PRODUCT DEFINITIONS:
+        {products_section}
+
+        Below is the email to extract products from:
+        EMAIL SUBJECT: 
+        {email.metadata.subject}
+        EMAIL BODY:
+        {email_content}
         """
 
     return prompt
@@ -123,7 +135,6 @@ def extract_products_from_email(email: Email) -> List[ProductMention]:
                 # Create ProductMention with email metadata
                 mention = ProductMention(
                     **product.model_dump(),
-                    date_requested=None,  # TODO: Parse dates from email
                     email_subject=email.metadata.subject,
                     email_sender=email.metadata.sender,
                     email_date=email.metadata.date,
@@ -154,8 +165,20 @@ def extract_products_batch(emails: List[Email]) -> List[ProductMention]:
     """
     all_products = []
 
+    """
     for email in tqdm(emails, desc="Extracting products from emails"):
         products = extract_products_from_email(email)
         all_products.extend(products)
+    """
+
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        # Submit all tasks
+        future_to_task = {
+            executor.submit(extract_products_from_email, email) for email in emails
+        }
+
+        for future in tqdm(future_to_task, desc="Processing parameters"):
+            result = future.result()
+            all_products.extend(result)
 
     return all_products
