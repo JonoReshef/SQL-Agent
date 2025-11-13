@@ -37,6 +37,7 @@ class TestWorkflowIntegration:
 
         # Mock product extraction
         sample_product = ProductMention(
+            exact_product_text="500 pieces of M10x100 bolts",
             product_name="M10x100 Bolt",
             product_category="Fasteners",
             properties=[
@@ -45,7 +46,8 @@ class TestWorkflowIntegration:
             ],
             quantity=500,
             unit="pieces",
-            context="I need 500 pieces of M10x100 bolts",
+            context="quote_request",
+            requestor="customer@example.com",
             date_requested=None,
             email_subject="Product Quote Request",
             email_sender="customer@example.com",
@@ -111,12 +113,14 @@ class TestWorkflowIntegration:
         # Create multiple products
         products = [
             ProductMention(
+                exact_product_text=f"bolts for project {i}",
                 product_name=f"Product {i}",
                 product_category="Fasteners",
                 properties=[],
                 quantity=i * 100,
                 unit="pcs",
-                context=f"Need bolts for project {i}",
+                context="quote_request",
+                requestor=f"customer{i}@example.com",
                 date_requested=None,
                 email_subject=f"Quote {i}",
                 email_sender=f"customer{i}@example.com",

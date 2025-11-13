@@ -1,8 +1,7 @@
 """Tests for LangGraph workflow nodes"""
 
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from src.workflow.nodes.ingestion import ingest_emails
 from src.workflow.nodes.extraction import extract_products
 from src.workflow.nodes.reporting import generate_report
@@ -32,9 +31,11 @@ class TestIngestionNode:
         ) as mock_read:
             sample_email = Email(
                 metadata=EmailMetadata(
+                    message_id=None,
                     subject="Test Subject",
                     sender="test@example.com",
                     recipients=["recipient@example.com"],
+                    date=None,
                 ),
                 body="Test body content",
                 cleaned_body="Test body content",
@@ -67,7 +68,11 @@ class TestIngestionNode:
         ) as mock_read:
             email_with_signature = Email(
                 metadata=EmailMetadata(
-                    subject="Test", sender="test@example.com", recipients=[]
+                    message_id=None,
+                    subject="Test",
+                    sender="test@example.com",
+                    recipients=[],
+                    date=None,
                 ),
                 body="Main content\n--\nSignature here",
                 cleaned_body="",
@@ -112,7 +117,11 @@ class TestExtractionNode:
         """Test basic product extraction from emails"""
         sample_email = Email(
             metadata=EmailMetadata(
-                subject="Product Quote", sender="sales@example.com", recipients=[]
+                message_id=None,
+                subject="Product Quote",
+                sender="sales@example.com",
+                recipients=[],
+                date=None,
             ),
             body="Need 100 pcs of M10 bolts",
             cleaned_body="Need 100 pcs of M10 bolts",
@@ -126,18 +135,22 @@ class TestExtractionNode:
             "analytics": [],
             "report_path": "",
             "errors": [],
+            "input_directory": "",
         }
 
         with patch(
             "src.workflow.nodes.extraction.extract_products_batch"
         ) as mock_extract:
             sample_product = ProductMention(
+                exact_product_text="100 pcs of M10 bolts",
                 product_name="M10 Bolt",
                 product_category="Fasteners",
                 properties=[ProductProperty(name="size", value="M10", confidence=0.9)],
                 quantity=100.0,
                 unit="pcs",
-                context="Need 100 pcs of M10 bolts",
+                context="quote_request",
+                requestor="sales@example.com",
+                date_requested=None,
                 email_subject="Product Quote",
                 email_sender="sales@example.com",
                 email_date=None,
@@ -155,7 +168,11 @@ class TestExtractionNode:
         """Test extraction captures LLM errors"""
         sample_email = Email(
             metadata=EmailMetadata(
-                subject="Test", sender="test@example.com", recipients=[]
+                message_id=None,
+                subject="Test",
+                sender="test@example.com",
+                recipients=[],
+                date=None,
             ),
             body="Test body",
             cleaned_body="Test body",
@@ -169,6 +186,7 @@ class TestExtractionNode:
             "analytics": [],
             "report_path": "",
             "errors": [],
+            "input_directory": "",
         }
 
         with patch(
@@ -189,12 +207,15 @@ class TestReportingNode:
     def test_generate_report_basic(self, tmp_path):
         """Test basic report generation"""
         sample_product = ProductMention(
+            exact_product_text="100 pcs of M10 bolts",
             product_name="M10 Bolt",
             product_category="Fasteners",
             properties=[],
             quantity=100.0,
             unit="pcs",
-            context="Test context",
+            context="quote_request",
+            requestor="test@example.com",
+            date_requested=None,
             email_subject="Test",
             email_sender="test@example.com",
             email_date=None,
@@ -203,7 +224,11 @@ class TestReportingNode:
 
         sample_email = Email(
             metadata=EmailMetadata(
-                subject="Test", sender="test@example.com", recipients=[]
+                message_id=None,
+                subject="Test",
+                sender="test@example.com",
+                recipients=[],
+                date=None,
             ),
             body="Test",
             cleaned_body="Test",
@@ -217,6 +242,7 @@ class TestReportingNode:
             "analytics": [],
             "report_path": str(tmp_path / "report.xlsx"),
             "errors": [],
+            "input_directory": "",
         }
 
         result = generate_report(state)
@@ -233,6 +259,7 @@ class TestReportingNode:
             "analytics": [],
             "report_path": str(tmp_path / "report.xlsx"),
             "errors": [],
+            "input_directory": "",
         }
 
         with patch(

@@ -1,7 +1,6 @@
 """Unit tests for Excel report generation"""
 
 import pytest
-from pathlib import Path
 from datetime import datetime
 from openpyxl import load_workbook
 from src.report.excel_generator import (
@@ -25,6 +24,7 @@ class TestExcelReportGeneration:
         # Create sample data
         products = [
             ProductMention(
+                exact_product_text="100 pcs of Hex Bolt",
                 product_name="Hex Bolt",
                 product_category="Fasteners",
                 properties=[
@@ -34,6 +34,8 @@ class TestExcelReportGeneration:
                 quantity=100,
                 unit="pcs",
                 context="quote_request",
+                requestor="customer@example.com",
+                date_requested=None,
                 email_subject="RFQ Request",
                 email_sender="customer@example.com",
                 email_date=datetime(2025, 1, 15, 10, 30),
@@ -78,6 +80,7 @@ class TestExcelReportGeneration:
 
         products = [
             ProductMention(
+                exact_product_text='50 ft of 1/2" Threaded Rod',
                 product_name="Threaded Rod",
                 product_category="Threaded Rod",
                 properties=[
@@ -86,6 +89,8 @@ class TestExcelReportGeneration:
                 quantity=50,
                 unit="ft",
                 context="order",
+                requestor="buyer@company.com",
+                date_requested=None,
                 email_subject="Order Placement",
                 email_sender="buyer@company.com",
                 email_date=datetime(2025, 2, 1, 14, 0),
@@ -97,12 +102,13 @@ class TestExcelReportGeneration:
 
         wb = Workbook()
         ws = wb.active
+        assert ws is not None
 
         create_product_mentions_sheet(ws, products)
 
         # Check headers
         headers = [cell.value for cell in ws[1]]
-        assert "Product" in headers
+        assert "Email information" in headers
         assert "Category" in headers
         assert "Quantity" in headers
         assert "Context" in headers
@@ -139,6 +145,7 @@ class TestExcelReportGeneration:
 
         wb = Workbook()
         ws = wb.active
+        assert ws is not None
 
         create_email_summary_sheet(ws, emails)
 
@@ -175,14 +182,18 @@ class TestExcelReportGeneration:
 
         products = [
             ProductMention(
+                exact_product_text=f"Product {i}",
                 product_name=f"Product {i}",
                 product_category="Category",
                 properties=[],
                 quantity=i * 10,
                 unit="pcs",
-                context="test",
+                context="quote_request",
+                requestor="test@example.com",
+                date_requested=None,
                 email_subject=f"Email {i}",
                 email_sender="test@example.com",
+                email_date=None,
                 email_file=f"test{i}.msg",
             )
             for i in range(1, 6)
@@ -237,12 +248,13 @@ class TestExcelReportGeneration:
 
         wb = Workbook()
         ws = wb.active
+        assert ws is not None
 
         create_analytics_sheet(ws, analytics)
 
         # Check headers
         headers = [cell.value for cell in ws[1]]
-        assert "Product" in headers
+        assert "Category" in headers
         assert "Total Mentions" in headers
 
         # Check data
@@ -258,14 +270,18 @@ class TestExcelReportGeneration:
 
         products = [
             ProductMention(
+                exact_product_text="10 pcs of Test Product",
                 product_name="Test Product",
                 product_category="Test",
                 properties=[],
                 quantity=10,
                 unit="pcs",
-                context="test",
+                context="quote_request",
+                requestor="test@example.com",
+                date_requested=None,
                 email_subject="Test",
                 email_sender="test@example.com",
+                email_date=None,
                 email_file="test.msg",
             )
         ]
