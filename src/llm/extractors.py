@@ -5,19 +5,13 @@ from typing import List
 from langchain_core.messages import HumanMessage
 from tqdm import tqdm
 from src.models.email import Email
-from src.models.product import ProductExtractionItem, ProductMention
+from src.models.product import (
+    ProductExtractionResult,
+    ProductMention,
+)
 from src.llm.client import get_llm_client
 from src.config.config_loader import load_config
-from pydantic import BaseModel, Field
 from typing import List
-
-
-class ProductExtractionResult(BaseModel):
-    """Result of product extraction from an email"""
-
-    products: List[ProductExtractionItem] = Field(
-        default_factory=list, description="List of extracted products"
-    )
 
 
 llm = get_llm_client()
@@ -65,6 +59,10 @@ def build_extraction_prompt(email: Email) -> str:
         4. Context (quote_request, order, inquiry, pricing_request, etc.)
         5. Any dates mentioned related to the product request
 
+        Extract every individual product mention separately, even if multiple mentions refer to the same product type with different properties or quantities.
+
+        Identify who is requesting the product in the 'requestor' attribute. This should be identifiable from the email content where the email address of the person is labelled "From" or similar. Default to using the email sender's address if present and ONLY use the email. If this is not available then use other relevant information available in the email that indicates the requestor. 
+
         EMAIL SUBJECT: {email.metadata.subject}
         EMAIL BODY:
         {email_content}
@@ -79,7 +77,8 @@ def build_extraction_prompt(email: Email) -> str:
                     "properties": [{{"name": "string", "value": "string", "confidence": "test"}}],
                     "quantity": number or null,
                     "unit": "string or null",
-                    "context": "string"
+                    "context": "string",
+                    "requestor": "string"
                 }}
             ]
         }}

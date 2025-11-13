@@ -89,9 +89,10 @@ def create_product_mentions_sheet(
     """
     # Define headers
     headers = [
-        "Product",
+        "Product extracted",
         "Category",
         "Properties",
+        "Requestor",
         "Quantity",
         "Unit",
         "Context",
@@ -116,20 +117,23 @@ def create_product_mentions_sheet(
         # Format properties as string
         props_str = ", ".join([f"{p.name}={p.value}" for p in product.properties])
 
-        ws.cell(row=row_idx, column=1, value=sanitize_for_excel(product.product_name))
+        ws.cell(
+            row=row_idx, column=1, value=sanitize_for_excel(product.exact_product_text)
+        )
         ws.cell(
             row=row_idx, column=2, value=sanitize_for_excel(product.product_category)
         )
-        ws.cell(row=row_idx, column=3, value=sanitize_for_excel(props_str))
-        ws.cell(row=row_idx, column=4, value=product.quantity)
-        ws.cell(row=row_idx, column=5, value=sanitize_for_excel(product.unit))
-        ws.cell(row=row_idx, column=6, value=sanitize_for_excel(product.context))
-        ws.cell(row=row_idx, column=7, value=sanitize_for_excel(product.date_requested))
-        ws.cell(row=row_idx, column=8, value=sanitize_for_excel(product.email_subject))
-        ws.cell(row=row_idx, column=9, value=sanitize_for_excel(product.email_sender))
-        ws.cell(row=row_idx, column=10, value=sanitize_for_excel(product.email_date))
-        ws.cell(row=row_idx, column=11, value=sanitize_for_excel(product.email_file))
 
+        ws.cell(row=row_idx, column=3, value=sanitize_for_excel(props_str))
+        ws.cell(row=row_idx, column=4, value=sanitize_for_excel(product.requestor))
+        ws.cell(row=row_idx, column=5, value=product.quantity)
+        ws.cell(row=row_idx, column=6, value=sanitize_for_excel(product.unit))
+        ws.cell(row=row_idx, column=7, value=sanitize_for_excel(product.context))
+        ws.cell(row=row_idx, column=8, value=sanitize_for_excel(product.date_requested))
+        ws.cell(row=row_idx, column=9, value=sanitize_for_excel(product.email_subject))
+        ws.cell(row=row_idx, column=10, value=sanitize_for_excel(product.email_sender))
+        ws.cell(row=row_idx, column=11, value=sanitize_for_excel(product.email_date))
+        ws.cell(row=row_idx, column=12, value=sanitize_for_excel(product.email_file))
     # Auto-fit columns
     for col_idx, col in enumerate(ws.columns, start=1):
         max_length = 0

@@ -54,6 +54,18 @@ class ProductExtractionItem(BaseModel):
     context: str = Field(
         description="Context of the mention (e.g., quote_request, order)"
     )
+    requestor: Optional[str] = Field(
+        None,
+        description="Person or entity requesting the product. Default to email address otherwise use any available PII.",
+    )
+
+
+class ProductExtractionResult(BaseModel):
+    """Result of product extraction from an email"""
+
+    products: List[ProductExtractionItem] = Field(
+        default_factory=list, description="List of extracted products"
+    )
 
 
 class ProductMention(ProductExtractionItem):
