@@ -28,7 +28,6 @@ def ingest_emails(state: WorkflowState) -> WorkflowState:
         for email in emails:
             email.cleaned_body = clean_signature(email.body)
 
-        # Update state
         state["emails"] = emails
 
         return state
