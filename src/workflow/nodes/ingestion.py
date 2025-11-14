@@ -2,10 +2,10 @@
 
 from pathlib import Path
 from typing import List
-from src.models.workflow import WorkflowState
+
 from src.models.email import Email
-from src.email_processor.msg_reader import read_msg_files_from_directory
-from src.email_processor.signature_cleaner import clean_signature
+from src.models.workflow import WorkflowState
+from src.workflow.utils import clean_signature, read_msg_files_from_directory
 
 
 def ingest_emails(state: WorkflowState) -> WorkflowState:
