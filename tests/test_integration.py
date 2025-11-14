@@ -71,10 +71,10 @@ class TestWorkflowIntegration:
             final_state = run_workflow(str(input_dir), str(output_path))
 
             # Verify state
-            assert len(final_state["emails"]) == 1
-            assert len(final_state["extracted_products"]) == 1
-            assert final_state["report_path"] == str(output_path)
-            assert len(final_state["errors"]) == 0
+            assert len(final_state.emails) == 1
+            assert len(final_state.extracted_products) == 1
+            assert final_state.report_path == str(output_path)
+            assert len(final_state.errors) == 0
 
             # Verify Excel file was created
             assert output_path.exists()
@@ -144,8 +144,8 @@ class TestWorkflowIntegration:
             final_state = run_workflow(str(input_dir), str(output_path))
 
             # Verify results
-            assert len(final_state["emails"]) == 3
-            assert len(final_state["extracted_products"]) == 3
+            assert len(final_state.emails) == 3
+            assert len(final_state.extracted_products) == 3
             assert output_path.exists()
 
     def test_workflow_with_errors(self, tmp_path):
@@ -169,8 +169,8 @@ class TestWorkflowIntegration:
             final_state = run_workflow(str(input_dir), str(output_path))
 
             # Verify error was captured
-            assert len(final_state["errors"]) == 1
-            assert "LLM API timeout" in final_state["errors"][0]
+            assert len(final_state.errors) == 1
+            assert "LLM API timeout" in final_state.errors[0]
 
     def test_workflow_graph_structure(self):
         """Test workflow graph has correct nodes and edges"""
@@ -193,8 +193,8 @@ class TestWorkflowIntegration:
             final_state = run_workflow(str(input_dir), str(output_path))
 
             # Verify empty results
-            assert len(final_state["emails"]) == 0
-            assert len(final_state["extracted_products"]) == 0
+            assert len(final_state.emails) == 0
+            assert len(final_state.extracted_products) == 0
 
             # Report should still be generated (empty)
             assert output_path.exists()
@@ -222,11 +222,11 @@ class TestWorkflowIntegration:
                 final_state = run_workflow(str(real_data_dir), str(output_path))
 
                 # Verify emails were parsed
-                assert len(final_state["emails"]) > 0
+                assert len(final_state.emails) > 0
 
                 # Verify report was generated (even if errors occurred)
                 # The report node should create file even with errors
-                if len(final_state["errors"]) == 0:
+                if len(final_state.errors) == 0:
                     assert output_path.exists()
             except Exception:
                 # If real file processing fails, skip test
