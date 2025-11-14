@@ -2,3 +2,7 @@ data/
 __pycache__/
 *.log
 *.env
+*.db
+output/
+.vscode/
+.langgraph_api/
