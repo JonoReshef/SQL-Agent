@@ -38,7 +38,6 @@ class TestExcelReportGeneration:
                 date_requested=None,
                 email_subject="RFQ Request",
                 email_sender="customer@example.com",
-                email_date=datetime(2025, 1, 15, 10, 30),
                 email_file="test.msg",
             )
         ]
@@ -59,11 +58,12 @@ class TestExcelReportGeneration:
         ]
 
         # Generate report
-        result_path = generate_excel_report(products, emails, output_path)
+        result_path, analysis = generate_excel_report(products, emails, output_path)
 
         # Verify file exists
         assert result_path.exists()
         assert result_path == output_path
+        assert len(analysis) > 0
 
         # Load and verify structure
         wb = load_workbook(result_path)
@@ -93,7 +93,6 @@ class TestExcelReportGeneration:
                 date_requested=None,
                 email_subject="Order Placement",
                 email_sender="buyer@company.com",
-                email_date=datetime(2025, 2, 1, 14, 0),
                 email_file="order.msg",
             )
         ]
@@ -167,9 +166,10 @@ class TestExcelReportGeneration:
         """Test report generation with no data"""
         output_path = tmp_path / "empty_report.xlsx"
 
-        result_path = generate_excel_report([], [], output_path)
+        result_path, analysis = generate_excel_report([], [], output_path)
 
         assert result_path.exists()
+        assert len(analysis) == 0
 
         wb = load_workbook(result_path)
         assert len(wb.sheetnames) >= 2
@@ -193,7 +193,6 @@ class TestExcelReportGeneration:
                 date_requested=None,
                 email_subject=f"Email {i}",
                 email_sender="test@example.com",
-                email_date=None,
                 email_file=f"test{i}.msg",
             )
             for i in range(1, 6)
@@ -215,13 +214,14 @@ class TestExcelReportGeneration:
             for i in range(1, 6)
         ]
 
-        result_path = generate_excel_report(products, emails, output_path)
+        result_path, analysis = generate_excel_report(products, emails, output_path)
 
         wb = load_workbook(result_path)
         ws_mentions = wb["Product Mentions"]
 
         # Should have header + 5 data rows
         assert ws_mentions.max_row >= 6
+        assert len(analysis) > 0
 
         wb.close()
 
@@ -281,7 +281,6 @@ class TestExcelReportGeneration:
                 date_requested=None,
                 email_subject="Test",
                 email_sender="test@example.com",
-                email_date=None,
                 email_file="test.msg",
             )
         ]
@@ -301,13 +300,14 @@ class TestExcelReportGeneration:
             )
         ]
 
-        result_path = generate_excel_report(products, emails, output_path)
+        result_path, analysis = generate_excel_report(products, emails, output_path)
 
         wb = load_workbook(result_path)
         ws = wb["Product Mentions"]
 
         # Check that header row exists
         assert ws[1][0].value is not None
+        assert len(analysis) > 0
 
         # Check that filters or formatting might be applied
         # (This is a basic check - actual formatting details are implementation-specific)

@@ -65,6 +65,8 @@ def generate_excel_report(
         analytics = calculate_analytics(products)
         ws_analytics = wb.create_sheet("Analytics")
         create_analytics_sheet(ws_analytics, analytics)
+    else:
+        analytics = []
 
     # Create email summary
     ws_summary = wb.create_sheet("Email Summary")
@@ -99,7 +101,6 @@ def create_product_mentions_sheet(
         "Date Requested",
         "Email Subject",
         "Sender",
-        "Email Date",
         "File",
     ]
 
@@ -132,7 +133,6 @@ def create_product_mentions_sheet(
         ws.cell(row=row_idx, column=8, value=sanitize_for_excel(product.date_requested))
         ws.cell(row=row_idx, column=9, value=sanitize_for_excel(product.email_subject))
         ws.cell(row=row_idx, column=10, value=sanitize_for_excel(product.email_sender))
-        ws.cell(row=row_idx, column=11, value=sanitize_for_excel(product.email_date))
         ws.cell(row=row_idx, column=12, value=sanitize_for_excel(product.email_file))
     # Auto-fit columns
     for col_idx, col in enumerate(ws.columns, start=1):

@@ -133,7 +133,6 @@ def extract_products_from_email(email: Email) -> List[ProductMention]:
                     **product.model_dump(),
                     email_subject=email.metadata.subject,
                     email_sender=email.metadata.sender,
-                    email_date=email.metadata.date,
                     email_file=email.file_path,
                 )
 

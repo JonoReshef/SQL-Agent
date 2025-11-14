@@ -51,7 +51,6 @@ class TestWorkflowIntegration:
             date_requested=None,
             email_subject="Product Quote Request",
             email_sender="customer@example.com",
-            email_date=None,
             email_file=str(input_dir / "quote_request.msg"),
         )
 
@@ -124,7 +123,6 @@ class TestWorkflowIntegration:
                 date_requested=None,
                 email_subject=f"Quote {i}",
                 email_sender=f"customer{i}@example.com",
-                email_date=None,
                 email_file=str(input_dir / f"quote_{i}.msg"),
             )
             for i in range(3)

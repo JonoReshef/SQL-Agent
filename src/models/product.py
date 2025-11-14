@@ -91,7 +91,6 @@ class ProductMention(ProductExtractionItem):
 
     email_subject: str = Field(..., description="Subject of email containing mention")
     email_sender: str = Field(..., description="Sender of email")
-    email_date: Optional[datetime] = Field(None, description="Date of email")
     email_file: Optional[str] = Field(None, description="Source .msg file path")
 
 

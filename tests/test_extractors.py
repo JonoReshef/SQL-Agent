@@ -229,7 +229,6 @@ class TestProductExtraction:
             assert products[0].email_subject == "Test Subject"
             assert products[0].email_sender == "sender@example.com"
             assert products[0].email_file == "/path/to/test.msg"
-            assert products[0].email_date == datetime(2025, 2, 1, 14, 30)
 
 
 class TestProductExtractionWithLLM:
@@ -364,7 +363,6 @@ class TestProductExtractionWithLLM:
         assert products[0].email_subject == "Test Subject"
         assert products[0].email_sender == "sender@example.com"
         assert products[0].email_file == "/path/to/test.msg"
-        assert products[0].email_date == datetime(2025, 2, 1, 14, 30)
 
 
 class TestDeduplication:
@@ -395,7 +393,6 @@ class TestDeduplication:
                 date_requested="2025-01-15",
                 email_subject="RFQ for O-rings",
                 email_sender="sophia@sealsring.cn",
-                email_date=datetime(2025, 1, 15, 10, 0),
                 email_file="test.msg",
             ),
             ProductMention(
@@ -420,7 +417,6 @@ class TestDeduplication:
                 date_requested="2025-01-15",
                 email_subject="RFQ for O-rings",
                 email_sender="sophia@sealsring.cn",
-                email_date=datetime(2025, 1, 15, 10, 0),
                 email_file="test.msg",
             ),
         ]
@@ -448,7 +444,6 @@ class TestDeduplication:
                 date_requested=None,
                 email_subject="RFQ",
                 email_sender="sophia@sealsring.cn",
-                email_date=None,
                 email_file="test.msg",
             ),
             ProductMention(
@@ -465,7 +460,6 @@ class TestDeduplication:
                 date_requested=None,
                 email_subject="RFQ",
                 email_sender="sophia@sealsring.cn",
-                email_date=None,
                 email_file="test.msg",
             ),
         ]
@@ -492,7 +486,6 @@ class TestDeduplication:
                 date_requested=None,
                 email_subject="RFQ",
                 email_sender="sophia@sealsring.cn",
-                email_date=None,
                 email_file="test.msg",
             ),
             ProductMention(
@@ -510,7 +503,6 @@ class TestDeduplication:
                 date_requested=None,
                 email_subject="RFQ",
                 email_sender="sophia@sealsring.cn",
-                email_date=None,
                 email_file="test.msg",
             ),
         ]
@@ -536,7 +528,6 @@ class TestDeduplication:
                 date_requested=None,
                 email_subject="RFQ",
                 email_sender="sophia@sealsring.cn",
-                email_date=None,
                 email_file="test1.msg",
             ),
             ProductMention(
@@ -553,7 +544,6 @@ class TestDeduplication:
                 date_requested=None,
                 email_subject="RFQ",
                 email_sender="john@company.com",
-                email_date=None,
                 email_file="test2.msg",
             ),
         ]
