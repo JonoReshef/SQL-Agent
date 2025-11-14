@@ -1,9 +1,9 @@
 """Pydantic models for product data structures"""
 
 from datetime import datetime
-from typing import Optional, List, Dict
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Literal
+from typing import Dict, List, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 QuoteContext = Literal[
     "quote_request",
@@ -35,8 +35,8 @@ class ProductProperty(BaseModel):
     )
 
 
-class ProductExtractionItem(BaseModel):
-    """Single product extraction from email"""
+class ProductItem(BaseModel):
+    """Base product item model"""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -48,11 +48,6 @@ class ProductExtractionItem(BaseModel):
                     {"name": "grade", "value": "8", "confidence": 0.95},
                     {"name": "size", "value": "1/2-13", "confidence": 0.90},
                 ],
-                "quantity": 100,
-                "unit": "pcs",
-                "context": "quote_request",
-                "requestor": "customer@example.com",
-                "date_requested": "2025-02-15 14:30:00",
             }
         }
     )
@@ -64,6 +59,28 @@ class ProductExtractionItem(BaseModel):
     properties: list[ProductProperty] = Field(
         default_factory=list, description="Product properties as key-value pairs"
     )
+
+
+class ProductExtractionItem(ProductItem):
+    """Single product extraction from email"""
+
+    # Get the example schema from the base ProductItem model
+    model_schema: dict = ProductItem.model_config.get("json_schema_extra", {})  # type: ignore
+    model_config_inherit = model_schema.get("example", {})
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                **model_config_inherit,
+                "quantity": 100,
+                "unit": "pcs",
+                "context": "quote_request",
+                "requestor": "john.doe@example.com",
+                "date_requested": "2025-02-15",
+            }
+        }
+    )
+
     quantity: Optional[float] = Field(None, description="Quantity mentioned")
     unit: Optional[str] = Field(None, description="Unit of measurement")
     context: QuoteContext | str = Field(
