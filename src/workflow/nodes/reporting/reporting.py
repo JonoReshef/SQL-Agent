@@ -1,6 +1,7 @@
 """Report generation workflow node"""
 
 from pathlib import Path
+
 from src.models.workflow import WorkflowState
 from src.report.excel_generator import generate_excel_report
 
@@ -26,6 +27,8 @@ def generate_report(state: WorkflowState) -> WorkflowState:
             products=state.extracted_products,
             emails=state.emails,
             output_path=output_path,
+            product_matches=state.product_matches if state.matching_enabled else None,
+            review_flags=state.review_flags if state.matching_enabled else None,
         )
 
         # Update state with actual path
