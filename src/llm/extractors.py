@@ -78,7 +78,7 @@ def build_extraction_prompt(email: Email) -> str:
                     "unit": "string or null",
                     "context": "QuoteContext or string",
                     "requestor": "string",
-                    "date_requested": "string or null"
+                    "date_requested": "string (format as yyyy-MM-dd and if time is available include HH:mm:ss) or null"
                 }}
             ]
         }}
@@ -205,12 +205,15 @@ def deduplicate_ai_product_mentions(
             product.requestor,
             product.quantity,
             product.unit,
+            product.context,
         )
 
         # Only add if not seen before
         if dedup_key not in seen:
             seen.add(dedup_key)
             deduplicated.append(product)
+        else:
+            logging.debug(f"Duplicate product mention found and removed: {product}")
 
     return deduplicated
 

@@ -29,7 +29,7 @@ def sanitize_for_excel(value):
         return None
     if isinstance(value, datetime):
         # Excel doesn't support timezone-aware datetimes
-        return value.replace(tzinfo=None)
+        return value.replace(tzinfo=None).isoformat(sep=" ")
     if isinstance(value, str):
         return ILLEGAL_CHARACTERS_RE.sub("", value)
     return value
@@ -37,7 +37,7 @@ def sanitize_for_excel(value):
 
 def generate_excel_report(
     products: List[ProductMention], emails: List[Email], output_path: Path
-) -> Path:
+) -> tuple[Path, List[ProductAnalytics]]:
     """
     Generate comprehensive Excel report.
 
@@ -74,7 +74,7 @@ def generate_excel_report(
     wb.save(output_path)
     wb.close()
 
-    return output_path
+    return output_path, analytics
 
 
 def create_product_mentions_sheet(
@@ -162,6 +162,7 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
     """
     # Define headers
     headers = [
+        "Product Name",
         "Category",
         "Total Mentions",
         "First Mention",
@@ -169,6 +170,7 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
         "Total Quantity",
         "Property Variations",
         "Contexts",
+        "People Involved",
     ]
 
     # Write headers
@@ -193,15 +195,21 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
         # Format contexts
         contexts_str = ", ".join(analytic.contexts)
 
+        ws.cell(row=row_idx, column=1, value=sanitize_for_excel(analytic.product_name))
         ws.cell(
-            row=row_idx, column=1, value=sanitize_for_excel(analytic.product_category)
+            row=row_idx, column=2, value=sanitize_for_excel(analytic.product_category)
         )
-        ws.cell(row=row_idx, column=2, value=analytic.total_mentions)
-        ws.cell(row=row_idx, column=3, value=sanitize_for_excel(analytic.first_mention))
-        ws.cell(row=row_idx, column=4, value=sanitize_for_excel(analytic.last_mention))
-        ws.cell(row=row_idx, column=5, value=analytic.total_quantity)
-        ws.cell(row=row_idx, column=6, value=sanitize_for_excel(props_str))
-        ws.cell(row=row_idx, column=7, value=sanitize_for_excel(contexts_str))
+        ws.cell(row=row_idx, column=3, value=analytic.total_mentions)
+        ws.cell(row=row_idx, column=4, value=sanitize_for_excel(analytic.first_mention))
+        ws.cell(row=row_idx, column=5, value=sanitize_for_excel(analytic.last_mention))
+        ws.cell(row=row_idx, column=6, value=analytic.total_quantity)
+        ws.cell(row=row_idx, column=7, value=sanitize_for_excel(props_str))
+        ws.cell(row=row_idx, column=8, value=sanitize_for_excel(contexts_str))
+        ws.cell(
+            row=row_idx,
+            column=9,
+            value=sanitize_for_excel(", ".join(analytic.people_involved)),
+        )
 
     # Auto-fit columns
     for col_idx, col in enumerate(ws.columns, start=1):
@@ -297,12 +305,17 @@ def calculate_analytics(products: List[ProductMention]) -> List[ProductAnalytics
 
     for (product_name, category), mentions in product_groups.items():
         # Get dates
-        dates = [m.email_date for m in mentions if m.email_date]
+        dates = [
+            m.date_requested for m in mentions if m.date_requested
+        ]  # date_requested is a string but formatted as yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss so we can compare them lexicographically
         first_mention = min(dates) if dates else None
         last_mention = max(dates) if dates else None
 
         # Total quantity
         total_quantity = sum(m.quantity for m in mentions if m.quantity)
+
+        # People involved
+        people = list(set(m.requestor for m in mentions if m.requestor))
 
         # Property variations
         properties_summary = {}
@@ -324,6 +337,7 @@ def calculate_analytics(products: List[ProductMention]) -> List[ProductAnalytics
             last_mention=last_mention,
             total_quantity=total_quantity if total_quantity > 0 else None,
             properties_summary=properties_summary,
+            people_involved=people,
             contexts=contexts,
         )
 

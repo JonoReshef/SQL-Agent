@@ -22,7 +22,7 @@ def generate_report(state: WorkflowState) -> WorkflowState:
         # Create output directory if it doesn't exist
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        result_path = generate_excel_report(
+        result_path, analytics = generate_excel_report(
             products=state.extracted_products,
             emails=state.emails,
             output_path=output_path,
@@ -30,6 +30,7 @@ def generate_report(state: WorkflowState) -> WorkflowState:
 
         # Update state with actual path
         state.report_path = str(result_path)
+        state.analytics = analytics
 
         return state
 

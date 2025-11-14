@@ -14,7 +14,10 @@ class WorkflowState(BaseModel):
     """
 
     # Input directory containing .msg files
-    input_directory: str = ""
+    input_directory: str = Field(
+        default="data/selected",
+        description="Directory containing .msg files to analyze",
+    )
 
     # Input data
     emails: List[Email] = Field(default_factory=list)
@@ -26,7 +29,10 @@ class WorkflowState(BaseModel):
     analytics: List[ProductAnalytics] = Field(default_factory=list)
 
     # Output path
-    report_path: str = ""
+    report_path: str = Field(
+        default="output/product_report.xlsx",
+        description="Path to generate the Excel report",
+    )
 
     # Errors encountered during processing
     errors: List[str] = Field(default_factory=list)

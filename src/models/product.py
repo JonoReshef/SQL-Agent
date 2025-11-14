@@ -125,6 +125,9 @@ class ProductAnalytics(BaseModel):
     properties_summary: Dict[str, List[str]] = Field(
         default_factory=dict, description="Summary of properties with all unique values"
     )
+    people_involved: List[str] = Field(
+        default_factory=list, description="All requestors who mentioned the product"
+    )
     contexts: List[str] = Field(
         default_factory=list, description="All contexts mentioned"
     )
