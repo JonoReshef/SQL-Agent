@@ -1,0 +1,521 @@
+# Product Configuration for WestBrand Email Analysis
+# This file defines the products and properties to extract from emails
+
+products:
+  - name: 'Fasteners'
+    category: 'Fasteners'
+    aliases:
+      - 'bolts'
+      - 'nuts'
+      - 'screws'
+      - 'washers'
+      - 'hex bolts'
+      - 'cap screws'
+    properties:
+      - name: 'grade'
+        type: 'string'
+        examples:
+          - '2'
+          - '5'
+          - '8'
+          - 'A490'
+          - 'A325'
+          - 'B7'
+          - 'ASTM F593'
+          - 'SAE J429 Grade 8'
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '1/4-20'
+          - '1/2-13'
+          - '3/4-10'
+          - 'M12'
+          - 'M16'
+          - '9/16"'
+          - '1-1/2-6'
+          - 'M16 x 2.0'
+      - name: 'length'
+        type: 'string'
+        examples:
+          - '1"'
+          - '2 inches'
+          - '50mm'
+          - '3"'
+          - '12"'
+          - '18"'
+          - '30 mm'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'steel'
+          - 'stainless'
+          - 'stainless steel'
+          - 'brass'
+          - 'carbon steel'
+          - 'T316 stainless steel'
+      - name: 'finish'
+        type: 'string'
+        examples:
+          - 'zinc plated'
+          - 'galvanized'
+          - 'plain'
+          - 'black oxide'
+          - 'hot dip galvanized'
+          - 'bare'
+      - name: 'head_type'
+        type: 'string'
+        examples:
+          - 'hex'
+          - 'socket'
+          - 'flat'
+          - 'pan'
+          - 'round'
+      - name: 'thread_length'
+        type: 'string'
+        examples:
+          - '6"'
+          - '3"'
+          - 'full thread'
+          - '2 inches'
+      - name: 'thread_standard'
+        type: 'string'
+        examples:
+          - 'NC'
+          - 'UNC'
+          - 'UNF'
+          - 'NF'
+      - name: 'part_number'
+        type: 'string'
+        examples:
+          - '11Z3012R'
+      - name: 'specification'
+        type: 'string'
+        examples:
+          - 'Score Energy DWG# SMS-02RW_SMS-21_revD'
+
+  - name: 'Threaded Rod'
+    category: 'Threaded Rod'
+    aliases:
+      - 'all-thread'
+      - 'threaded bar'
+      - 'stud'
+      - 'anchor rod'
+    properties:
+      - name: 'diameter'
+        type: 'string'
+        examples:
+          - '1/2"'
+          - '3/4"'
+          - '1"'
+          - 'M12'
+          - 'M16'
+          - '3/8"'
+          - '7/8"'
+      - name: 'length'
+        type: 'string'
+        examples:
+          - '12 ft'
+          - '10 feet'
+          - '3 meters'
+          - '36"'
+          - '12"'
+          - 'at least 4 ft'
+      - name: 'grade'
+        type: 'string'
+        examples:
+          - 'B7'
+          - 'A36'
+          - 'Grade 5'
+          - 'Grade 8'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'steel'
+          - 'stainless'
+          - 'galvanized'
+          - 'alloy'
+          - 'mild steel'
+      - name: 'thread_type'
+        type: 'string'
+        examples:
+          - 'UNC'
+          - 'UNF'
+          - 'metric'
+          - 'left hand'
+          - 'right hand'
+          - 'NF'
+          - 'Left/Right hand'
+      - name: 'threads_per_end'
+        type: 'string'
+        examples:
+          - '6" of threads on each end'
+          - 'full thread'
+          - 'partially threaded'
+      - name: 'model'
+        type: 'string'
+        examples:
+          - 'Anvil Fig 253'
+          - 'standard'
+      - name: 'thread_pitch'
+        type: 'string'
+        examples:
+          - '9 TPI'
+          - '9 threads per inch'
+      - name: 'finish'
+        type: 'string'
+        examples:
+          - 'plain'
+          - 'zinc plated'
+          - 'galvanized'
+
+  - name: 'Anchor Bolts'
+    category: 'Anchor Bolts'
+    aliases:
+      - 'foundation bolts'
+      - 'anchor'
+      - 'j-bolts'
+      - 'l-bolts'
+    properties:
+      - name: 'diameter'
+        type: 'string'
+        examples:
+          - '1/2"'
+          - '3/4"'
+          - '1"'
+      - name: 'length'
+        type: 'string'
+        examples:
+          - '12"'
+          - '18"'
+          - '24"'
+      - name: 'grade'
+        type: 'string'
+        examples:
+          - 'A36'
+          - 'A307'
+          - 'F1554'
+      - name: 'type'
+        type: 'string'
+        examples:
+          - 'J-bolt'
+          - 'L-bolt'
+          - 'straight'
+          - 'bent'
+
+  - name: 'Nuts'
+    category: 'Nuts'
+    aliases:
+      - 'hex nuts'
+      - 'lock nuts'
+      - 'jam nuts'
+    properties:
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '1/4-20'
+          - '1/2-13'
+          - 'M12'
+      - name: 'grade'
+        type: 'string'
+        examples:
+          - '2'
+          - '5'
+          - '8'
+      - name: 'type'
+        type: 'string'
+        examples:
+          - 'hex'
+          - 'lock'
+          - 'jam'
+          - 'nylon insert'
+      - name: 'finish'
+        type: 'string'
+        examples:
+          - 'zinc plated'
+          - 'plain'
+          - 'galvanized'
+
+  - name: 'Washers'
+    category: 'Washers'
+    aliases:
+      - 'flat washers'
+      - 'lock washers'
+    properties:
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '1/4"'
+          - '1/2"'
+          - '3/4"'
+          - 'M12'
+      - name: 'type'
+        type: 'string'
+        examples:
+          - 'flat'
+          - 'lock'
+          - 'split lock'
+          - 'fender'
+          - 'Nord Lock'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'steel'
+          - 'stainless'
+      - name: 'finish'
+        type: 'string'
+        examples:
+          - 'zinc plated'
+          - 'plain'
+          - 'galvanized'
+      - name: 'thickness'
+        type: 'string'
+        examples:
+          - '0.177"'
+          - '1/8"'
+          - '3/16"'
+
+  - name: 'Gaskets'
+    category: 'Gaskets'
+    aliases:
+      - 'gasket'
+      - 'seals'
+      - 'seal kits'
+      - 'ring gaskets'
+    properties:
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '1/2"'
+          - '3/4"'
+          - '1"'
+          - '1-1/4"'
+          - '1-1/2"'
+          - '2"'
+          - '3"'
+          - '4"'
+          - '6"'
+          - '8"'
+          - '10"'
+          - '12"'
+          - '20"'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'EPDM'
+          - 'Viton'
+          - 'nitrile'
+          - 'neoprene'
+          - 'rubber'
+          - 'Sigma 600'
+          - 'Durlon 9600'
+          - 'SF3300'
+          - 'SQS'
+      - name: 'pressure_rating'
+        type: 'string'
+        examples:
+          - '150#'
+          - '150LB'
+          - '300#'
+          - '2500'
+      - name: 'thickness'
+        type: 'string'
+        examples:
+          - '1/8"'
+          - '1/16"'
+          - '3/16"'
+      - name: 'type'
+        type: 'string'
+        examples:
+          - 'ring'
+          - 'full face'
+          - 'ribbed'
+          - 'flat'
+          - 'molded'
+      - name: 'standard'
+        type: 'string'
+        examples:
+          - 'ASME B16.21'
+          - 'ASME B16.20'
+      - name: 'color'
+        type: 'string'
+        examples:
+          - 'orange'
+          - 'black'
+          - 'red'
+          - 'blue'
+      - name: 'durometer'
+        type: 'string'
+        examples:
+          - '70D'
+          - '60A'
+          - '75A'
+      - name: 'brand'
+        type: 'string'
+        examples:
+          - 'GPT'
+          - 'Integra'
+          - 'Flexitallic'
+          - 'Durlon'
+      - name: 'form'
+        type: 'string'
+        examples:
+          - 'sheet'
+          - 'cut gasket'
+      - name: 'equivalent_to'
+        type: 'string'
+        examples:
+          - 'Flexitallic Sigma 600'
+
+  - name: 'Casing Spacers'
+    category: 'Casing Spacers'
+    aliases:
+      - 'spacers'
+      - 'pipe spacers'
+      - 'IPS spacers'
+    properties:
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '42x48'
+          - '2 X 1.5 X 7'
+          - '42"'
+          - '42" carrier / 60" sleeve'
+      - name: 'carrier_pipe_od'
+        type: 'string'
+        examples:
+          - '1093mm'
+          - '42"'
+          - '48"'
+      - name: 'sleeve_pipe_id'
+        type: 'string'
+        examples:
+          - '1486mm'
+          - '48"'
+      - name: 'application'
+        type: 'string'
+        examples:
+          - 'IPS OD'
+          - 'SDR35 pipe'
+          - 'C900 pipe'
+          - 'tolerance spacer'
+          - 'corrosion mitigation'
+      - name: 'model'
+        type: 'string'
+        examples:
+          - 'APS Model SI12'
+          - 'Equivalent'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'glass molded'
+          - 'HDPE'
+          - 'polypropylene'
+      - name: 'component'
+        type: 'string'
+        examples:
+          - 'shells'
+          - 'complete assembly'
+
+  - name: 'Stud Kits'
+    category: 'Stud Kits'
+    aliases:
+      - 'stud kit'
+      - 'bolt up kit'
+      - 'complete bolt up'
+      - 'stud packs'
+    properties:
+      - name: 'diameter'
+        type: 'string'
+        examples:
+          - '6"'
+          - '18"'
+          - '20"'
+          - '24"'
+          - '30"'
+      - name: 'connection_type'
+        type: 'string'
+        examples:
+          - 'HDPE x HDPE'
+          - 'HDPE x Steel'
+          - 'Steel x Steel'
+      - name: 'pressure_rating'
+        type: 'string'
+        examples:
+          - '150 lb'
+          - '150#'
+          - '300 lb'
+      - name: 'grade'
+        type: 'string'
+        examples:
+          - 'DR7'
+          - 'DR17'
+          - 'DR21'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'HDPE SS'
+          - 'stainless steel'
+          - 'galvanized'
+      - name: 'length'
+        type: 'string'
+        examples:
+          - '10-1/4"'
+          - '17"'
+          - '20-1/4"'
+
+  - name: 'Seal Kits'
+    category: 'Seal Kits'
+    aliases:
+      - 'seal kit'
+      - 'seals'
+      - 'innerlynx'
+      - 'replacement seals'
+    properties:
+      - name: 'size'
+        type: 'string'
+        examples:
+          - '2"'
+          - 'IL275S316'
+      - name: 'material'
+        type: 'string'
+        examples:
+          - 'Viton'
+          - 'EPDM'
+          - 'nitrile'
+      - name: 'pressure_rating'
+        type: 'string'
+        examples:
+          - '2500'
+          - '150#'
+      - name: 'application'
+        type: 'string'
+        examples:
+          - 'Integra II SSA'
+          - 'valve seal'
+      - name: 'model'
+        type: 'string'
+        examples:
+          - 'IL275S316'
+          - 'Innerlynx'
+
+# Extraction rules for parsing email content
+extraction_rules:
+  # Regex patterns for identifying quantities
+  quantity_patterns:
+    - "\\d+\\s*pcs?"
+    - "\\d+\\s*pieces?"
+    - "\\d+\\s*units?"
+    - "\\d+\\s*ea"
+    - "\\d+\\s*each"
+    - "\\d+\\s*pc"
+    - "\\d+\\s*qty"
+
+  # Date format strings for parsing dates
+  date_formats:
+    - '%m/%d/%Y'
+    - '%d/%m/%Y'
+    - '%Y-%m-%d'
+    - '%d-%m-%Y'
+    - '%B %d, %Y'
+    - '%b %d, %Y'
+    - '%m-%d-%Y'
