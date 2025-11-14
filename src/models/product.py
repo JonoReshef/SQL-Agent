@@ -1,7 +1,7 @@
 """Pydantic models for product data structures"""
 
 from datetime import datetime
-from typing import Dict, List, Literal, Optional
+from typing import ClassVar, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -64,9 +64,9 @@ class ProductItem(BaseModel):
 class ProductExtractionItem(ProductItem):
     """Single product extraction from email"""
 
-    # Get the example schema from the base ProductItem model
-    model_schema: dict = ProductItem.model_config.get("json_schema_extra", {})  # type: ignore
-    model_config_inherit = model_schema.get("example", {})
+    # Get the example schema from the base ProductItem model (not a field)
+    model_schema: ClassVar[dict] = ProductItem.model_config.get("json_schema_extra", {})  # type: ignore
+    model_config_inherit: ClassVar[dict] = model_schema.get("example", {})
 
     model_config = ConfigDict(
         json_schema_extra={
