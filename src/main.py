@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+
 from src.workflow.graph import run_workflow
 
 
@@ -32,7 +33,7 @@ def main(input_dir: str, output_path: str):
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Run workflow
-    print(f"Starting email analysis workflow...")
+    print("Starting email analysis workflow...")
     print(f"  Input directory: {input_dir}")
     print(f"  Output path: {output_path}")
     print()
