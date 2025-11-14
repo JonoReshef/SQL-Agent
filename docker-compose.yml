@@ -14,9 +14,25 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+  pgdb:
+    image: pgvector/pgvector:pg17
+    container_name: westbrand-db
+    environment:
+      POSTGRES_DB: ${PGDATABASE}
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+    ports:
+      - "${PGPORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - westbrand-network
 
 volumes:
   redis_data:
+  pgdata:
+
 networks:
   westbrand-network:
     driver: bridge
