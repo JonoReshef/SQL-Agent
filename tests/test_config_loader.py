@@ -1,12 +1,18 @@
 """Unit tests for configuration loading"""
 
-import pytest
+import sys
 from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+import pytest
+
 from src.config.config_loader import (
-    load_config,
     ProductConfig,
+    load_config,
 )
-from src.models.configs import ProductDefinition, PropertyDefinition, ExtractionRules
+from src.models.configs import ExtractionRules, ProductDefinition, PropertyDefinition
 
 
 class TestConfigLoader:

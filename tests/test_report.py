@@ -1,16 +1,18 @@
 """Unit tests for Excel report generation"""
 
-import pytest
 from datetime import datetime
+
+import pytest
 from openpyxl import load_workbook
-from src.report.excel_generator import (
-    generate_excel_report,
-    create_product_mentions_sheet,
+
+from src.models.email import Email, EmailMetadata
+from src.models.product import ProductAnalytics, ProductMention, ProductProperty
+from workflow.nodes.reporting.excel_generator import (
     create_analytics_sheet,
     create_email_summary_sheet,
+    create_product_mentions_sheet,
+    generate_excel_report,
 )
-from src.models.product import ProductMention, ProductProperty, ProductAnalytics
-from src.models.email import Email, EmailMetadata
 
 
 class TestExcelReportGeneration:

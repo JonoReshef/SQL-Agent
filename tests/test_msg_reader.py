@@ -1,10 +1,12 @@
 """Unit tests for .msg file parsing using mail-parser"""
 
-import pytest
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import pytest
+
 from src.models.email import Email, EmailMetadata
-from src.email_processor.msg_reader import read_msg_file, read_msg_files_from_directory
+from src.workflow.utils import read_msg_file, read_msg_files_from_directory
 
 
 class TestMsgReader:
