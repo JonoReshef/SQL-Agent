@@ -7,5 +7,5 @@ addopts = "-v --tb=short --strict-markers"
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
-    "slow: Slow running tests"
+    "ai: Running tests that are calling AI systems"
 ]
