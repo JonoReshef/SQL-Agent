@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from src.models.workflow import WorkflowState
-from workflow.nodes.reporting.excel_generator import generate_excel_report
+from src.workflow.nodes.reporting.excel_generator import generate_excel_report
 
 
 def generate_report(state: WorkflowState) -> WorkflowState:

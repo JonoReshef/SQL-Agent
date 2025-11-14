@@ -6,11 +6,11 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from src.models.workflow import WorkflowState
+from src.workflow.nodes.extraction.extraction import extract_products
 from src.workflow.nodes.ingestion import ingest_emails
 from src.workflow.nodes.matching import match_products
 from src.workflow.nodes.persistence import persist_to_database
 from src.workflow.nodes.reporting import generate_report
-from workflow.nodes.extraction.extraction import extract_products
 
 
 def create_workflow_graph(enable_matching: bool = False) -> CompiledStateGraph:
