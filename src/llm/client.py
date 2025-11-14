@@ -3,6 +3,9 @@
 import os
 from langchain_openai import AzureChatOpenAI
 from functools import lru_cache
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 @lru_cache(maxsize=1)
@@ -27,10 +30,10 @@ def get_llm_client() -> AzureChatOpenAI:
     llm = AzureChatOpenAI(
         api_key=api_key,  # type: ignore
         azure_endpoint=endpoint,  # type: ignore
-        azure_deployment="gpt-4.1",  # type: ignore
-        api_version="",  # type: ignore
+        azure_deployment="gpt-5",  # type: ignore
+        api_version="2024-08-01-preview",  # type: ignore
         verbose=False,
-        temperature=0,  # type: ignore
+        reasoning_effort="low",
     )
 
     return llm
