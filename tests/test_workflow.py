@@ -16,14 +16,9 @@ class TestIngestionNode:
     def test_ingest_emails_basic(self, tmp_path):
         """Test basic email ingestion from directory"""
         # Create a sample state with directory path
-        state: WorkflowState = {
-            "emails": [],
-            "extracted_products": [],
-            "analytics": [],
-            "report_path": "",
-            "errors": [],
-            "input_directory": str(tmp_path),
-        }
+        state = WorkflowState(
+            input_directory=str(tmp_path),
+        )
 
         # Mock the msg reader to return sample emails
         with patch(
@@ -48,20 +43,15 @@ class TestIngestionNode:
             result = ingest_emails(state)
 
             # Verify emails were loaded
-            assert len(result["emails"]) == 1
-            assert result["emails"][0].metadata.subject == "Test Subject"
-            assert len(result["errors"]) == 0
+            assert len(result.emails) == 1
+            assert result.emails[0].metadata.subject == "Test Subject"
+            assert len(result.errors) == 0
 
     def test_ingest_emails_with_cleaning(self, tmp_path):
         """Test ingestion applies signature cleaning"""
-        state: WorkflowState = {
-            "emails": [],
-            "extracted_products": [],
-            "analytics": [],
-            "report_path": "",
-            "errors": [],
-            "input_directory": str(tmp_path),
-        }
+        state = WorkflowState(
+            input_directory=str(tmp_path),
+        )
 
         with patch(
             "src.workflow.nodes.ingestion.read_msg_files_from_directory"
@@ -84,18 +74,13 @@ class TestIngestionNode:
             result = ingest_emails(state)
 
             # Verify cleaned_body was updated
-            assert result["emails"][0].cleaned_body == "Main content"
+            assert result.emails[0].cleaned_body == "Main content"
 
     def test_ingest_emails_handles_errors(self, tmp_path):
         """Test ingestion captures errors gracefully"""
-        state: WorkflowState = {
-            "emails": [],
-            "extracted_products": [],
-            "analytics": [],
-            "report_path": "",
-            "errors": [],
-            "input_directory": str(tmp_path),
-        }
+        state = WorkflowState(
+            input_directory=str(tmp_path),
+        )
 
         with patch(
             "src.workflow.nodes.ingestion.read_msg_files_from_directory"
@@ -105,9 +90,9 @@ class TestIngestionNode:
             result = ingest_emails(state)
 
             # Verify error was captured
-            assert len(result["errors"]) == 1
-            assert "Failed to read directory" in result["errors"][0]
-            assert len(result["emails"]) == 0
+            assert len(result.errors) == 1
+            assert "Failed to read directory" in result.errors[0]
+            assert len(result.emails) == 0
 
 
 class TestExtractionNode:
@@ -129,14 +114,9 @@ class TestExtractionNode:
             file_path="/test/email.msg",
         )
 
-        state: WorkflowState = {
-            "emails": [sample_email],
-            "extracted_products": [],
-            "analytics": [],
-            "report_path": "",
-            "errors": [],
-            "input_directory": "",
-        }
+        state = WorkflowState(
+            emails=[sample_email],
+        )
 
         with patch(
             "src.workflow.nodes.extraction.extract_products_batch"
@@ -161,8 +141,8 @@ class TestExtractionNode:
             result = extract_products(state)
 
             # Verify products were extracted
-            assert len(result["extracted_products"]) == 1
-            assert result["extracted_products"][0].product_name == "M10 Bolt"
+            assert len(result.extracted_products) == 1
+            assert result.extracted_products[0].product_name == "M10 Bolt"
 
     def test_extract_products_handles_errors(self):
         """Test extraction captures LLM errors"""
@@ -180,14 +160,9 @@ class TestExtractionNode:
             file_path="/test/email.msg",
         )
 
-        state: WorkflowState = {
-            "emails": [sample_email],
-            "extracted_products": [],
-            "analytics": [],
-            "report_path": "",
-            "errors": [],
-            "input_directory": "",
-        }
+        state = WorkflowState(
+            emails=[sample_email],
+        )
 
         with patch(
             "src.workflow.nodes.extraction.extract_products_batch"
@@ -197,8 +172,8 @@ class TestExtractionNode:
             result = extract_products(state)
 
             # Verify error was captured
-            assert len(result["errors"]) == 1
-            assert "LLM API error" in result["errors"][0]
+            assert len(result.errors) == 1
+            assert "LLM API error" in result.errors[0]
 
 
 class TestReportingNode:
@@ -236,31 +211,23 @@ class TestReportingNode:
             file_path="/test/email.msg",
         )
 
-        state: WorkflowState = {
-            "emails": [sample_email],
-            "extracted_products": [sample_product],
-            "analytics": [],
-            "report_path": str(tmp_path / "report.xlsx"),
-            "errors": [],
-            "input_directory": "",
-        }
+        state = WorkflowState(
+            emails=[sample_email],
+            extracted_products=[sample_product],
+            report_path=str(tmp_path / "report.xlsx"),
+        )
 
         result = generate_report(state)
 
         # Verify report path is set
-        assert result["report_path"] != ""
-        assert Path(result["report_path"]).exists()
+        assert result.report_path != ""
+        assert Path(result.report_path).exists()
 
     def test_generate_report_handles_errors(self, tmp_path):
         """Test reporting captures generation errors"""
-        state: WorkflowState = {
-            "emails": [],
-            "extracted_products": [],
-            "analytics": [],
-            "report_path": str(tmp_path / "report.xlsx"),
-            "errors": [],
-            "input_directory": "",
-        }
+        state = WorkflowState(
+            report_path=str(tmp_path / "report.xlsx"),
+        )
 
         with patch(
             "src.workflow.nodes.reporting.generate_excel_report"
@@ -270,5 +237,5 @@ class TestReportingNode:
             result = generate_report(state)
 
             # Verify error was captured
-            assert len(result["errors"]) == 1
-            assert "Excel generation failed" in result["errors"][0]
+            assert len(result.errors) == 1
+            assert "Excel generation failed" in result.errors[0]

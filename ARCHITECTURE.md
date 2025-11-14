@@ -75,14 +75,14 @@ A test-driven Python system for analyzing Outlook emails to extract product info
 │  • Initial validation • Extract products   • Generate Excel    │
 │                       • Validate results    • Apply formatting  │
 │                                                                 │
-│  State Machine (TypedDict):                                     │
+│  State Machine (Pydantic BaseModel):                            │
 │  {                                                              │
-│    emails: List[Email],                                         │
-│    cleaned_emails: List[str],                                   │
-│    extracted_products: List[ProductMention],                    │
-│    analytics: List[ProductAnalytics],                           │
-│    report_path: str,                                            │
-│    errors: List[str]                                            │
+│    emails: List[Email] = [],                                    │
+│    cleaned_emails: List[str] = [],                              │
+│    extracted_products: List[ProductMention] = [],               │
+│    analytics: List[ProductAnalytics] = [],                      │
+│    report_path: str = "",                                       │
+│    errors: List[str] = []  # Auto-initialized                   │
 │  }                                                              │
 └────────────────────────────────────────────────────────────────┘
                               ↓

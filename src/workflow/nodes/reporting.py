@@ -17,23 +17,23 @@ def generate_report(state: WorkflowState) -> WorkflowState:
     """
     try:
         # Generate Excel report
-        output_path = Path(state["report_path"])
+        output_path = Path(state.report_path)
 
         # Create output directory if it doesn't exist
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         result_path = generate_excel_report(
-            products=state["extracted_products"],
-            emails=state["emails"],
+            products=state.extracted_products,
+            emails=state.emails,
             output_path=output_path,
         )
 
         # Update state with actual path
-        state["report_path"] = str(result_path)
+        state.report_path = str(result_path)
 
         return state
 
     except Exception as e:
         # Capture error and continue workflow
-        state["errors"].append(f"Report generation error: {str(e)}")
+        state.errors.append(f"Report generation error: {str(e)}")
         return state

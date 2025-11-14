@@ -42,14 +42,14 @@ def main(input_dir: str, output_path: str):
 
         # Report results
         print("Workflow completed!")
-        print(f"  Emails processed: {len(final_state['emails'])}")
-        print(f"  Products extracted: {len(final_state['extracted_products'])}")
-        print(f"  Report generated: {final_state['report_path']}")
+        print(f"  Emails processed: {len(final_state.emails)}")
+        print(f"  Products extracted: {len(final_state.extracted_products)}")
+        print(f"  Report generated: {final_state.report_path}")
 
         # Report any errors
-        if final_state["errors"]:
+        if final_state.errors:
             print("\nErrors encountered:")
-            for error in final_state["errors"]:
+            for error in final_state.errors:
                 print(f"  - {error}")
             sys.exit(1)
 
@@ -64,7 +64,24 @@ def main(input_dir: str, output_path: str):
 if __name__ == "__main__":
     from datetime import datetime
 
-    src_email = "data/sales@westbrand.ca/Recoverable-Items/Deletions"
+    src_email = "data/selected"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_report = f"output/report_{timestamp}.xlsx"
-    main(src_email, output_report)
+
+    # Parse CLI arguments
+    if len(sys.argv) == 3:
+        # Both arguments provided
+        main(sys.argv[1], sys.argv[2])
+    elif len(sys.argv) == 2:
+        # Only input directory provided, use default output with timestamp
+        main(sys.argv[1], output_report)
+    elif len(sys.argv) == 1:
+        # No arguments, use defaults
+        main(src_email, output_report)
+    else:
+        print("Usage: python -m src.main [input_directory] [output_path]")
+        print("  input_directory: Directory containing .msg files (default: data/)")
+        print(
+            "  output_path: Path for Excel report (default: output/report_<timestamp>.xlsx)"
+        )
+        sys.exit(1)

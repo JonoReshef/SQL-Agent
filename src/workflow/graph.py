@@ -48,6 +48,9 @@ def create_workflow_graph() -> CompiledStateGraph:
     return graph
 
 
+GRAPH = create_workflow_graph()
+
+
 def run_workflow(input_directory: str, output_path: str) -> WorkflowState:
     """
     Execute the complete email analysis workflow.
@@ -60,18 +63,13 @@ def run_workflow(input_directory: str, output_path: str) -> WorkflowState:
         Final workflow state with results
     """
     # Initialize state
-    initial_state: WorkflowState = {
-        "input_directory": input_directory,
-        "emails": [],
-        "extracted_products": [],
-        "analytics": [],
-        "report_path": output_path,
-        "errors": [],
-    }
+    initial_state = WorkflowState(
+        input_directory=input_directory,
+        report_path=output_path,
+    )
     # Create and run workflow
     workflow_graph = create_workflow_graph()
-    final_state: WorkflowState = cast(
-        WorkflowState, workflow_graph.invoke(initial_state)
-    )
+    result = workflow_graph.invoke(initial_state)
+    final_state = WorkflowState.model_validate(result)
 
     return final_state

@@ -18,14 +18,14 @@ def extract_products(state: WorkflowState) -> WorkflowState:
     """
     try:
         # Extract products from all emails
-        products: List[ProductMention] = extract_products_batch(state["emails"])
+        products: List[ProductMention] = extract_products_batch(state.emails)
 
         # Update state
-        state["extracted_products"] = products
+        state.extracted_products = products
 
         return state
 
     except Exception as e:
         # Capture error and continue workflow
-        state["errors"].append(f"Extraction error: {str(e)}")
+        state.errors.append(f"Extraction error: {str(e)}")
         return state
