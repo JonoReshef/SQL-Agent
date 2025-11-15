@@ -1,10 +1,12 @@
 """Database operations for persisting workflow data"""
 
+import hashlib
+import json
 from datetime import datetime
 from typing import List
 
+from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 
 from src.database.connection import get_db_session
 from src.database.models import (
@@ -20,6 +22,34 @@ from src.database.models import (
 from src.models.email import Email
 from src.models.inventory import InventoryMatch, ReviewFlag
 from src.models.product import ProductMention
+
+
+def compute_content_hash(*args) -> str:
+    """
+    Compute SHA256 hash of content for duplicate detection.
+
+    Args:
+        *args: Variable arguments to include in hash
+
+    Returns:
+        Hex string of SHA256 hash
+    """
+    # Create a deterministic string representation
+    content_parts = []
+    for arg in args:
+        if arg is None:
+            content_parts.append("NULL")
+        elif isinstance(arg, BaseModel):
+            # For Pydantic models, use their dict representation
+            content_parts.append(json.dumps(arg.model_dump(), sort_keys=True))
+        elif isinstance(arg, (dict, list)):
+            # For JSON-serializable objects, use sorted JSON
+            content_parts.append(json.dumps(arg, sort_keys=True))
+        else:
+            content_parts.append(str(arg))
+
+    content_str = "|".join(content_parts)
+    return hashlib.sha256(content_str.encode("utf-8")).hexdigest()
 
 
 def sanitize_for_db(text: str | None) -> str | None:
@@ -57,26 +87,25 @@ def store_emails(emails: List[Email]) -> dict:
     with get_db_session() as session:
         for email in emails:
             try:
-                # Calculate file hash (simple hash of file path for now)
-                import hashlib
+                # Calculate file hash based on file path only (unique identifier)
+                # For actual content change detection, read file if needed
+                file_hash = compute_content_hash(email)
 
-                file_hash = hashlib.sha256(email.file_path.encode()).hexdigest()
-
-                # Check if email already exists
+                # Check if email already exists by file_hash
                 stmt = select(EmailProcessed).where(
-                    EmailProcessed.file_path == email.file_path
+                    EmailProcessed.file_hash == file_hash
                 )
                 existing = session.execute(stmt).scalar_one_or_none()
 
-                if existing:
-                    # Update existing email
-                    existing.file_hash = file_hash
-                    existing.subject = sanitize_for_db(email.metadata.subject)
-                    existing.sender = sanitize_for_db(email.metadata.sender)
-                    existing.date_sent = email.metadata.date
-                    existing.processed_at = datetime.utcnow()
-                    updated += 1
-                else:
+                existing = EmailProcessed(
+                    file_path=email.file_path,
+                    file_hash=file_hash,
+                    subject=sanitize_for_db(email.metadata.subject),
+                    sender=sanitize_for_db(email.metadata.sender),
+                    date_sent=email.metadata.date,
+                )
+
+                if not existing:
                     # Insert new email
                     db_email = EmailProcessed(
                         file_path=email.file_path,
@@ -152,40 +181,32 @@ def store_product_mentions(products: List[ProductMention], emails: List[Email]) 
                     )
                     continue
 
-                # Check if product mention already exists
+                # Compute content hash for this product mention within the email
+                content_hash = compute_content_hash(
+                    email_id,
+                    product,
+                )
+
+                # Check if product mention already exists by content hash
                 stmt = select(DBProductMention).where(
-                    DBProductMention.email_id == email_id,
-                    DBProductMention.exact_product_text == product.exact_product_text,
+                    DBProductMention.content_hash == content_hash
                 )
                 existing = session.execute(stmt).scalar_one_or_none()
 
-                # Convert properties to JSON
-                properties_json = [prop.model_dump() for prop in product.properties]
-
-                if existing:
-                    # Update existing mention
-                    existing.product_name = product.product_name
-                    existing.product_category = product.product_category
-                    existing.properties = properties_json
-                    existing.quantity = product.quantity
-                    existing.unit = product.unit
-                    existing.context = product.context
-                    existing.date_requested = product.date_requested
-                    existing.requestor = product.requestor
-                    updated += 1
-                else:
+                if not existing:
                     # Insert new mention
                     db_product = DBProductMention(
                         email_id=email_id,
                         exact_product_text=product.exact_product_text,
                         product_name=product.product_name,
                         product_category=product.product_category,
-                        properties=properties_json,
+                        properties=product.model_dump().get("properties", []),
                         quantity=product.quantity,
                         unit=product.unit,
                         context=product.context,
                         date_requested=product.date_requested,
                         requestor=product.requestor,
+                        content_hash=content_hash,
                     )
                     session.add(db_product)
                     inserted += 1
@@ -278,22 +299,18 @@ def store_inventory_matches(
                     continue
 
                 try:
-                    # Check if match already exists
+                    # Compute content hash for this match
+                    content_hash = compute_content_hash(
+                        product_mention_id, inventory_item_id, match
+                    )
+
+                    # Check if match already exists by content hash
                     stmt = select(DBInventoryMatch).where(
-                        DBInventoryMatch.product_mention_id == product_mention_id,
-                        DBInventoryMatch.inventory_item_id == inventory_item_id,
-                        DBInventoryMatch.rank == match.rank,
+                        DBInventoryMatch.content_hash == content_hash
                     )
                     existing = session.execute(stmt).scalar_one_or_none()
 
-                    if existing:
-                        # Update existing match
-                        existing.match_score = match.match_score
-                        existing.matched_properties = match.matched_properties
-                        existing.missing_properties = match.missing_properties
-                        existing.match_reasoning = match.match_reasoning
-                        updated += 1
-                    else:
+                    if not existing:
                         # Insert new match
                         db_match = DBInventoryMatch(
                             product_mention_id=product_mention_id,
@@ -303,6 +320,7 @@ def store_inventory_matches(
                             matched_properties=match.matched_properties,
                             missing_properties=match.missing_properties,
                             match_reasoning=match.match_reasoning,
+                            content_hash=content_hash,
                         )
                         session.add(db_match)
                         inserted += 1
@@ -372,22 +390,16 @@ def store_review_flags(
                 continue
 
             try:
-                # Check if flag already exists
+                # Compute content hash for this flag
+                content_hash = compute_content_hash(product_mention_id, flag)
+
+                # Check if flag already exists by content hash
                 stmt = select(MatchReviewFlag).where(
-                    MatchReviewFlag.product_mention_id == product_mention_id,
-                    MatchReviewFlag.issue_type == flag.issue_type,
+                    MatchReviewFlag.content_hash == content_hash
                 )
                 existing = session.execute(stmt).scalar_one_or_none()
 
-                if existing:
-                    # Update existing flag
-                    existing.match_count = flag.match_count
-                    existing.top_confidence = flag.top_confidence
-                    existing.reason = flag.reason
-                    existing.action_needed = flag.action_needed
-                    existing.flagged_at = datetime.utcnow()
-                    updated += 1
-                else:
+                if not existing:
                     # Insert new flag
                     db_flag = MatchReviewFlag(
                         product_mention_id=product_mention_id,
@@ -396,6 +408,7 @@ def store_review_flags(
                         top_confidence=flag.top_confidence,
                         reason=flag.reason,
                         action_needed=flag.action_needed,
+                        content_hash=content_hash,
                     )
                     session.add(db_flag)
                     inserted += 1

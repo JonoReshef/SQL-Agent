@@ -17,6 +17,7 @@ from tqdm import tqdm
 
 from src.database.connection import get_db_session, test_connection
 from src.database.models import InventoryItem as DBInventoryItem
+from src.database.operations import compute_content_hash
 from src.inventory.loader import get_inventory_stats, load_inventory_excel
 from src.inventory.parser import parse_inventory_batch
 
@@ -92,26 +93,37 @@ def import_inventory(
                 existing = session.execute(stmt).scalar_one_or_none()
 
                 if existing:
-                    # Update existing item (SQLAlchemy handles onupdate for last_updated)
-                    existing.raw_description = item.raw_description
-                    existing.product_name = item.product_name
-                    existing.product_category = item.product_category
-                    existing.properties = [
-                        prop.model_dump() for prop in item.properties
-                    ]
-                    existing.parse_confidence = item.parse_confidence
-                    existing.needs_manual_review = item.needs_manual_review
-                    updated_count += 1
+                    # Compute content hash for comparison
+                    properties_json = [prop.model_dump() for prop in item.properties]
+                    content_hash = compute_content_hash(item)
+
+                    # Only update if content has changed
+                    if str(existing.content_hash) != content_hash:
+                        # Update existing item (SQLAlchemy handles onupdate for last_updated)
+                        existing.raw_description = item.raw_description
+                        existing.product_name = item.product_name
+                        existing.product_category = item.product_category
+                        existing.properties = properties_json
+                        existing.parse_confidence = item.parse_confidence
+                        existing.needs_manual_review = item.needs_manual_review
+                        existing.content_hash = content_hash
+                        updated_count += 1
+                    # else: content unchanged, skip update
                 else:
+                    # Compute content hash for new item
+                    properties_json = [prop.model_dump() for prop in item.properties]
+                    content_hash = compute_content_hash(item)
+
                     # Insert new item
                     db_item = DBInventoryItem(
                         item_number=item.item_number,
                         raw_description=item.raw_description,
                         product_name=item.product_name,
                         product_category=item.product_category,
-                        properties=[prop.model_dump() for prop in item.properties],
+                        properties=properties_json,
                         parse_confidence=item.parse_confidence,
                         needs_manual_review=item.needs_manual_review,
+                        content_hash=content_hash,
                     )
                     session.add(db_item)
                     inserted_count += 1

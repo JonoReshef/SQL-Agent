@@ -1,13 +1,19 @@
 -- ============================================================================
 -- WestBrand Email Analysis System - Database Initialization Script
 -- ============================================================================
--- Version: 2.0
+-- Version: 2.1
 -- Date: November 14, 2025
 -- Description: Complete database schema for email product extraction and 
 --              inventory matching system using PostgreSQL 17 with pgvector
 --
 -- This script creates all tables, indexes, constraints, and extensions
 -- required for the WestBrand system to function.
+--
+-- Changelog v2.1:
+-- - Added content_hash (VARCHAR(64)) columns to all tables for proper
+--   duplicate detection based on actual content rather than unique keys
+-- - Added indexes on content_hash columns for efficient lookups
+-- - Fixed duplicate PRIMARY KEY constraint declarations
 -- ============================================================================
 
 -- Enable required extensions
@@ -46,6 +52,7 @@ CREATE TABLE IF NOT EXISTS product_mentions (
     exact_product_text TEXT NOT NULL,  -- Exact text snippet from email
     product_name VARCHAR(255) NOT NULL,
     product_category VARCHAR(255) NOT NULL,
+    content_hash VARCHAR(64) NOT NULL,  -- SHA256 hash of all content for deduplication
     
     -- Properties stored as JSON array of objects
     -- Format: [{"name": "grade", "value": "8", "confidence": 0.95}, ...]
@@ -74,6 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_product_name ON product_mentions(product_name);
 CREATE INDEX IF NOT EXISTS idx_product_category ON product_mentions(product_category);
 CREATE INDEX IF NOT EXISTS idx_email_id ON product_mentions(email_id);
 CREATE INDEX IF NOT EXISTS idx_product_properties ON product_mentions USING gin(properties);
+CREATE INDEX IF NOT EXISTS idx_product_content_hash ON product_mentions(content_hash);
 
 -- ============================================================================
 -- TABLE: inventory_items
@@ -87,6 +95,7 @@ CREATE TABLE IF NOT EXISTS inventory_items (
     -- Parsed product information
     product_name VARCHAR(255),
     product_category VARCHAR(255),
+    content_hash VARCHAR(64) NOT NULL,  -- SHA256 hash of parsed content for deduplication
     
     -- Properties stored as JSON array of objects
     -- Format: [{"name": "grade", "value": "8", "confidence": 0.95}, ...]
@@ -104,6 +113,7 @@ CREATE INDEX IF NOT EXISTS idx_item_number ON inventory_items(item_number);
 CREATE INDEX IF NOT EXISTS idx_inventory_category ON inventory_items(product_category);
 CREATE INDEX IF NOT EXISTS idx_needs_review ON inventory_items(needs_manual_review);
 CREATE INDEX IF NOT EXISTS idx_inventory_properties ON inventory_items USING gin(properties);
+CREATE INDEX IF NOT EXISTS idx_inventory_content_hash ON inventory_items(content_hash);
 
 -- ============================================================================
 -- TABLE: inventory_matches
@@ -117,6 +127,7 @@ CREATE TABLE IF NOT EXISTS inventory_matches (
     -- Match scoring (rapidfuzz Levenshtein distance)
     match_score DOUBLE PRECISION NOT NULL,  -- 0.0 to 1.0
     rank INTEGER NOT NULL,  -- 1 = best match, 2 = second best, etc.
+    content_hash VARCHAR(64) NOT NULL,  -- SHA256 hash of match content for deduplication
     
     -- Match details stored as JSON arrays
     matched_properties JSONB DEFAULT '[]'::jsonb,  -- Properties that matched
@@ -142,6 +153,7 @@ CREATE TABLE IF NOT EXISTS inventory_matches (
 CREATE INDEX IF NOT EXISTS idx_match_product_mention ON inventory_matches(product_mention_id);
 CREATE INDEX IF NOT EXISTS idx_match_inventory_item ON inventory_matches(inventory_item_id);
 CREATE INDEX IF NOT EXISTS idx_match_score ON inventory_matches(match_score);
+CREATE INDEX IF NOT EXISTS idx_match_content_hash ON inventory_matches(content_hash);
 
 -- ============================================================================
 -- TABLE: match_review_flags
@@ -157,6 +169,7 @@ CREATE TABLE IF NOT EXISTS match_review_flags (
     top_confidence DOUBLE PRECISION,  -- Highest match score
     reason TEXT NOT NULL,  -- Human-readable explanation
     action_needed TEXT,  -- Suggested action
+    content_hash VARCHAR(64) NOT NULL,  -- SHA256 hash of flag content for deduplication
     
     -- Resolution tracking
     is_resolved BOOLEAN DEFAULT FALSE,
@@ -178,6 +191,7 @@ CREATE TABLE IF NOT EXISTS match_review_flags (
 CREATE INDEX IF NOT EXISTS idx_flag_product_mention ON match_review_flags(product_mention_id);
 CREATE INDEX IF NOT EXISTS idx_flag_is_resolved ON match_review_flags(is_resolved);
 CREATE INDEX IF NOT EXISTS idx_flag_issue_type ON match_review_flags(issue_type);
+CREATE INDEX IF NOT EXISTS idx_flag_content_hash ON match_review_flags(content_hash);
 
 -- ============================================================================
 -- GRANT PERMISSIONS

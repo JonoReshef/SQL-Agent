@@ -56,6 +56,7 @@ class ProductMention(Base):
     exact_product_text = Column(Text, nullable=False)
     product_name = Column(String(255), nullable=False)
     product_category = Column(String(255), nullable=False)
+    content_hash = Column(String(64), nullable=False)  # SHA256 of all content
 
     # Properties stored as JSON: [{"name": "grade", "value": "8", "confidence": 0.95}]
     properties = Column(JSON, nullable=False, default=list)
@@ -82,6 +83,7 @@ class ProductMention(Base):
         Index("idx_product_name", "product_name"),
         Index("idx_product_category", "product_category"),
         Index("idx_email_id", "email_id"),
+        Index("idx_product_content_hash", "content_hash"),
     )
 
 
@@ -97,6 +99,7 @@ class InventoryItem(Base):
     # Parsed product information
     product_name = Column(String(255))
     product_category = Column(String(255))
+    content_hash = Column(String(64), nullable=False)  # SHA256 of parsed content
 
     # Properties stored as JSON: [{"name": "grade", "value": "8", "confidence": 0.95}]
     properties = Column(JSON, nullable=False, default=list)
@@ -117,6 +120,7 @@ class InventoryItem(Base):
         Index("idx_item_number", "item_number"),
         Index("idx_inventory_category", "product_category"),
         Index("idx_needs_review", "needs_manual_review"),
+        Index("idx_inventory_content_hash", "content_hash"),
     )
 
 
@@ -136,6 +140,7 @@ class InventoryMatch(Base):
     # Match scoring
     match_score = Column(Float, nullable=False)  # 0.0 to 1.0
     rank = Column(Integer, nullable=False)  # 1 = best match
+    content_hash = Column(String(64), nullable=False)  # SHA256 of match content
 
     # Match details
     matched_properties = Column(
@@ -158,6 +163,7 @@ class InventoryMatch(Base):
         Index("idx_match_product_mention", "product_mention_id"),
         Index("idx_match_inventory_item", "inventory_item_id"),
         Index("idx_match_score", "match_score"),
+        Index("idx_match_content_hash", "content_hash"),
     )
 
 
@@ -179,6 +185,7 @@ class MatchReviewFlag(Base):
     top_confidence = Column(Float)
     reason = Column(Text, nullable=False)
     action_needed = Column(Text)
+    content_hash = Column(String(64), nullable=False)  # SHA256 of flag content
 
     # Resolution tracking
     is_resolved = Column(Boolean, default=False)
@@ -194,6 +201,7 @@ class MatchReviewFlag(Base):
         Index("idx_flag_product_mention", "product_mention_id"),
         Index("idx_flag_is_resolved", "is_resolved"),
         Index("idx_flag_issue_type", "issue_type"),
+        Index("idx_flag_content_hash", "content_hash"),
     )
 
 
