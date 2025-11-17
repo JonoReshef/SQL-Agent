@@ -52,7 +52,7 @@ def build_extraction_prompt(email: Email) -> str:
         Extract every individual product mention separately. If the product is mentioned multiple times with variations, explicitly identify each mention separately, even if they refer to the same product type with different properties or quantities.
 
         Extract all product mentions from the email below. The following details should be identified for each product:
-        0. A comprehensive free text snippet from the email that identified the product. Include any surrounding context that that helps identify the product. Focus on the extracting product details accurately. This should only contain the details of a single product with a single combination of properties, quantity, and unit.
+        0. A comprehensive free text snippet from the email that identified the product. Include any surrounding context that helps identify the product. Focus on the extracting product details accurately. This should only contain the details of a single product with a single combination of properties, quantity, and unit.
         1. The category of product (using the supplied definitions) extracted from the free text snippet.
         2. Properties (using the supplied definitions) extracted from the free text snippet.
         3. Quantity if mentioned extracted from the free text snippet.
