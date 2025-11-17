@@ -42,6 +42,7 @@ class ProductItem(BaseModel):
         json_schema_extra={
             "example": {
                 "exact_product_text": "100 pcs of grade 8 hex bolts",
+                "product_id": "HB-12345",
                 "product_name": "Hex Bolt",
                 "product_category": "Fasteners",
                 "properties": [
@@ -54,10 +55,19 @@ class ProductItem(BaseModel):
     exact_product_text: str = Field(
         ..., description="The exact text from the email that identified the product"
     )
+    product_id: Optional[str] = Field(
+        None, description="Optional unique identifier for the product"
+    )
     product_name: str = Field(description="Name of the product")
     product_category: str = Field(description="Category of the product")
     properties: list[ProductProperty] = Field(
         default_factory=list, description="Product properties as key-value pairs"
+    )
+
+
+class ProductItemResult(ProductItem):
+    items: List[ProductItem] = Field(
+        default_factory=list, description="List of extracted products"
     )
 
 

@@ -1,7 +1,8 @@
 """Models for the config file"""
 
 from typing import List, Optional, Set
-from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PropertyDefinition(BaseModel):
@@ -11,14 +12,12 @@ class PropertyDefinition(BaseModel):
         json_schema_extra={
             "example": {
                 "name": "grade",
-                "type": "string",
                 "examples": ["8", "5", "A490"],
             }
         }
     )
 
     name: str = Field(..., description="Property name (e.g., 'grade', 'size')")
-    type: str = Field(..., description="Property type (string, number, etc.)")
     examples: List[str] = Field(default_factory=list, description="Example values")
 
 

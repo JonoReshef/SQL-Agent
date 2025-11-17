@@ -1,24 +1,23 @@
 """LLM-based product extraction from emails"""
 
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
+
 from langchain_core.messages import HumanMessage
 from tqdm import tqdm
+
+from src.config.config_loader import load_config
+from src.llm.client import get_llm_client
 from src.models.email import Email
 from src.models.product import (
     ProductExtractionResult,
     ProductMention,
 )
-from src.llm.client import get_llm_client
-from src.config.config_loader import load_config
-
-import logging
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-
-llm = get_llm_client()
-structured_llm = llm.with_structured_output(ProductExtractionResult)
+structured_llm = get_llm_client(output_structure=ProductExtractionResult)
 
 
 def build_extraction_prompt(email: Email) -> str:
@@ -31,17 +30,7 @@ def build_extraction_prompt(email: Email) -> str:
     Returns:
         Formatted prompt string
     """
-    config = load_config()
-
-    # Build product definitions section
-    products_info = []
-    for product in config.products:
-        products_info.append(
-            f"- {product.name} ({product.category}) full configuration: "
-            f"{product.model_dump_json()}"
-        )
-
-    products_section = "\n".join(products_info)
+    products_section = load_config()
 
     # Use cleaned body if available, otherwise raw body
     email_content = email.cleaned_body if email.cleaned_body else email.body
@@ -53,13 +42,14 @@ def build_extraction_prompt(email: Email) -> str:
 
         Extract all product mentions from the email below. The following details should be identified for each product:
         0. A comprehensive free text snippet from the email that identified the product. Include any surrounding context that that helps identify the product. Focus on the extracting product details accurately. This should only contain the details of a single product with a single combination of properties, quantity, and unit.
-        1. The category of product (using the supplied definitions) extracted from the free text snippet.
-        2. Properties (using the supplied definitions) extracted from the free text snippet.
-        3. Quantity if mentioned extracted from the free text snippet.
-        4. Unit of measurement if mentioned extracted from the free text snippet.
-        5. Context explaining the intent of the message from the overall email (quote_request, order, inquiry, pricing_request, etc.).
-        6. Identify who is requesting the product in the 'requestor' attribute. This should be identifiable from the email content where the email address of the person is labelled "From" or similar above the content. Use the email sender's address if present and ONLY use the email. If this is not available then use other relevant information available in the email that indicates the requestor.
-        7. The date the product was requested if mentioned in the free text snippet. This is identifiable from the email metadata which often includes a datetime stamp of when the email was sent.
+        1. The category of product (using the supplied definitions) extracted from the free text snippet. If it is not clear, use "Unknown".
+        2. The name of the product extracted from the free text snippet. If it is not clear, use "Unknown".
+        3. Properties (using the supplied definitions) extracted from the free text snippet. If there are no properties mentioned, return an empty list.
+        4. Quantity if mentioned extracted from the free text snippet.
+        5. Unit of measurement if mentioned extracted from the free text snippet.
+        6. Context explaining the intent of the message from the overall email (quote_request, order, inquiry, pricing_request, etc.).
+        7. Identify who is requesting the product in the 'requestor' attribute. This should be identifiable from the email content where the email address of the person is labelled "From" or similar above the content. Use the email sender's address if present and ONLY use the email. If this is not available then use other relevant information available in the email that indicates the requestor.
+        8. The date the product was requested if mentioned in the free text snippet. This is identifiable from the email metadata which often includes a datetime stamp of when the email was sent.
 
         Follow the below output structure:
         {{
@@ -67,6 +57,7 @@ def build_extraction_prompt(email: Email) -> str:
                 {{
                     "exact_product_text": "string",
                     "product_category": "string",
+                    "product_name": "string",
                     "properties": [
                         {{
                             "name": "string", 
