@@ -9,6 +9,8 @@ This script:
 4. Shows progress with statistics
 """
 
+import os
+import pickle
 import sys
 from pathlib import Path
 
@@ -69,7 +71,13 @@ def import_inventory(
     print("\n🤖 Parsing descriptions with LLM...")
     print(f"   Note: This may take several minutes for {len(raw_items)} items")
     try:
-        parsed_items = parse_inventory_batch(raw_items)
+        if os.path.exists("items.pckl"):
+            with open("items.pckl", "rb") as f:
+                parsed_items = pickle.load(f)
+        else:
+            parsed_items = parse_inventory_batch(raw_items)
+            with open("items.pckl", "wb") as f:
+                pickle.dump(parsed_items, f)
     except Exception as e:
         print(f"❌ Failed to parse descriptions: {e}")
         return {"success": False, "error": f"Parsing failed: {e}"}
