@@ -13,7 +13,6 @@ products:
       - 'cap screws'
     properties:
       - name: 'grade'
-        type: 'string'
         examples:
           - '2'
           - '5'
@@ -24,7 +23,6 @@ products:
           - 'ASTM F593'
           - 'SAE J429 Grade 8'
       - name: 'size'
-        type: 'string'
         examples:
           - '1/4-20'
           - '1/2-13'
@@ -35,7 +33,6 @@ products:
           - '1-1/2-6'
           - 'M16 x 2.0'
       - name: 'length'
-        type: 'string'
         examples:
           - '1"'
           - '2 inches'
@@ -45,7 +42,6 @@ products:
           - '18"'
           - '30 mm'
       - name: 'material'
-        type: 'string'
         examples:
           - 'steel'
           - 'stainless'
@@ -54,7 +50,6 @@ products:
           - 'carbon steel'
           - 'T316 stainless steel'
       - name: 'finish'
-        type: 'string'
         examples:
           - 'zinc plated'
           - 'galvanized'
@@ -63,7 +58,6 @@ products:
           - 'hot dip galvanized'
           - 'bare'
       - name: 'head_type'
-        type: 'string'
         examples:
           - 'hex'
           - 'socket'
@@ -71,25 +65,21 @@ products:
           - 'pan'
           - 'round'
       - name: 'thread_length'
-        type: 'string'
         examples:
           - '6"'
           - '3"'
           - 'full thread'
           - '2 inches'
       - name: 'thread_standard'
-        type: 'string'
         examples:
           - 'NC'
           - 'UNC'
           - 'UNF'
           - 'NF'
       - name: 'part_number'
-        type: 'string'
         examples:
           - '11Z3012R'
       - name: 'specification'
-        type: 'string'
         examples:
           - 'Score Energy DWG# SMS-02RW_SMS-21_revD'
 
@@ -102,7 +92,6 @@ products:
       - 'anchor rod'
     properties:
       - name: 'diameter'
-        type: 'string'
         examples:
           - '1/2"'
           - '3/4"'
@@ -112,7 +101,6 @@ products:
           - '3/8"'
           - '7/8"'
       - name: 'length'
-        type: 'string'
         examples:
           - '12 ft'
           - '10 feet'
@@ -121,14 +109,12 @@ products:
           - '12"'
           - 'at least 4 ft'
       - name: 'grade'
-        type: 'string'
         examples:
           - 'B7'
           - 'A36'
           - 'Grade 5'
           - 'Grade 8'
       - name: 'material'
-        type: 'string'
         examples:
           - 'steel'
           - 'stainless'
@@ -136,7 +122,6 @@ products:
           - 'alloy'
           - 'mild steel'
       - name: 'thread_type'
-        type: 'string'
         examples:
           - 'UNC'
           - 'UNF'
@@ -146,23 +131,19 @@ products:
           - 'NF'
           - 'Left/Right hand'
       - name: 'threads_per_end'
-        type: 'string'
         examples:
           - '6" of threads on each end'
           - 'full thread'
           - 'partially threaded'
       - name: 'model'
-        type: 'string'
         examples:
           - 'Anvil Fig 253'
           - 'standard'
       - name: 'thread_pitch'
-        type: 'string'
         examples:
           - '9 TPI'
           - '9 threads per inch'
       - name: 'finish'
-        type: 'string'
         examples:
           - 'plain'
           - 'zinc plated'
@@ -177,25 +158,21 @@ products:
       - 'l-bolts'
     properties:
       - name: 'diameter'
-        type: 'string'
         examples:
           - '1/2"'
           - '3/4"'
           - '1"'
       - name: 'length'
-        type: 'string'
         examples:
           - '12"'
           - '18"'
           - '24"'
       - name: 'grade'
-        type: 'string'
         examples:
           - 'A36'
           - 'A307'
           - 'F1554'
       - name: 'type'
-        type: 'string'
         examples:
           - 'J-bolt'
           - 'L-bolt'
@@ -210,26 +187,22 @@ products:
       - 'jam nuts'
     properties:
       - name: 'size'
-        type: 'string'
         examples:
           - '1/4-20'
           - '1/2-13'
           - 'M12'
       - name: 'grade'
-        type: 'string'
         examples:
           - '2'
           - '5'
           - '8'
       - name: 'type'
-        type: 'string'
         examples:
           - 'hex'
           - 'lock'
           - 'jam'
           - 'nylon insert'
       - name: 'finish'
-        type: 'string'
         examples:
           - 'zinc plated'
           - 'plain'
@@ -242,14 +215,12 @@ products:
       - 'lock washers'
     properties:
       - name: 'size'
-        type: 'string'
         examples:
           - '1/4"'
           - '1/2"'
           - '3/4"'
           - 'M12'
       - name: 'type'
-        type: 'string'
         examples:
           - 'flat'
           - 'lock'
@@ -257,18 +228,15 @@ products:
           - 'fender'
           - 'Nord Lock'
       - name: 'material'
-        type: 'string'
         examples:
           - 'steel'
           - 'stainless'
       - name: 'finish'
-        type: 'string'
         examples:
           - 'zinc plated'
           - 'plain'
           - 'galvanized'
       - name: 'thickness'
-        type: 'string'
         examples:
           - '0.177"'
           - '1/8"'
@@ -283,7 +251,6 @@ products:
       - 'ring gaskets'
     properties:
       - name: 'size'
-        type: 'string'
         examples:
           - '1/2"'
           - '3/4"'
@@ -299,7 +266,6 @@ products:
           - '12"'
           - '20"'
       - name: 'material'
-        type: 'string'
         examples:
           - 'EPDM'
           - 'Viton'
@@ -311,20 +277,17 @@ products:
           - 'SF3300'
           - 'SQS'
       - name: 'pressure_rating'
-        type: 'string'
         examples:
           - '150#'
           - '150LB'
           - '300#'
           - '2500'
       - name: 'thickness'
-        type: 'string'
         examples:
           - '1/8"'
           - '1/16"'
           - '3/16"'
       - name: 'type'
-        type: 'string'
         examples:
           - 'ring'
           - 'full face'
@@ -332,37 +295,31 @@ products:
           - 'flat'
           - 'molded'
       - name: 'standard'
-        type: 'string'
         examples:
           - 'ASME B16.21'
           - 'ASME B16.20'
       - name: 'color'
-        type: 'string'
         examples:
           - 'orange'
           - 'black'
           - 'red'
           - 'blue'
       - name: 'durometer'
-        type: 'string'
         examples:
           - '70D'
           - '60A'
           - '75A'
       - name: 'brand'
-        type: 'string'
         examples:
           - 'GPT'
           - 'Integra'
           - 'Flexitallic'
           - 'Durlon'
       - name: 'form'
-        type: 'string'
         examples:
           - 'sheet'
           - 'cut gasket'
       - name: 'equivalent_to'
-        type: 'string'
         examples:
           - 'Flexitallic Sigma 600'
 
@@ -374,25 +331,21 @@ products:
       - 'IPS spacers'
     properties:
       - name: 'size'
-        type: 'string'
         examples:
           - '42x48'
           - '2 X 1.5 X 7'
           - '42"'
           - '42" carrier / 60" sleeve'
       - name: 'carrier_pipe_od'
-        type: 'string'
         examples:
           - '1093mm'
           - '42"'
           - '48"'
       - name: 'sleeve_pipe_id'
-        type: 'string'
         examples:
           - '1486mm'
           - '48"'
       - name: 'application'
-        type: 'string'
         examples:
           - 'IPS OD'
           - 'SDR35 pipe'
@@ -400,18 +353,15 @@ products:
           - 'tolerance spacer'
           - 'corrosion mitigation'
       - name: 'model'
-        type: 'string'
         examples:
           - 'APS Model SI12'
           - 'Equivalent'
       - name: 'material'
-        type: 'string'
         examples:
           - 'glass molded'
           - 'HDPE'
           - 'polypropylene'
       - name: 'component'
-        type: 'string'
         examples:
           - 'shells'
           - 'complete assembly'
@@ -425,7 +375,6 @@ products:
       - 'stud packs'
     properties:
       - name: 'diameter'
-        type: 'string'
         examples:
           - '6"'
           - '18"'
@@ -433,31 +382,26 @@ products:
           - '24"'
           - '30"'
       - name: 'connection_type'
-        type: 'string'
         examples:
           - 'HDPE x HDPE'
           - 'HDPE x Steel'
           - 'Steel x Steel'
       - name: 'pressure_rating'
-        type: 'string'
         examples:
           - '150 lb'
           - '150#'
           - '300 lb'
       - name: 'grade'
-        type: 'string'
         examples:
           - 'DR7'
           - 'DR17'
           - 'DR21'
       - name: 'material'
-        type: 'string'
         examples:
           - 'HDPE SS'
           - 'stainless steel'
           - 'galvanized'
       - name: 'length'
-        type: 'string'
         examples:
           - '10-1/4"'
           - '17"'
@@ -472,28 +416,23 @@ products:
       - 'replacement seals'
     properties:
       - name: 'size'
-        type: 'string'
         examples:
           - '2"'
           - 'IL275S316'
       - name: 'material'
-        type: 'string'
         examples:
           - 'Viton'
           - 'EPDM'
           - 'nitrile'
       - name: 'pressure_rating'
-        type: 'string'
         examples:
           - '2500'
           - '150#'
       - name: 'application'
-        type: 'string'
         examples:
           - 'Integra II SSA'
           - 'valve seal'
       - name: 'model'
-        type: 'string'
         examples:
           - 'IL275S316'
           - 'Innerlynx'
