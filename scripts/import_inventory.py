@@ -92,24 +92,9 @@ def import_inventory(
                 )
                 existing = session.execute(stmt).scalar_one_or_none()
 
-                if existing:
+                # Assumes that an inventory number is always unique and immutable (ie once created parts do not change)
+                if not existing:
                     # Compute content hash for comparison
-                    properties_json = [prop.model_dump() for prop in item.properties]
-                    content_hash = compute_content_hash(item)
-
-                    # Only update if content has changed
-                    if str(existing.content_hash) != content_hash:
-                        # Update existing item (SQLAlchemy handles onupdate for last_updated)
-                        existing.raw_description = item.raw_description
-                        existing.product_name = item.product_name
-                        existing.product_category = item.product_category
-                        existing.properties = properties_json
-                        existing.parse_confidence = item.parse_confidence
-                        existing.needs_manual_review = item.needs_manual_review
-                        existing.content_hash = content_hash
-                        updated_count += 1
-                    # else: content unchanged, skip update
-                else:
                     # Compute content hash for new item
                     properties_json = [prop.model_dump() for prop in item.properties]
                     content_hash = compute_content_hash(item)
@@ -127,6 +112,13 @@ def import_inventory(
                     )
                     session.add(db_item)
                     inserted_count += 1
+                else:
+                    content_hash = compute_content_hash(item)
+                    existing_hash = str(existing.content_hash)
+                    if existing_hash != content_hash:
+                        print(
+                            f"Existing item found for {item.item_number} with different properties. This is a data quality issue"
+                        )
 
                 # Commit every 100 items to avoid large transactions
                 if (inserted_count + updated_count) % 100 == 0:
