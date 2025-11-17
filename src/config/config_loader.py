@@ -1,15 +1,16 @@
 """Configuration loader for product definitions and extraction rules"""
 
-import yaml
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
-from functools import lru_cache
+
+import yaml
 
 from src.models.configs import ProductConfig
 
 
 @lru_cache(maxsize=1)
-def load_config(config_path: Optional[Path] = None) -> ProductConfig:
+def load_config(config_path: Optional[Path] = None) -> str:
     """
     Load product configuration from YAML file.
 
@@ -36,7 +37,19 @@ def load_config(config_path: Optional[Path] = None) -> ProductConfig:
     # Validate and create ProductConfig
     config = ProductConfig(**config_data)
 
-    return config
+    # Build product definitions section
+    products_info = []
+    for product in config.products:
+        products_info.append(
+            f"Product {product.name} which is in the category {product.category} has the following aliases: {', '.join(product.aliases)}. The below are the valid properties of {product.name} (with examples): "
+        )
+        for property in product.properties:
+            products_info.append(f"-- {property.name}: {', '.join(property.examples)}")
+        products_info.append("\n-----\n")
+
+    products_section = "\n".join(products_info)
+
+    return products_section
 
 
 def reload_config(config_path: Optional[Path] = None) -> ProductConfig:
