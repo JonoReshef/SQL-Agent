@@ -9,3 +9,5 @@ markers = [
     "integration: Integration tests",
     "ai: Running tests that are calling AI systems"
 ]
+[tool.ruff.format]
+quote-style = "double"
