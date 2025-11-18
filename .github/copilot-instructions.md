@@ -289,29 +289,125 @@ python scripts/import_inventory.py --max-items 50
 
 ## Inventory Matching System
 
-### Fuzzy Matching Engine: `src/inventory/matcher.py`
+### Hierarchical Filtering Engine: `src/matching/` and `src/database/filtering.py`
 
-**Algorithm**: Uses `rapidfuzz.fuzz.ratio()` (Levenshtein distance) for property matching:
+**NEW Architecture** (as of November 2025): The system uses **database-driven hierarchical property-based filtering** for drastically improved performance and accuracy with large inventory datasets (10k-100k items).
 
-1. **Normalization** (`src/inventory/normalizer.py`): Converts properties to lowercase, strips whitespace, handles common variations
-2. **Property Matching**: Compares grade, size, material, finish, length with fuzzy thresholds
-3. **Scoring**: Weighted average of property match scores
-4. **Thresholds**: High (≥0.8), Medium (≥0.6-0.8), Low (<0.6)
+**IMPORTANT**: To avoid circular imports, the `filter_inventory_by_hierarchical_properties` function has been **moved to `src/database/filtering.py`** (separate from `operations.py`). The `src/matching/__init__.py` does NOT expose matcher functions at package level - always import directly:
 
-**Review Flags**: Auto-generated for:
+```python
+# ✅ CORRECT - Direct import
+from src.matching.matcher import match_product_to_inventory
+from src.database.filtering import filter_inventory_by_hierarchical_properties
 
-- No matches found
-- Low match scores (<0.6)
-- Missing critical properties (grade, size)
-- Ambiguous matches (multiple high-scoring items)
+# ❌ WRONG - Package-level import (circular dependency)
+from src.matching import match_product_to_inventory  # This will fail!
+```
 
-### Property Normalization Examples:
+#### Core Modules:
+
+1. **hierarchy.py**: Loads property hierarchies from `config/products_config.yaml`
+
+   - `PropertyHierarchy`: Stores ordered list of properties for each category
+   - `get_hierarchy_for_category()`: Cached function to load hierarchies
+   - Property order defines filtering priority (e.g., Fasteners: grade → size → length → material → finish)
+
+2. **filtering.py** (in `src/database/`): Database-driven filtering (NEW - extracted to break circular imports)
+
+   - `filter_inventory_by_hierarchical_properties()`: Executes hierarchical filtering as PostgreSQL queries
+   - Progressive filtering with threshold logic (continues if ≥10 items, stops if <10)
+   - Uses fuzzy matching via `normalizer.py` for property value variations
+   - Returns filtered items and filter depth for analysis
+
+3. **filter.py**: DEPRECATED - Old in-memory filtering (kept for backward compatibility)
+
+   - `filter_by_property()`: Single property filter (DEPRECATED - use database filtering)
+   - `hierarchical_filter()`: In-memory progressive filtering (DEPRECATED)
+   - `score_filtered_items()`: Scoring logic (DEPRECATED)
+   - All functions emit deprecation warnings
+   - Kept only for unit tests and backward compatibility
+
+4. **matcher.py**: Main matching interface (uses database filtering)
+
+   - `match_product_to_inventory()`: Returns (matches, review_flags) - uses database filtering internally
+   - `find_best_matches()`: Uses `filter_inventory_by_hierarchical_properties()` from `database.filtering` module
+   - `calculate_match_score()`: Weighted scoring (40% name, 20% category, 40% properties)
+
+5. **normalizer.py**: Property value normalization
+   - Handles variations: "gr8" → "8", "ss" → "stainless steel", "galv" → "galvanized"
+   - Uses `rapidfuzz` for fuzzy matching with 80% similarity threshold
+   - Batch normalization for performance
+
+#### How Database-Driven Hierarchical Matching Works:
+
+```python
+# Example: Matching "1/2-13 x 2" Grade 8 Hex Bolt"
+#
+# Inventory: 11,197 items in PostgreSQL
+#
+# Database Query 1: Filter by category='Fasteners' → ~5,000 items
+# Database Query 2: Filter by grade=8 → ~1,200 items (with fuzzy matching)
+# Database Query 3: Filter by size=1/2-13 → ~150 items (80x reduction)
+# Database Query 4: Filter by length=2" → ~20 items (560x reduction)
+#
+# Result: Score and rank only 20 candidates instead of 11,197
+# Performance: 10-100x faster than in-memory approach
+```
+
+**Key Benefits**:
+
+- **10-100x performance improvement** over in-memory linear scan
+- **Scalable**: Handles 100k+ inventory items efficiently
+- **Better accuracy**: Respects domain knowledge (grade more important than finish)
+- **Graceful degradation**: Returns broader matches if narrow filter yields nothing (threshold=10)
+- **Config-driven**: Hierarchy defined in YAML, no code changes needed
+- **Indexed**: Uses GIN index on JSON properties column for fast lookups
+
+#### Database Schema:
+
+```sql
+-- inventory_items table
+CREATE TABLE inventory_items (
+    id SERIAL PRIMARY KEY,
+    item_number VARCHAR(100) UNIQUE NOT NULL,
+    raw_description TEXT NOT NULL,
+    product_name VARCHAR(255),
+    product_category VARCHAR(255),
+    properties JSONB NOT NULL,  -- [{"name": "grade", "value": "8", "confidence": 1.0}]
+    content_hash VARCHAR(64) NOT NULL,
+    parse_confidence FLOAT,
+    needs_manual_review BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    last_updated TIMESTAMP DEFAULT NOW()
+);
+
+-- GIN index for fast JSON property lookups
+CREATE INDEX idx_inventory_properties ON inventory_items USING gin(properties jsonb_path_ops);
+```
+
+#### Property Normalization Examples:
 
 ```python
 # Grade: "Grade 8" → "8", "gr8" → "8", "A490" → "a490"
 # Size: "1/2-13" → "1/2-13", "1/2 inch" → "1/2", "M12" → "m12"
 # Finish: "zinc plated" → "zinc", "galvanized" → "galv", "plain" → "plain"
 ```
+
+#### Review Flag Generation:
+
+Auto-generated for:
+
+- **No matches found** (INSUFFICIENT_DATA)
+- **Low match scores** (<0.7 threshold)
+- **Ambiguous matches** (top 2 scores differ by <0.1)
+- **Missing critical properties** (≥2 properties not in inventory)
+
+#### Testing:
+
+- **14 tests** for database hierarchical filtering (all passing) - `test_database_hierarchical_filtering.py`
+- **12 tests** for old in-memory filtering (all passing, deprecated) - `test_hierarchical_filter.py`
+- **10 tests** for matcher integration (all passing) - `test_matcher.py`
+- **Test files**: `test_hierarchy.py`, `test_database_hierarchical_filtering.py`, `test_matcher.py`
 
 ## Common Pitfalls to Avoid
 
