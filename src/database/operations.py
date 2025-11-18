@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-from datetime import datetime
 from typing import List
 
 from pydantic import BaseModel
@@ -24,12 +23,13 @@ from src.models.inventory import InventoryMatch, ReviewFlag
 from src.models.product import ProductMention
 
 
-def compute_content_hash(*args) -> str:
+def compute_content_hash(*args, len=16) -> str:
     """
     Compute SHA256 hash of content for duplicate detection.
 
     Args:
         *args: Variable arguments to include in hash
+        len: Length of the returned hash string (default 16)
 
     Returns:
         Hex string of SHA256 hash
@@ -40,16 +40,18 @@ def compute_content_hash(*args) -> str:
         if arg is None:
             content_parts.append("NULL")
         elif isinstance(arg, BaseModel):
-            # For Pydantic models, use their dict representation
-            content_parts.append(json.dumps(arg.model_dump(), sort_keys=True))
+            # For Pydantic models, use mode='json' to handle datetime objects
+            content_parts.append(
+                json.dumps(arg.model_dump(mode="json"), sort_keys=True)
+            )
         elif isinstance(arg, (dict, list)):
             # For JSON-serializable objects, use sorted JSON
-            content_parts.append(json.dumps(arg, sort_keys=True))
+            content_parts.append(json.dumps(arg, sort_keys=True, default=str))
         else:
             content_parts.append(str(arg))
 
     content_str = "|".join(content_parts)
-    return hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+    return hashlib.sha256(content_str.encode("utf-8")).hexdigest()[:len]
 
 
 def sanitize_for_db(text: str | None) -> str | None:
@@ -72,7 +74,7 @@ def sanitize_for_db(text: str | None) -> str | None:
 def store_emails(emails: List[Email]) -> dict:
     """
     Store processed emails to database.
-    Uses upsert to avoid duplicates based on email file path.
+    Uses upsert to avoid duplicates based on email content hash.
 
     Args:
         emails: List of Email objects
@@ -87,35 +89,33 @@ def store_emails(emails: List[Email]) -> dict:
     with get_db_session() as session:
         for email in emails:
             try:
-                # Calculate file hash based on file path only (unique identifier)
-                # For actual content change detection, read file if needed
-                file_hash = compute_content_hash(email)
+                # Use the content hash from the email object
+                # This hash is computed based on email metadata + body content
+                thread_hash = email.thread_hash
+                if not thread_hash:
+                    # Fallback: compute hash if not present
+                    thread_hash = compute_content_hash(email)
 
-                # Check if email already exists by file_hash
+                # Check if email already exists by thread_hash
                 stmt = select(EmailProcessed).where(
-                    EmailProcessed.file_hash == file_hash
+                    EmailProcessed.thread_hash == thread_hash
                 )
                 existing = session.execute(stmt).scalar_one_or_none()
-
-                existing = EmailProcessed(
-                    file_path=email.file_path,
-                    file_hash=file_hash,
-                    subject=sanitize_for_db(email.metadata.subject),
-                    sender=sanitize_for_db(email.metadata.sender),
-                    date_sent=email.metadata.date,
-                )
 
                 if not existing:
                     # Insert new email
                     db_email = EmailProcessed(
+                        thread_hash=thread_hash,
                         file_path=email.file_path,
-                        file_hash=file_hash,
                         subject=sanitize_for_db(email.metadata.subject),
                         sender=sanitize_for_db(email.metadata.sender),
                         date_sent=email.metadata.date,
                     )
                     session.add(db_email)
                     inserted += 1
+                else:
+                    # Email already exists, skip
+                    pass
 
                 # Commit every 10 emails
                 if (inserted + updated) % 10 == 0:
@@ -144,7 +144,7 @@ def store_emails(emails: List[Email]) -> dict:
 def store_product_mentions(products: List[ProductMention], emails: List[Email]) -> dict:
     """
     Store product mentions to database.
-    Links products to their source emails via email_id foreign key.
+    Links products to their source emails via email_id foreign key using content hash.
 
     Args:
         products: List of ProductMention objects
@@ -157,25 +157,24 @@ def store_product_mentions(products: List[ProductMention], emails: List[Email]) 
     updated = 0
     errors = []
 
-    # Create mapping of file_path to email_id
-    email_path_to_id = {}
-
     with get_db_session() as session:
-        # First get all email IDs
-        for email in emails:
-            stmt = select(EmailProcessed).where(
-                EmailProcessed.file_path == email.file_path
-            )
-            db_email = session.execute(stmt).scalar_one_or_none()
-            if db_email:
-                email_path_to_id[email.file_path] = db_email.id
-
         # Now process products
         for product in products:
             try:
-                # Get email_id for this product
-                email_id = email_path_to_id.get(product.email_file)
-                if not email_id:
+                # Get thread_hash for this product
+                thread_hash = product.thread_hash
+                if not thread_hash:
+                    errors.append(
+                        f"Product '{product.exact_product_text[:50]}': Missing thread_hash"
+                    )
+                    continue
+
+                # Verify email exists in database
+                stmt = select(EmailProcessed).where(
+                    EmailProcessed.thread_hash == thread_hash
+                )
+                db_email = session.execute(stmt).scalar_one_or_none()
+                if not db_email:
                     errors.append(
                         f"Product '{product.exact_product_text[:50]}': Email not found in database"
                     )
@@ -183,7 +182,7 @@ def store_product_mentions(products: List[ProductMention], emails: List[Email]) 
 
                 # Compute content hash for this product mention within the email
                 content_hash = compute_content_hash(
-                    email_id,
+                    thread_hash,
                     product,
                 )
 
@@ -196,7 +195,7 @@ def store_product_mentions(products: List[ProductMention], emails: List[Email]) 
                 if not existing:
                     # Insert new mention
                     db_product = DBProductMention(
-                        email_id=email_id,
+                        email_thread_hash=thread_hash,
                         exact_product_text=product.exact_product_text,
                         product_name=product.product_name,
                         product_category=product.product_category,
