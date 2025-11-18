@@ -53,10 +53,10 @@ class ProductItem(BaseModel):
         }
     )
     exact_product_text: str = Field(
-        ..., description="The exact text from the email that identified the product"
+        ..., description="The exact text which originally describes a product"
     )
-    product_id: Optional[str] = Field(
-        None, description="Optional unique identifier for the product"
+    product_id: Optional[str | None] = Field(
+        default=None, description="Optional unique identifier for the product"
     )
     product_name: str = Field(description="Name of the product")
     product_category: str = Field(description="Category of the product")
@@ -119,6 +119,9 @@ class ProductMention(ProductExtractionItem):
     email_subject: str = Field(..., description="Subject of email containing mention")
     email_sender: str = Field(..., description="Sender of email")
     email_file: Optional[str] = Field(None, description="Source .msg file path")
+    thread_hash: Optional[str] = Field(
+        None, description="SHA256 hash of source email thread for unique identification"
+    )
 
 
 class ProductAnalytics(BaseModel):

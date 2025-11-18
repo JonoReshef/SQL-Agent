@@ -72,8 +72,8 @@ def test_email_processed_model(test_engine):
     with get_db_session(test_engine) as session:
         # Create
         email = EmailProcessed(
+            thread_hash="abc123",
             file_path="/test/email.msg",
-            file_hash="abc123",
             subject="Test Email",
             sender="test@example.com",
             date_sent=datetime(2025, 1, 1, 10, 0),
@@ -82,7 +82,9 @@ def test_email_processed_model(test_engine):
         session.commit()
 
         # Read
-        retrieved = session.query(EmailProcessed).filter_by(file_hash="abc123").first()
+        retrieved = (
+            session.query(EmailProcessed).filter_by(thread_hash="abc123").first()
+        )
         assert retrieved is not None
         assert retrieved.subject == "Test Email"
         assert retrieved.sender == "test@example.com"
@@ -91,14 +93,14 @@ def test_email_processed_model(test_engine):
         retrieved.report_file = "/output/report.xlsx"
         session.commit()
 
-        updated = session.query(EmailProcessed).filter_by(file_hash="abc123").first()
+        updated = session.query(EmailProcessed).filter_by(thread_hash="abc123").first()
         assert updated.report_file == "/output/report.xlsx"
 
         # Delete
         session.delete(updated)
         session.commit()
 
-        deleted = session.query(EmailProcessed).filter_by(file_hash="abc123").first()
+        deleted = session.query(EmailProcessed).filter_by(thread_hash="abc123").first()
         assert deleted is None
 
 
@@ -108,8 +110,8 @@ def test_product_mention_model(test_engine):
     with get_db_session(test_engine) as session:
         # Create email first
         email = EmailProcessed(
+            thread_hash="xyz789",
             file_path="/test/email.msg",
-            file_hash="xyz789",
             subject="Product Request",
             sender="customer@example.com",
         )
@@ -118,10 +120,11 @@ def test_product_mention_model(test_engine):
 
         # Create product mention
         product = ProductMention(
-            email_id=email.id,
+            email_thread_hash=email.thread_hash,
             exact_product_text="100 pcs of 1/2-13 Grade 8 bolts",
             product_name="Hex Bolt",
             product_category="Fasteners",
+            content_hash="test_hash_123",
             properties=[
                 {"name": "grade", "value": "8", "confidence": 0.95},
                 {"name": "size", "value": "1/2-13", "confidence": 0.90},
@@ -136,7 +139,7 @@ def test_product_mention_model(test_engine):
 
         # Query with relationship
         retrieved_email = (
-            session.query(EmailProcessed).filter_by(file_hash="xyz789").first()
+            session.query(EmailProcessed).filter_by(thread_hash="xyz789").first()
         )
         assert len(retrieved_email.product_mentions) == 1
         assert retrieved_email.product_mentions[0].product_name == "Hex Bolt"
@@ -152,6 +155,7 @@ def test_inventory_item_model(test_engine):
             raw_description='1/2-13 x 2" Grade 8 Hex Bolt, Zinc Plated',
             product_name="Hex Bolt",
             product_category="Fasteners",
+            content_hash="inventory_hash_001",
             properties=[
                 {"name": "grade", "value": "8", "confidence": 0.95},
                 {"name": "size", "value": "1/2-13", "confidence": 0.90},
@@ -178,8 +182,8 @@ def test_inventory_match_model(test_engine):
     with get_db_session(test_engine) as session:
         # Create email
         email = EmailProcessed(
+            thread_hash="match123",
             file_path="/test/match_email.msg",
-            file_hash="match123",
             subject="Match Test",
             sender="test@example.com",
         )
@@ -188,10 +192,11 @@ def test_inventory_match_model(test_engine):
 
         # Create product mention
         product = ProductMention(
-            email_id=email.id,
+            email_thread_hash=email.thread_hash,
             exact_product_text="Grade 8 bolts",
             product_name="Hex Bolt",
             product_category="Fasteners",
+            content_hash="match_product_hash",
             properties=[{"name": "grade", "value": "8", "confidence": 0.95}],
         )
         session.add(product)
@@ -203,6 +208,7 @@ def test_inventory_match_model(test_engine):
             raw_description="1/2-13 Grade 8 Hex Bolt",
             product_name="Hex Bolt",
             product_category="Fasteners",
+            content_hash="match_inventory_hash",
             properties=[
                 {"name": "grade", "value": "8", "confidence": 0.95},
                 {"name": "size", "value": "1/2-13", "confidence": 0.90},
@@ -217,6 +223,7 @@ def test_inventory_match_model(test_engine):
             inventory_item_id=inventory.id,
             match_score=0.85,
             rank=1,
+            content_hash="match_record_hash",
             matched_properties=["grade"],
             missing_properties=["size"],
             match_reasoning="Grade matches exactly, but size not specified in email",
@@ -242,18 +249,19 @@ def test_match_review_flag_model(test_engine):
     with get_db_session(test_engine) as session:
         # Create email and product
         email = EmailProcessed(
+            thread_hash="flag123",
             file_path="/test/flag_email.msg",
-            file_hash="flag123",
             subject="Flag Test",
         )
         session.add(email)
         session.flush()
 
         product = ProductMention(
-            email_id=email.id,
+            email_thread_hash=email.thread_hash,
             exact_product_text="Bolts",
             product_name="Hex Bolt",
             product_category="Fasteners",
+            content_hash="flag_product_hash",
             properties=[],
         )
         session.add(product)
@@ -267,6 +275,7 @@ def test_match_review_flag_model(test_engine):
             top_confidence=None,
             reason="No properties specified - cannot determine specific bolt type",
             action_needed="Request more details from customer",
+            content_hash="flag_hash",
             is_resolved=False,
         )
         session.add(flag)
@@ -290,18 +299,19 @@ def test_cascade_delete(test_engine):
     with get_db_session(test_engine) as session:
         # Create email with product mention
         email = EmailProcessed(
+            thread_hash="cascade123",
             file_path="/test/cascade_email.msg",
-            file_hash="cascade123",
             subject="Cascade Test",
         )
         session.add(email)
         session.flush()
 
         product = ProductMention(
-            email_id=email.id,
+            email_thread_hash=email.thread_hash,
             exact_product_text="Test product",
             product_name="Test",
             product_category="Test",
+            content_hash="cascade_product_hash",
             properties=[],
         )
         session.add(product)
@@ -328,6 +338,7 @@ def test_unique_constraints(test_engine):
             raw_description="Test item",
             product_name="Test",
             product_category="Test",
+            content_hash="unique_hash_001",
             properties=[],
         )
         session.add(item1)

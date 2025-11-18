@@ -20,6 +20,7 @@ from src.database.models import (
     ProductMention,
 )
 from src.database.operations import (
+    compute_content_hash,
     sanitize_for_db,
     store_emails,
     store_inventory_matches,
@@ -40,7 +41,7 @@ from src.models.product import ProductProperty
 @pytest.fixture
 def sample_email():
     """Create a sample email for testing"""
-    return Email(
+    email = Email(
         metadata=EmailMetadata(
             message_id="test@example.com",
             subject="Test Email",
@@ -53,7 +54,11 @@ def sample_email():
         cleaned_body="Test email body",
         attachments=[],
         file_path="test_email.msg",
+        thread_hash=None,  # Will be computed
     )
+
+    email.thread_hash = compute_content_hash(email)
+    return email
 
 
 @pytest.fixture
@@ -61,6 +66,7 @@ def sample_product(sample_email):
     """Create a sample product mention"""
     return PydanticProductMention(
         exact_product_text="1/2-13 x 2 inch Grade 8 Hex Bolt",
+        product_id=None,
         product_name="Hex Bolt",
         product_category="Fasteners",
         properties=[
@@ -75,6 +81,7 @@ def sample_product(sample_email):
         email_subject=sample_email.metadata.subject,
         email_sender=sample_email.metadata.sender,
         email_file=sample_email.file_path,
+        thread_hash=sample_email.thread_hash,  # Link to email via content hash
     )
 
 
@@ -129,17 +136,17 @@ def test_store_emails(sample_email, cleanup_test_data):
     # Verify in database
     with get_db_session() as session:
         stmt = select(EmailProcessed).where(
-            EmailProcessed.file_path == sample_email.file_path
+            EmailProcessed.thread_hash == sample_email.thread_hash
         )
         db_email = session.execute(stmt).scalar_one()
 
         assert db_email.subject == sample_email.metadata.subject
         assert db_email.sender == sample_email.metadata.sender
 
-    # Test update
+    # Test storing again (same content hash - should skip, not update)
     result = store_emails([sample_email])
     assert result["inserted"] == 0
-    assert result["updated"] == 1
+    assert result["updated"] == 0  # No update since content is identical
 
 
 @pytest.mark.integration
@@ -173,12 +180,32 @@ def test_store_inventory_matches(sample_email, sample_product, cleanup_test_data
     store_product_mentions([sample_product], [sample_email])
 
     # Create test inventory item
+    from src.database.operations import compute_content_hash
+    from src.models.inventory import InventoryItem as PydanticInventoryItem
+    from src.models.product import ProductProperty
+
+    # Create Pydantic model first to compute hash
+    pydantic_item = PydanticInventoryItem(
+        product_id=None,
+        item_number="TEST-001",
+        raw_description="1/2-13 x 2 inch Grade 8 Hex Bolt",
+        exact_product_text="1/2-13 x 2 inch Grade 8 Hex Bolt",
+        product_name="Hex Bolt",
+        product_category="Fasteners",
+        properties=[
+            ProductProperty(name="grade", value="8", confidence=0.95),
+            ProductProperty(name="size", value="1/2-13", confidence=0.90),
+        ],
+    )
+    content_hash = compute_content_hash(pydantic_item)
+
     with get_db_session() as session:
         inventory_item = InventoryItem(
             item_number="TEST-001",
             raw_description="1/2-13 x 2 inch Grade 8 Hex Bolt",
             product_name="Hex Bolt",
             product_category="Fasteners",
+            content_hash=content_hash,
             properties=[
                 {"name": "grade", "value": "8", "confidence": 0.95},
                 {"name": "size", "value": "1/2-13", "confidence": 0.90},

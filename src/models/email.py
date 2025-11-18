@@ -1,8 +1,9 @@
 """Pydantic models for email data structures"""
 
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EmailMetadata(BaseModel):
@@ -47,6 +48,7 @@ class Email(BaseModel):
                 "cleaned_body": "Please quote 100 pcs of grade 8 bolts",
                 "attachments": [],
                 "file_path": "/path/to/email.msg",
+                "thread_hash": "abc123...",
             }
         }
     )
@@ -60,3 +62,7 @@ class Email(BaseModel):
         default_factory=list, description="List of attachment filenames"
     )
     file_path: Optional[str] = Field(None, description="Original .msg file path")
+    thread_hash: Optional[str] = Field(
+        None,
+        description="SHA256 hash of the entire email thread content for unique identification",
+    )

@@ -28,8 +28,12 @@ class InventoryItem(ProductItem):
         }
     )
 
-    item_number: str = Field(..., description="Unique inventory item number from Excel")
-    raw_description: str = Field(..., description="Original description from Excel")
+    item_number: str = Field(
+        ..., description="Unique inventory item number from Excel"
+    )  # NOTE this is a duplication of the product_id in ProductItem
+    raw_description: str = Field(
+        ..., description="Original description from Excel"
+    )  # NOTE this is a duplication of the exact_product_text in ProductItem
     parse_confidence: float = Field(
         default=1.0, ge=0.0, le=1.0, description="Confidence in parsed data"
     )

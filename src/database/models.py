@@ -23,9 +23,8 @@ class EmailProcessed(Base):
 
     __tablename__ = "emails_processed"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    file_path = Column(String(500), nullable=False, unique=True)
-    file_hash = Column(String(64), nullable=False)  # SHA256 hash
+    thread_hash = Column(String(64), primary_key=True)  # SHA256 hash - natural PK
+    file_path = Column(String(500), nullable=False)
     subject = Column(Text)
     sender = Column(String(255))
     date_sent = Column(DateTime)
@@ -39,7 +38,7 @@ class EmailProcessed(Base):
 
     # Indexes
     __table_args__ = (
-        Index("idx_email_file_hash", "file_hash"),
+        Index("idx_email_file_path", "file_path"),
         Index("idx_email_processed_at", "processed_at"),
     )
 
@@ -50,7 +49,9 @@ class ProductMention(Base):
     __tablename__ = "product_mentions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    email_id = Column(Integer, ForeignKey("emails_processed.id"), nullable=False)
+    email_thread_hash = Column(
+        String(64), ForeignKey("emails_processed.thread_hash"), nullable=False
+    )
 
     # Product identification
     exact_product_text = Column(Text, nullable=False)
@@ -82,7 +83,7 @@ class ProductMention(Base):
     __table_args__ = (
         Index("idx_product_name", "product_name"),
         Index("idx_product_category", "product_category"),
-        Index("idx_email_id", "email_id"),
+        Index("idx_email_thread_hash", "email_thread_hash"),
         Index("idx_product_content_hash", "content_hash"),
     )
 
