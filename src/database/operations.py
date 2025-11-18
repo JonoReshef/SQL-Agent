@@ -256,21 +256,21 @@ def store_inventory_matches(
     with get_db_session() as session:
         # Build mapping of product text to product_mention_id
         # Note: Uses first() to handle duplicate products (same text in different contexts)
-        product_text_to_id = {}
+        product_hash_to_id = {}
         for product in products:
             stmt = select(DBProductMention).where(
                 DBProductMention.exact_product_text == product.exact_product_text
             )
             db_product = session.execute(stmt).scalars().first()
             if db_product:
-                product_text_to_id[product.exact_product_text] = db_product.id
+                # NOTE should actually store the hash value rather than recreating it
+                product_hash_to_id[compute_content_hash(product)] = db_product.id
 
         # Build mapping of inventory item_number to inventory_item_id
         from src.database.models import InventoryItem as DBInventoryItem
 
         item_number_to_id = {}
-
-        for product_text, matches in product_matches.items():
+        for product_hash, matches in product_matches.items():
             for match in matches:
                 if match.inventory_item_number not in item_number_to_id:
                     stmt = select(DBInventoryItem).where(
@@ -281,11 +281,11 @@ def store_inventory_matches(
                         item_number_to_id[match.inventory_item_number] = db_inventory.id
 
         # Now insert/update matches
-        for product_text, matches in product_matches.items():
-            product_mention_id = product_text_to_id.get(product_text)
+        for product_hash, matches in product_matches.items():
+            product_mention_id = product_hash_to_id.get(product_hash)
             if not product_mention_id:
                 errors.append(
-                    f"Match for '{product_text[:50]}': Product not found in database"
+                    f"Match for '{product_hash[:50]}': Product not found in database"
                 )
                 continue
 
@@ -293,21 +293,19 @@ def store_inventory_matches(
                 inventory_item_id = item_number_to_id.get(match.inventory_item_number)
                 if not inventory_item_id:
                     errors.append(
-                        f"Match {product_text[:30]} -> {match.inventory_item_number}: Inventory item not found"
+                        f"Match {product_hash[:30]} -> {match.inventory_item_number}: Inventory item not found"
                     )
                     continue
 
                 try:
                     # Compute content hash for this match
-                    content_hash = compute_content_hash(
-                        product_mention_id, inventory_item_id, match
-                    )
+                    content_hash = compute_content_hash(product, match)
 
                     # Check if match already exists by content hash
                     stmt = select(DBInventoryMatch).where(
                         DBInventoryMatch.content_hash == content_hash
                     )
-                    existing = session.execute(stmt).scalar_one_or_none()
+                    existing = session.execute(stmt).first()
 
                     if not existing:
                         # Insert new match
@@ -330,7 +328,7 @@ def store_inventory_matches(
 
                 except Exception as e:
                     errors.append(
-                        f"Match {product_text[:30]} -> {match.inventory_item_number}: {e}"
+                        f"Match {product_hash[:30]} -> {match.inventory_item_number}: {e}"
                     )
                     session.rollback()
                     continue
@@ -396,7 +394,7 @@ def store_review_flags(
                 stmt = select(MatchReviewFlag).where(
                     MatchReviewFlag.content_hash == content_hash
                 )
-                existing = session.execute(stmt).scalar_one_or_none()
+                existing = session.execute(stmt).first()
 
                 if not existing:
                     # Insert new flag

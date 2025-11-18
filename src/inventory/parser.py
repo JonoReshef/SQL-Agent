@@ -177,7 +177,7 @@ def parse_inventory_batch(
             ]
             parsed_items.extend(parsed_batch)
             pbar.update(
-                len(parsed_items),
+                len(parsed_batch),
             )
 
     return parsed_items

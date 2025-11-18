@@ -10,6 +10,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+from src.database.operations import compute_content_hash
 from src.models.email import Email
 from src.models.inventory import InventoryMatch, ReviewFlag
 from src.models.product import ProductAnalytics, ProductMention
@@ -369,10 +370,12 @@ def _create_inventory_matches_sheet(
         "Product Text",
         "Product Name",
         "Category",
+        "Product Properties",
         "Email Subject",
         "Sender",
         "Inventory Item #",
         "Inventory Description",
+        "Inventory Properties",
         "Match Score",
         "Rank",
         "Matched Properties",
@@ -392,7 +395,7 @@ def _create_inventory_matches_sheet(
     # Write data
     row_idx = 2
     for product in products:
-        matches = product_matches.get(product.exact_product_text, [])
+        matches = product_matches.get(compute_content_hash(product), [])
 
         if not matches:
             # Show product with no matches
@@ -443,43 +446,67 @@ def _create_inventory_matches_sheet(
                 ws.cell(
                     row=row_idx,
                     column=4,
-                    value=_sanitize_for_excel(product.email_subject),
+                    value=_sanitize_for_excel(
+                        "; ".join(
+                            [
+                                f"{value.name}: {value.value}"
+                                for value in product.properties
+                            ]
+                        )
+                    ),
                 )
                 ws.cell(
                     row=row_idx,
                     column=5,
-                    value=_sanitize_for_excel(product.email_sender),
+                    value=_sanitize_for_excel(product.email_subject),
                 )
                 ws.cell(
                     row=row_idx,
                     column=6,
-                    value=_sanitize_for_excel(match.inventory_item_number),
+                    value=_sanitize_for_excel(product.email_sender),
                 )
                 ws.cell(
                     row=row_idx,
                     column=7,
-                    value=_sanitize_for_excel(match.inventory_description),
+                    value=_sanitize_for_excel(match.inventory_item_number),
                 )
-                ws.cell(row=row_idx, column=8, value=match.match_score)
-                ws.cell(row=row_idx, column=9, value=match.rank)
                 ws.cell(
                     row=row_idx,
-                    column=10,
+                    column=8,
+                    value=_sanitize_for_excel(match.inventory_description),
+                )
+                ws.cell(
+                    row=row_idx,
+                    column=9,
+                    value=_sanitize_for_excel(
+                        "; ".join(
+                            [
+                                f"{prop.name}: {prop.value}"
+                                for prop in match.inventory_properties
+                            ]
+                        )
+                    ),
+                )
+                ws.cell(row=row_idx, column=10, value=match.match_score)
+                ws.cell(row=row_idx, column=11, value=match.rank)
+                ws.cell(
+                    row=row_idx,
+                    column=12,
                     value=_sanitize_for_excel(", ".join(match.matched_properties)),
                 )
                 ws.cell(
                     row=row_idx,
-                    column=11,
+                    column=13,
                     value=_sanitize_for_excel(", ".join(match.missing_properties)),
                 )
                 ws.cell(
                     row=row_idx,
-                    column=12,
+                    column=14,
                     value=_sanitize_for_excel(match.match_reasoning),
                 )
 
                 # Color code based on match score
-                score_cell = ws.cell(row=row_idx, column=8)
+                score_cell = ws.cell(row=row_idx, column=10)
                 if match.match_score >= 0.8:
                     # High confidence - green
                     score_cell.fill = PatternFill(
@@ -499,7 +526,7 @@ def _create_inventory_matches_sheet(
                 row_idx += 1
 
     # Auto-fit columns
-    for col_idx in range(1, 13):
+    for col_idx in range(1, 15):
         max_length = 0
         column = get_column_letter(col_idx)
         for cell in ws[column]:

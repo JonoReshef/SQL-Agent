@@ -61,6 +61,9 @@ class InventoryMatch(BaseModel):
 
     inventory_item_number: str = Field(..., description="Matched inventory item number")
     inventory_description: str = Field(..., description="Inventory item description")
+    inventory_properties: List[ProductProperty] = Field(
+        default_factory=list, description="Inventory item properties"
+    )
     match_score: float = Field(
         ..., ge=0.0, le=1.0, description="Confidence score for this match"
     )

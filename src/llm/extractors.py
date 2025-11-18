@@ -125,7 +125,7 @@ def extract_products_from_email(email: Email) -> List[ProductMention]:
                     email_subject=email.metadata.subject,
                     email_sender=email.metadata.sender,
                     email_file=email.file_path,
-                    thread_hash=email.thread_hash,  # Use content hash for linking
+                    thread_hash=email.thread_hash,
                 )
 
                 products.append(mention)
