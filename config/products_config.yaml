@@ -388,7 +388,7 @@ products:
           - 'flat'
           - 'molded'
       - name: 'color'
-        value_type: 'measurement'
+        value_type: 'description'
         priority: 4
         examples:
           - 'orange'
