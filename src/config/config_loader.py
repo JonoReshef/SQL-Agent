@@ -44,7 +44,9 @@ def load_config(config_path: Optional[Path] = None) -> str:
             f"Product {product.name} which is in the category {product.category} has the following aliases: {', '.join(product.aliases)}. The below are the valid properties of {product.name} (with examples): "
         )
         for property in product.properties:
-            products_info.append(f"-- {property.name}: {', '.join(property.examples)}")
+            products_info.append(
+                f"-- {property.name} is ValueType: {property.value_type}, examples: {', '.join(property.examples)}"
+            )
         products_info.append("\n-----\n")
 
     products_section = "\n".join(products_info)

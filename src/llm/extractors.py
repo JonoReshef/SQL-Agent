@@ -44,7 +44,7 @@ def build_extraction_prompt(email: Email) -> str:
         0. A comprehensive free text snippet from the email that identified the product. Include any surrounding context that that helps identify the product. Focus on the extracting product details accurately. This should only contain the details of a single product with a single combination of properties, quantity, and unit.
         1. The category of product (using the supplied definitions) extracted from the free text snippet. If it is not clear, use "Unknown".
         2. The name of the product extracted from the free text snippet. If it is not clear, use "Unknown".
-        3. Properties (using the supplied definitions) extracted from the free text snippet. If there are no properties mentioned, return an empty list.
+        3. A list of properties with name, value, value type (pick between "measurement" if it is a quantitative or unit based based value or "description" if it is a qualitative value) and confidence score.
         4. Quantity if mentioned extracted from the free text snippet.
         5. Unit of measurement if mentioned extracted from the free text snippet.
         6. Context explaining the intent of the message from the overall email (quote_request, order, inquiry, pricing_request, etc.).
@@ -62,7 +62,8 @@ def build_extraction_prompt(email: Email) -> str:
                         {{
                             "name": "string", 
                             "value": "string", 
-                            "confidence": "test"
+                            "value_type": "ValueTypes",
+                            "confidence": "float (0.0 to 1.0)"
                         }}
                     ] as List[ProductProperty],
                     "quantity": number or null,

@@ -16,6 +16,13 @@ QuoteContext = Literal[
     "quote_response",
 ]
 
+ValueTypes = Literal[
+    "measurement",
+    "description",
+    "name",
+    "other",
+]
+
 
 class ProductProperty(BaseModel):
     """A single property of a product"""
@@ -28,6 +35,10 @@ class ProductProperty(BaseModel):
 
     name: str = Field(
         ..., description="Property name (e.g., 'grade', 'size', 'material')"
+    )
+    value_type: Optional[ValueTypes] = Field(
+        default="description",
+        description="Optional property type (e.g., 'measurement', 'description')",
     )
     value: str = Field(..., description="Property value")
     confidence: float = Field(
@@ -46,8 +57,24 @@ class ProductItem(BaseModel):
                 "product_name": "Hex Bolt",
                 "product_category": "Fasteners",
                 "properties": [
-                    {"name": "grade", "value": "8", "confidence": 0.95},
-                    {"name": "size", "value": "1/2-13", "confidence": 0.90},
+                    {
+                        "name": "grade",
+                        "value": "8",
+                        "value_type": "measurement",
+                        "confidence": 0.95,
+                    },
+                    {
+                        "name": "size",
+                        "value": "1/2-13",
+                        "value_type": "measurement",
+                        "confidence": 0.90,
+                    },
+                    {
+                        "name": "material",
+                        "value": "steel",
+                        "value_type": "description",
+                        "confidence": 1.0,
+                    },
                 ],
             }
         }

@@ -19,6 +19,9 @@ class PropertyDefinition(BaseModel):
 
     name: str = Field(..., description="Property name (e.g., 'grade', 'size')")
     examples: List[str] = Field(default_factory=list, description="Example values")
+    value_type: Optional[str] = Field(
+        None, description="Type of the property value (e.g., 'string', 'measurement')"
+    )
 
 
 class ProductDefinition(BaseModel):

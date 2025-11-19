@@ -50,7 +50,7 @@ def parse_inventory_description(
         2. product_id: The unique identifier of the product which will be supplied alongside the description.
         3. product_name: The name of the product. 
         4. product_category: The category of the product. 
-        5. properties: A list of properties with name, value, and confidence score.
+        5. properties: A list of properties with name, value, value type (pick between "measurement" if it is a number based value or "description" if it is a textual value) and confidence score.
 
         Output the results as a list of objects in the following format:
         [
@@ -63,6 +63,7 @@ def parse_inventory_description(
                     {{
                         "name": str,
                         "value": str,
+                        "value_type": ValueTypes,
                         "confidence": float (0.0 to 1.0)
                     }}
                 ]

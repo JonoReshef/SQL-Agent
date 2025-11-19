@@ -101,6 +101,7 @@ class InventoryItem(Base):
     product_name = Column(String(255))
     product_category = Column(String(255))
     content_hash = Column(String(64), nullable=False)  # SHA256 of parsed content
+    value_type = Column(String(50))  # e.g., "measurement", "description"
 
     # Properties stored as JSON: [{"name": "grade", "value": "8", "confidence": 0.95}]
     properties = Column(JSON, nullable=False, default=list)
