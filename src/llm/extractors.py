@@ -7,7 +7,7 @@ from typing import List
 from langchain_core.messages import HumanMessage
 from tqdm import tqdm
 
-from src.config.config_loader import load_config
+from src.config.config_loader import format_config, load_config
 from src.llm.client import get_llm_client
 from src.models.email import Email
 from src.models.product import (
@@ -30,7 +30,7 @@ def build_extraction_prompt(email: Email) -> str:
     Returns:
         Formatted prompt string
     """
-    products_section = load_config()
+    products_section = format_config(load_config())
 
     # Use cleaned body if available, otherwise raw body
     email_content = email.cleaned_body if email.cleaned_body else email.body

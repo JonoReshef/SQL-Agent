@@ -7,7 +7,7 @@ from typing import List
 
 from tqdm import tqdm
 
-from src.config.config_loader import load_config
+from src.config.config_loader import format_config, load_config
 from src.llm.client import get_llm_client
 
 # Add parent directory to path for imports
@@ -85,7 +85,7 @@ def parse_inventory_description(
                 HumanMessage(
                     content=prompt.format(
                         count_items=len(item_numbers),
-                        product_definitions=load_config(),
+                        product_definitions=format_config(load_config()),
                         descriptions=[
                             f"product_id: {item_number}: exact_product_text: {description}"
                             for item_number, description in zip(

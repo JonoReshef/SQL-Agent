@@ -9,8 +9,7 @@ import yaml
 from src.models.configs import ProductConfig
 
 
-@lru_cache(maxsize=1)
-def load_config(config_path: Optional[Path] = None) -> str:
+def load_config(config_path: Optional[Path] = None) -> ProductConfig:
     """
     Load product configuration from YAML file.
 
@@ -37,6 +36,18 @@ def load_config(config_path: Optional[Path] = None) -> str:
     # Validate and create ProductConfig
     config = ProductConfig(**config_data)
 
+    return config
+
+
+def format_config(config: ProductConfig) -> str:
+    """
+    Format ProductConfig as a YAML string.
+
+    Args:
+        config: ProductConfig object
+    Returns:
+        YAML string representation
+    """
     # Build product definitions section
     products_info = []
     for product in config.products:
@@ -64,5 +75,11 @@ def reload_config(config_path: Optional[Path] = None) -> ProductConfig:
     Returns:
         ProductConfig object
     """
-    load_config.cache_clear()
     return load_config(config_path)
+
+
+if __name__ == "__main__":
+    # Example usage
+    config_text = load_config()
+    print("Loaded Product Configuration:")
+    print(config_text)

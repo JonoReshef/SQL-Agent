@@ -22,6 +22,9 @@ class PropertyDefinition(BaseModel):
     value_type: Optional[str] = Field(
         None, description="Type of the property value (e.g., 'string', 'measurement')"
     )
+    priority: Optional[int] = Field(
+        None, description="Priority of the property (lower means higher priority)"
+    )
 
 
 class ProductDefinition(BaseModel):
