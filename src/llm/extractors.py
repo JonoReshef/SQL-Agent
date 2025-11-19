@@ -14,6 +14,7 @@ from src.models.product import (
     ProductExtractionResult,
     ProductMention,
 )
+from src.utils.property_enrichment import enrich_properties_with_metadata
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
@@ -44,7 +45,7 @@ def build_extraction_prompt(email: Email) -> str:
         0. A comprehensive free text snippet from the email that identified the product. Include any surrounding context that that helps identify the product. Focus on the extracting product details accurately. This should only contain the details of a single product with a single combination of properties, quantity, and unit.
         1. The category of product (using the supplied definitions) extracted from the free text snippet. If it is not clear, use "Unknown".
         2. The name of the product extracted from the free text snippet. If it is not clear, use "Unknown".
-        3. A list of properties with name, value, value type (pick between "measurement" if it is a quantitative or unit based based value or "description" if it is a qualitative value) and confidence score.
+        3. A list of properties with name, value, and confidence score. Set the value_type to "<unknown>" as this will be added automatically from the config.
         4. Quantity if mentioned extracted from the free text snippet.
         5. Unit of measurement if mentioned extracted from the free text snippet.
         6. Context explaining the intent of the message from the overall email (quote_request, order, inquiry, pricing_request, etc.).
@@ -62,7 +63,6 @@ def build_extraction_prompt(email: Email) -> str:
                         {{
                             "name": "string", 
                             "value": "string", 
-                            "value_type": "ValueTypes",
                             "confidence": "float (0.0 to 1.0)"
                         }}
                     ] as List[ProductProperty],
@@ -120,9 +120,18 @@ def extract_products_from_email(email: Email) -> List[ProductMention]:
         products = []
         for product in response.products:
             try:
-                # Create ProductMention with email metadata
+                # Enrich properties with value_type and priority from config
+                enriched_properties = enrich_properties_with_metadata(
+                    product.properties,
+                    product.product_category,
+                )
+
+                # Create ProductMention with enriched properties and email metadata
+                product_dict = product.model_dump()
+                product_dict["properties"] = enriched_properties
+
                 mention = ProductMention(
-                    **product.model_dump(),
+                    **product_dict,
                     email_subject=email.metadata.subject,
                     email_sender=email.metadata.sender,
                     email_file=email.file_path,

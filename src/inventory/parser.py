@@ -17,6 +17,7 @@ from langchain_core.messages import HumanMessage
 
 from src.models.inventory import InventoryItem
 from src.models.product import ProductItemResult
+from src.utils.property_enrichment import enrich_properties_with_metadata
 
 structured_llm = get_llm_client(
     type="gpt4.1",
@@ -50,7 +51,7 @@ def parse_inventory_description(
         2. product_id: The unique identifier of the product which will be supplied alongside the description.
         3. product_name: The name of the product. 
         4. product_category: The category of the product. 
-        5. properties: A list of properties with name, value, value type (pick between "measurement" if it is a number based value or "description" if it is a textual value) and confidence score.
+        5. properties: A list of properties with name, value, and confidence score. Do NOT include value_type or priority - these will be added automatically from the config.
 
         Output the results as a list of objects in the following format:
         [
@@ -63,7 +64,6 @@ def parse_inventory_description(
                     {{
                         "name": str,
                         "value": str,
-                        "value_type": ValueTypes,
                         "confidence": float (0.0 to 1.0)
                     }}
                 ]
@@ -115,11 +115,17 @@ def parse_inventory_description(
                 else 0.0
             )
 
+            # Enrich properties with value_type and priority from config
+            enriched_properties = enrich_properties_with_metadata(
+                item.properties,
+                item.product_category,
+            )
+
             # Requires manual review if avg confidence < 0.7 or any property < 0.5 or no properties extracted
             needs_review = (
                 avg_confidence < 0.7
-                or len(item.properties) == 0
-                or any(prop.confidence < 0.5 for prop in item.properties)
+                or len(enriched_properties) == 0
+                or any(prop.confidence < 0.5 for prop in enriched_properties)
             )
 
             # Create InventoryItem
@@ -130,7 +136,7 @@ def parse_inventory_description(
                 exact_product_text=item.exact_product_text,
                 product_name=item.product_name,
                 product_category=item.product_category,
-                properties=item.properties,
+                properties=enriched_properties,  # Use enriched properties
                 parse_confidence=avg_confidence,
                 needs_manual_review=needs_review,
             )

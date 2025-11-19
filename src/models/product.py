@@ -29,16 +29,26 @@ class ProductProperty(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {"name": "grade", "value": "8", "confidence": 0.95}
+            "example": {
+                "name": "grade",
+                "value": "8",
+                "confidence": 0.95,
+                "value_type": "measurement",
+                "priority": 1,
+            }
         }
     )
 
     name: str = Field(
         ..., description="Property name (e.g., 'grade', 'size', 'material')"
     )
-    value_type: Optional[ValueTypes] = Field(
+    value_type: ValueTypes = Field(
         default="description",
-        description="Optional property type (e.g., 'measurement', 'description')",
+        description="Property type (e.g., 'measurement', 'description')",
+    )
+    priority: int = Field(
+        default=10,
+        description="Priority for hierarchical filtering (lower = higher priority)",
     )
     value: str = Field(..., description="Property value")
     confidence: float = Field(
