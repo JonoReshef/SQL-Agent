@@ -20,17 +20,6 @@ PROPERTY_NORMALIZATIONS: Dict[str, Dict[str, str]] = {
         "galvanized": "galvanized",
         "galv": "galvanized",
     },
-    "grade": {
-        "gr8": "8",
-        "gr 8": "8",
-        "grade 8": "8",
-        "gr5": "5",
-        "gr 5": "5",
-        "grade 5": "5",
-        "gr2": "2",
-        "gr 2": "2",
-        "grade 2": "2",
-    },
     "finish": {
         "zinc": "zinc plated",
         "zn": "zinc plated",
@@ -39,6 +28,25 @@ PROPERTY_NORMALIZATIONS: Dict[str, Dict[str, str]] = {
         "plain": "plain",
         "black": "black oxide",
         "black oxide": "black oxide",
+    },
+}
+
+# Key terms to replace in property values if they appear
+PROPERTY_REPLACEMENTS: Dict[str, Dict[str, str]] = {
+    "pressure_rating": {
+        "#": "lb",
+        "lbs": "lb",
+        "pound": "lb",
+        "pounds": "lb",
+        "rating": "lb",
+    },
+    "tpi": {
+        "threads per inch": "TPI",
+        "t.p.i.": "TPI",
+        "tpi": "TPI",
+    },
+    "grade": {
+        "gr": "grade",
     },
 }
 
@@ -90,7 +98,7 @@ def find_matching_properties(
 
 
 def normalize_property_value(
-    property_name: str, value: str, fuzzy_threshold: int = 80
+    property: ProductProperty, fuzzy_threshold: int = 80
 ) -> str:
     """
     Normalize a property value for comparison.
@@ -106,14 +114,14 @@ def normalize_property_value(
         Normalized value
     """
     # Normalize to lowercase for comparison
-    value_lower = value.lower().strip()
-    property_lower = property_name.lower().strip()
+    value_lower = property.value.lower().strip()
+    property_lower = property.name.lower().strip()
 
     # Check if we have normalization rules for this property
     if property_lower in PROPERTY_NORMALIZATIONS:
         mapping = PROPERTY_NORMALIZATIONS[property_lower]
 
-        # Direct match
+        # Direct match with normalization mapping
         if value_lower in mapping:
             return mapping[value_lower]
 
@@ -129,8 +137,18 @@ def normalize_property_value(
             matched_key, score, _ = result
             return mapping[matched_key]
 
+        # Check for replacements
+    if property_lower in PROPERTY_REPLACEMENTS:
+        replacements = PROPERTY_REPLACEMENTS[property_lower]
+
+        # Direct match with replacement mapping
+        for r in replacements.keys():
+            if r.lower() in value_lower:
+                value_lower = value_lower.replace(r, replacements[r])
+                return value_lower.strip()
+
     # No normalization found - return cleaned original
-    return value.strip()
+    return property.value.strip()
 
 
 def batch_normalize_properties(
@@ -149,9 +167,7 @@ def batch_normalize_properties(
     normalized = []
 
     for prop in properties:
-        normalized_value = normalize_property_value(
-            prop.name, prop.value, fuzzy_threshold
-        )
+        normalized_value = normalize_property_value(prop, fuzzy_threshold)
 
         normalized.append(
             ProductProperty(
@@ -186,13 +202,19 @@ def calculate_property_similarity(
     value1 = prop1.value
     value2 = prop2.value
 
+    # Only normalize non-measurement types
     if normalize:
-        value1 = normalize_property_value(prop1.name, value1)
-        value2 = normalize_property_value(prop2.name, value2)
+        value1 = normalize_property_value(prop1)
+        value2 = normalize_property_value(prop2)
 
     # Exact match
     if value1.lower() == value2.lower():
         return 1.0
+
+    # For measurement types, require exact match
+    if prop1.value_type == "measurement" or prop2.value_type == "measurement":
+        # For measurements, require exact match after normalization
+        return 0.0
 
     # Fuzzy match
     similarity = fuzz.ratio(value1.lower(), value2.lower()) / 100.0

@@ -138,8 +138,7 @@ def find_best_matches(
     with get_db_session(engine) as session:
         filtered_items, filter_depth = filter_inventory_by_hierarchical_properties(
             session=session,
-            category=product.product_category,
-            properties=product.properties,
+            product=product,
             hierarchy=hierarchy,
             fuzzy_threshold=0.8,
             continue_threshold=10,

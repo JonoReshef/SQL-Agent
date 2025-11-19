@@ -9,13 +9,12 @@ from src.database.models import InventoryItem as DBInventoryItem
 from src.matching.hierarchy import PropertyHierarchy  # Direct import to avoid __init__
 from src.matching.normalizer import normalize_property_value  # Direct import
 from src.models.inventory import InventoryItem
-from src.models.product import ProductProperty
+from src.models.product import ProductMention, ProductProperty
 
 
 def filter_inventory_by_hierarchical_properties(
     session: Session,
-    category: str,
-    properties: List[ProductProperty],
+    product: ProductMention,
     hierarchy: PropertyHierarchy,
     fuzzy_threshold: float = 0.8,
     continue_threshold: int = 10,
@@ -51,6 +50,9 @@ def filter_inventory_by_hierarchical_properties(
         ...     hierarchy=nuts_hierarchy,
         ... )
     """
+    properties: List[ProductProperty] = product.properties
+    category: str = product.product_category
+
     # Step 1: Filter by category
     query = session.query(DBInventoryItem).filter(
         DBInventoryItem.product_category == category
@@ -80,8 +82,7 @@ def filter_inventory_by_hierarchical_properties(
 
         # Normalize the product property value for matching
         normalized_product_value = normalize_property_value(
-            product_prop.name,
-            product_prop.value,
+            product_prop,
             fuzzy_threshold=int(fuzzy_threshold * 100),
         )
 
@@ -95,10 +96,10 @@ def filter_inventory_by_hierarchical_properties(
             for inv_prop in db_item.properties:
                 if inv_prop.get("name", "").lower() == property_name_lower:
                     # Found the property, now check if value matches
-                    inv_value = inv_prop.get("value", "")
+                    inv_prop_obj = ProductProperty.model_validate(inv_prop)
+
                     normalized_inv_value = normalize_property_value(
-                        property_name,
-                        inv_value,
+                        inv_prop_obj,
                         fuzzy_threshold=int(fuzzy_threshold * 100),
                     )
 
@@ -106,6 +107,13 @@ def filter_inventory_by_hierarchical_properties(
                     if normalized_product_value.lower() == normalized_inv_value.lower():
                         item_has_matching_property = True
                         break
+
+                    # Skip measurement types for fuzzy matching. If it is a measurement, we only do exact match
+                    if (
+                        inv_prop_obj.value_type == "measurement"
+                        or product_prop.value_type == "measurement"
+                    ):
+                        continue
 
                     # Fuzzy string matching on normalized values
                     similarity = (
@@ -155,14 +163,18 @@ def filter_inventory_by_hierarchical_properties(
         ]
 
         pydantic_item = InventoryItem(
-            item_number=db_item.item_number,
-            raw_description=db_item.raw_description,
-            exact_product_text=db_item.raw_description,  # Use raw_description as exact_product_text
-            product_name=db_item.product_name or "",
-            product_category=db_item.product_category or "",
+            item_number=str(db_item.item_number),
+            raw_description=str(db_item.raw_description),
+            exact_product_text=str(
+                db_item.raw_description
+            ),  # Use raw_description as exact_product_text
+            product_name=str(db_item.product_name or ""),
+            product_category=str(db_item.product_category or ""),
             properties=props,
-            parse_confidence=db_item.parse_confidence or 1.0,  # Default to 1.0 if None
-            needs_manual_review=db_item.needs_manual_review or False,
+            parse_confidence=float(
+                db_item.parse_confidence or 1.0  # type: ignore
+            ),  # Default to 1.0 if None
+            needs_manual_review=bool(db_item.needs_manual_review or False),
         )
         pydantic_items.append(pydantic_item)
 
