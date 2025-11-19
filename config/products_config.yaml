@@ -13,6 +13,7 @@ products:
     properties:
       - name: 'grade'
         value_type: 'measurement'
+        priority: 1
         examples:
           - '2'
           - '5'
@@ -29,27 +30,9 @@ products:
           - 'B8M'
           - 'B8C'
           - 'B8T'
-      - name: 'size'
-        value_type: 'measurement'
-        examples:
-          - '1-8'
-          - '1-1/2-8'
-          - '3/4-10'
-          - '9/16"'
-          - '1-1/2-6'
-      - name: 'length'
-        value_type: 'measurement'
-        examples:
-          - '1"'
-          - '2 inches'
-          - '3-1/4 inches'
-          - '50mm'
-          - '3"'
-          - '12"'
-          - '18"'
-          - '30 mm'
       - name: 'material'
         value_type: 'description'
+        priority: 2
         examples:
           - 'steel'
           - 'stainless'
@@ -59,8 +42,30 @@ products:
           - 'Stainless steel'
           - 'Forged steel'
           - 'carbon steel'
+      - name: 'size'
+        value_type: 'measurement'
+        priority: 2
+        examples:
+          - '1-8'
+          - '1-1/2-8'
+          - '3/4-10'
+          - '9/16"'
+          - '1-1/2-6'
+      - name: 'length'
+        value_type: 'measurement'
+        priority: 3
+        examples:
+          - '1"'
+          - '2 inches'
+          - '3-1/4 inches'
+          - '50mm'
+          - '3"'
+          - '12"'
+          - '18"'
+          - '30 mm'
       - name: 'finish'
         value_type: 'description'
+        priority: 5
         examples:
           - 'zinc plated'
           - 'galvanized'
@@ -71,6 +76,7 @@ products:
           - 'Xylan'
       - name: 'head_type'
         value_type: 'description'
+        priority: 4
         examples:
           - 'hex'
           - 'socket'
@@ -81,6 +87,7 @@ products:
           - 'dome'
       - name: 'thread_length'
         value_type: 'measurement'
+        priority: 3
         examples:
           - '3"'
           - 'partial thread'
@@ -88,6 +95,7 @@ products:
           - '2 inches'
       - name: 'thread_standard'
         value_type: 'description'
+        priority: 4
         examples:
           - 'NC'
           - 'UNC'
@@ -105,6 +113,7 @@ products:
     properties:
       - name: 'diameter'
         value_type: 'measurement'
+        priority: 2
         examples:
           - '1/2"'
           - '1-7/8"-8'
@@ -115,6 +124,7 @@ products:
           - '3/8"'
       - name: 'length'
         value_type: 'measurement'
+        priority: 4
         examples:
           - '12 ft'
           - '10 feet'
@@ -123,6 +133,7 @@ products:
           - '12"'
       - name: 'grade'
         value_type: 'measurement'
+        priority: 1
         examples:
           - 'B7'
           - 'B7M'
@@ -135,6 +146,7 @@ products:
           - 'Grade 5'
       - name: 'material'
         value_type: 'description'
+        priority: 2
         examples:
           - 'steel'
           - 'stainless'
@@ -143,17 +155,20 @@ products:
           - 'mild steel'
       - name: 'thread_type'
         value_type: 'description'
+        priority: 4
         examples:
           - 'metric'
           - 'left hand'
           - 'right hand'
       - name: 'thread_pitch'
         value_type: 'measurement'
+        priority: 3
         examples:
           - '9 TPI'
           - '9 threads per inch'
       - name: 'finish'
         value_type: 'description'
+        priority: 5
         examples:
           - 'plain'
           - 'zinc plated'
@@ -184,12 +199,14 @@ products:
     properties:
       - name: 'size'
         value_type: 'measurement'
+        priority: 2
         examples:
           - '1-8'
           - '1/4-20'
           - '1/2-13'
       - name: 'grade'
         value_type: 'description'
+        priority: 1
         examples:
           - '2'
           - '5'
@@ -211,6 +228,7 @@ products:
           - '410'
       - name: 'type'
         value_type: 'description'
+        priority: 3
         examples:
           - 'hex nuts'
           - 'lock'
@@ -231,6 +249,7 @@ products:
           - 'coupling'
       - name: 'finish'
         value_type: 'description'
+        priority: 4
         examples:
           - 'zinc plated'
           - 'plain'
@@ -250,6 +269,7 @@ products:
     properties:
       - name: 'size'
         value_type: 'measurement'
+        priority: 1
         examples:
           - '1/4"'
           - '1/2"'
@@ -257,6 +277,7 @@ products:
           - '9/16'
       - name: 'type'
         value_type: 'description'
+        priority: 2
         examples:
           - 'flat'
           - 'lock'
@@ -267,12 +288,14 @@ products:
           - 'F436 thick'
       - name: 'material'
         value_type: 'description'
+        priority: 3
         examples:
           - 'steel'
           - 'stainless'
           - 'carbon steel'
       - name: 'finish'
         value_type: 'description'
+        priority: 4
         examples:
           - 'zinc plated'
           - 'plain'
@@ -294,19 +317,16 @@ products:
       - 'ring gaskets'
       - 'isolation gasket'
     properties:
-      - name: 'size'
-        value_type: 'measurement'
+      - name: 'standard'
+        value_type: 'description'
+        priority: 1
         examples:
-          - '1/2"'
-          - '3/4"'
-          - '1"'
-          - '1-1/2"'
-          - '2"'
-          - '10"'
-          - '12"'
-          - '36"'
+          - 'ASME B16.21'
+          - 'ASME B16.20'
+          - 'ASME B16.5'
       - name: 'material'
         value_type: 'description'
+        priority: 1
         examples:
           - 'EPDM'
           - 'Viton'
@@ -329,8 +349,21 @@ products:
           - 'G11'
           - 'Phenolic'
           - 'low carbon steel'
+      - name: 'size'
+        value_type: 'measurement'
+        priority: 2
+        examples:
+          - '1/2"'
+          - '3/4"'
+          - '1"'
+          - '1-1/2"'
+          - '2"'
+          - '10"'
+          - '12"'
+          - '36"'
       - name: 'pressure_rating'
         value_type: 'measurement'
+        priority: 3
         examples:
           - '150#'
           - '150LB'
@@ -340,26 +373,23 @@ products:
           - '2500LB'
       - name: 'thickness'
         value_type: 'measurement'
+        priority: 4
         examples:
           - '1/8"'
           - '1/16"'
           - '3/16"'
       - name: 'type'
         value_type: 'description'
+        priority: 5
         examples:
           - 'ring'
           - 'full face'
           - 'ribbed'
           - 'flat'
           - 'molded'
-      - name: 'standard'
-        value_type: 'description'
-        examples:
-          - 'ASME B16.21'
-          - 'ASME B16.20'
-          - 'ASME B16.5'
       - name: 'color'
         value_type: 'measurement'
+        priority: 4
         examples:
           - 'orange'
           - 'black'
@@ -367,12 +397,14 @@ products:
           - 'blue'
       - name: 'durometer'
         value_type: 'measurement'
+        priority: 4
         examples:
           - '70D'
           - '60D'
           - '75D'
       - name: 'brand'
         value_type: 'description'
+        priority: 5
         examples:
           - 'GPT'
           - 'Integra'
@@ -386,6 +418,7 @@ products:
           - 'Quest'
           - 'Erith'
       - name: 'form'
+        priority: 5
         examples:
           - 'sheet'
           - 'cut gasket'
@@ -399,29 +432,21 @@ products:
     properties:
       - name: 'size'
         value_type: 'measurement'
+        priority: 1
         examples:
           - '42x48'
           - '2 X 1.5 X 7'
           - '42"'
           - '42" carrier / 60" sleeve'
-      - name: 'carrier_pipe_od'
-        value_type: 'measurement'
-        examples:
-          - '1093mm'
-          - '42"'
-          - '48"'
-      - name: 'sleeve_pipe_id'
-        value_type: 'measurement'
-        examples:
-          - '1486mm'
-          - '48"'
       - name: 'model'
         value_type: 'description'
+        priority: 3
         examples:
           - 'APS Model SI12'
           - 'Equivalent'
       - name: 'material'
         value_type: 'description'
+        priority: 2
         examples:
           - 'glass molded'
           - 'HDPE'
@@ -440,6 +465,7 @@ products:
     properties:
       - name: 'diameter'
         value_type: 'measurement'
+        priority: 1
         examples:
           - '6"'
           - '18"'
@@ -448,6 +474,7 @@ products:
           - '30"'
       - name: 'connection_type'
         value_type: 'description'
+        priority: 2
         examples:
           - 'HDPE x HDPE'
           - 'HDPE x Steel'
@@ -455,18 +482,14 @@ products:
           - 'Cast Iron x Cast Iron'
       - name: 'pressure_rating'
         value_type: 'measurement'
+        priority: 3
         examples:
           - '150 lb'
           - '150#'
           - '300 lb'
-      - name: 'DR rating'
-        value_type: 'measurement'
-        examples:
-          - 'DR7'
-          - 'DR17'
-          - 'DR21'
       - name: 'material'
         value_type: 'description'
+        priority: 4
         examples:
           - 'HDPE SS'
           - 'stainless steel'
@@ -482,23 +505,26 @@ products:
     properties:
       - name: 'size'
         value_type: 'measurement'
+        priority: 1
         examples:
           - '2"'
           - '1/2"'
           - '6"'
           - '60"'
-      - name: 'material'
-        value_type: 'description'
-        examples:
-          - 'Viton'
-          - 'EPDM'
-          - 'nitrile'
       - name: 'pressure_rating'
         value_type: 'measurement'
+        priority: 2
         examples:
           - '2500'
           - '150#'
           - '3000#'
+      - name: 'material'
+        value_type: 'description'
+        priority: 3
+        examples:
+          - 'Viton'
+          - 'EPDM'
+          - 'nitrile'
 
 # Extraction rules for parsing email content
 extraction_rules:
