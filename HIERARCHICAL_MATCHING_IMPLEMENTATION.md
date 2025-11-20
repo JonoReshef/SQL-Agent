@@ -128,7 +128,7 @@ All existing code continues to work without modifications.
 
 ```python
 # Old (still works via compatibility layer):
-from src.workflow.nodes.matching.utils.matcher import match_product_to_inventory
+from src.analysis_workflow.nodes.matching.utils.matcher import match_product_to_inventory
 
 # New (recommended):
 from src.matching.matcher import match_product_to_inventory
