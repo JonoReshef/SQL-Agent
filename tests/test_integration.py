@@ -1,10 +1,12 @@
 """Integration tests for complete email analysis workflow"""
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
 from openpyxl import load_workbook
-from unittest.mock import patch, MagicMock
-from src.workflow.graph import run_workflow, create_workflow_graph
+
+from src.analysis_workflow.graph import create_workflow_graph, run_workflow
 from src.models.email import Email, EmailMetadata
 from src.models.product import ProductMention, ProductProperty
 
@@ -57,11 +59,9 @@ class TestWorkflowIntegration:
         # Patch dependencies
         with (
             patch(
-                "src.workflow.nodes.ingestion.read_msg_files_from_directory"
+                "src.analysis_workflow.nodes.ingestion.read_msg_files_from_directory"
             ) as mock_read,
-            patch(
-                "src.workflow.nodes.extraction.extract_products_batch"
-            ) as mock_extract,
+            patch("src.analysis_workflow.nodes.extraction.extract_products_batch") as mock_extract,
         ):
             mock_read.return_value = [sample_email]
             mock_extract.return_value = [sample_product]
@@ -130,11 +130,9 @@ class TestWorkflowIntegration:
 
         with (
             patch(
-                "src.workflow.nodes.ingestion.read_msg_files_from_directory"
+                "src.analysis_workflow.nodes.ingestion.read_msg_files_from_directory"
             ) as mock_read,
-            patch(
-                "src.workflow.nodes.extraction.extract_products_batch"
-            ) as mock_extract,
+            patch("src.analysis_workflow.nodes.extraction.extract_products_batch") as mock_extract,
         ):
             mock_read.return_value = emails
             mock_extract.return_value = products
@@ -155,11 +153,9 @@ class TestWorkflowIntegration:
         # Mock extraction to raise error
         with (
             patch(
-                "src.workflow.nodes.ingestion.read_msg_files_from_directory"
+                "src.analysis_workflow.nodes.ingestion.read_msg_files_from_directory"
             ) as mock_read,
-            patch(
-                "src.workflow.nodes.extraction.extract_products_batch"
-            ) as mock_extract,
+            patch("src.analysis_workflow.nodes.extraction.extract_products_batch") as mock_extract,
         ):
             mock_read.return_value = []
             mock_extract.side_effect = Exception("LLM API timeout")
@@ -184,7 +180,7 @@ class TestWorkflowIntegration:
         output_path = tmp_path / "output" / "report.xlsx"
 
         with patch(
-            "src.workflow.nodes.ingestion.read_msg_files_from_directory"
+            "src.analysis_workflow.nodes.ingestion.read_msg_files_from_directory"
         ) as mock_read:
             mock_read.return_value = []
 
@@ -210,9 +206,7 @@ class TestWorkflowIntegration:
         output_path = tmp_path / "real_test_report.xlsx"
 
         # Mock only the LLM extraction (let real parsing happen)
-        with patch(
-            "src.workflow.nodes.extraction.extract_products_batch"
-        ) as mock_extract:
+        with patch("src.analysis_workflow.nodes.extraction.extract_products_batch") as mock_extract:
             # Mock minimal product response
             mock_extract.return_value = []
 

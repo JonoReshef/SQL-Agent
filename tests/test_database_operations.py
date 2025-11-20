@@ -95,12 +95,8 @@ def cleanup_test_data():
         session.execute(delete(MatchReviewFlag))
         session.execute(delete(InventoryMatch))
         session.execute(delete(ProductMention))
-        session.execute(
-            delete(EmailProcessed).where(EmailProcessed.file_path == "test_email.msg")
-        )
-        session.execute(
-            delete(InventoryItem).where(InventoryItem.item_number.like("TEST%"))
-        )
+        session.execute(delete(EmailProcessed).where(EmailProcessed.file_path == "test_email.msg"))
+        session.execute(delete(InventoryItem).where(InventoryItem.item_number.like("TEST%")))
         session.commit()
 
 
@@ -135,9 +131,7 @@ def test_store_emails(sample_email, cleanup_test_data):
 
     # Verify in database
     with get_db_session() as session:
-        stmt = select(EmailProcessed).where(
-            EmailProcessed.thread_hash == sample_email.thread_hash
-        )
+        stmt = select(EmailProcessed).where(EmailProcessed.thread_hash == sample_email.thread_hash)
         db_email = session.execute(stmt).scalar_one()
 
         assert db_email.subject == sample_email.metadata.subject
@@ -282,7 +276,7 @@ def test_full_workflow_with_database():
     """Test complete workflow stores data to database correctly"""
     from pathlib import Path
 
-    from src.workflow.graph import run_workflow
+    from src.analysis_workflow.graph import run_workflow
 
     # Use test fixtures
     test_input = "data/selected"
@@ -297,9 +291,7 @@ def test_full_workflow_with_database():
     # Verify data was stored
     with get_db_session() as session:
         email_count = session.execute(
-            select(EmailProcessed).where(
-                EmailProcessed.file_path.like(f"{test_input}%")
-            )
+            select(EmailProcessed).where(EmailProcessed.file_path.like(f"{test_input}%"))
         ).all()
         product_count = session.execute(select(ProductMention)).all()
 

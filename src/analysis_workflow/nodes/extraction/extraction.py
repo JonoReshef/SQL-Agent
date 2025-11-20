@@ -2,10 +2,10 @@
 
 from typing import List
 
+from models.analysis_workflow import WorkflowState
 from src.database.operations import compute_content_hash
 from src.llm.extractors import extract_products_batch
 from src.models.product import ProductMention
-from src.models.workflow import WorkflowState
 
 
 def extract_products(state: WorkflowState) -> WorkflowState:
@@ -20,9 +20,7 @@ def extract_products(state: WorkflowState) -> WorkflowState:
     """
     try:
         # Extract products from all emails
-        raw_extracted_products: List[ProductMention] = extract_products_batch(
-            state.emails
-        )
+        raw_extracted_products: List[ProductMention] = extract_products_batch(state.emails)
 
         processed_products = process_products(raw_extracted_products)
 
@@ -60,8 +58,7 @@ def process_products(products: List[ProductMention]) -> List[ProductMention]:
     processed_products = [
         product
         for product in products
-        if product.requestor is not None
-        and "westbrand" not in product.requestor.lower()
+        if product.requestor is not None and "westbrand" not in product.requestor.lower()
     ]
 
     return processed_products

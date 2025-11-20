@@ -3,12 +3,12 @@
 from pathlib import Path
 from unittest.mock import patch
 
+from src.analysis_workflow.nodes.extraction.extraction import extract_products
+from src.analysis_workflow.nodes.ingestion.ingestion import ingest_emails
+from src.analysis_workflow.nodes.reporting.reporting import generate_report
+from src.models.analysis_workflow import WorkflowState
 from src.models.email import Email, EmailMetadata
 from src.models.product import ProductMention, ProductProperty
-from src.models.workflow import WorkflowState
-from workflow.nodes.extraction.extraction import extract_products
-from workflow.nodes.ingestion.ingestion import ingest_emails
-from workflow.nodes.reporting.reporting import generate_report
 
 
 class TestIngestionNode:
@@ -23,7 +23,7 @@ class TestIngestionNode:
 
         # Mock the msg reader to return sample emails
         with patch(
-            "src.workflow.nodes.ingestion.read_msg_files_from_directory"
+            "src.analysis_workflow.nodes.ingestion.read_msg_files_from_directory"
         ) as mock_read:
             sample_email = Email(
                 metadata=EmailMetadata(
@@ -55,7 +55,7 @@ class TestIngestionNode:
         )
 
         with patch(
-            "src.workflow.nodes.ingestion.read_msg_files_from_directory"
+            "src.analysis_workflow.nodes.ingestion.read_msg_files_from_directory"
         ) as mock_read:
             email_with_signature = Email(
                 metadata=EmailMetadata(
@@ -84,7 +84,7 @@ class TestIngestionNode:
         )
 
         with patch(
-            "src.workflow.nodes.ingestion.read_msg_files_from_directory"
+            "src.analysis_workflow.nodes.ingestion.read_msg_files_from_directory"
         ) as mock_read:
             mock_read.side_effect = Exception("Failed to read directory")
 
@@ -119,9 +119,7 @@ class TestExtractionNode:
             emails=[sample_email],
         )
 
-        with patch(
-            "src.workflow.nodes.extraction.extract_products_batch"
-        ) as mock_extract:
+        with patch("src.analysis_workflow.nodes.extraction.extract_products_batch") as mock_extract:
             sample_product = ProductMention(
                 exact_product_text="100 pcs of M10 bolts",
                 product_name="M10 Bolt",
@@ -165,9 +163,7 @@ class TestExtractionNode:
             emails=[sample_email],
         )
 
-        with patch(
-            "src.workflow.nodes.extraction.extract_products_batch"
-        ) as mock_extract:
+        with patch("src.analysis_workflow.nodes.extraction.extract_products_batch") as mock_extract:
             mock_extract.side_effect = Exception("LLM API error")
 
             result = extract_products(state)
@@ -230,9 +226,7 @@ class TestReportingNode:
             report_path=str(tmp_path / "report.xlsx"),
         )
 
-        with patch(
-            "src.workflow.nodes.reporting.generate_excel_report"
-        ) as mock_generate:
+        with patch("src.analysis_workflow.nodes.reporting.generate_excel_report") as mock_generate:
             mock_generate.side_effect = Exception("Excel generation failed")
 
             result = generate_report(state)

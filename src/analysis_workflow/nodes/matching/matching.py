@@ -4,11 +4,11 @@ from typing import List
 
 from sqlalchemy import select
 
+from models.analysis_workflow import WorkflowState
 from src.database.connection import get_db_session
 from src.database.models import InventoryItem as DBInventoryItem
 from src.database.operations import compute_content_hash
 from src.models.inventory import InventoryItem as PydanticInventoryItem
-from src.models.workflow import WorkflowState
 
 from .utils.matcher import match_product_to_inventory
 
@@ -80,9 +80,7 @@ def match_products(state: WorkflowState) -> WorkflowState:
     print("\n📦 Loading inventory from database...")
 
     # Match each product
-    print(
-        f"\n🔍 Matching {len(state.extracted_products)} products against inventory..."
-    )
+    print(f"\n🔍 Matching {len(state.extracted_products)} products against inventory...")
 
     product_matches = {}
     all_flags = []
@@ -121,9 +119,7 @@ def match_products(state: WorkflowState) -> WorkflowState:
 
     # Print summary
     print("\n✅ Matching completed:")
-    print(
-        f"   Products matched: {len(product_matches)}/{len(state.extracted_products)}"
-    )
+    print(f"   Products matched: {len(product_matches)}/{len(state.extracted_products)}")
     print(f"   Total matches: {match_count}")
     print(f"   Review flags: {flag_count}")
 

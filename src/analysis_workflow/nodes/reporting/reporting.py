@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
+from models.analysis_workflow import WorkflowState
 from src.analysis_workflow.nodes.reporting.excel_generator import generate_excel_report
-from src.models.workflow import WorkflowState
 
 
 def generate_report(state: WorkflowState) -> WorkflowState:
