@@ -7,9 +7,10 @@ from sqlalchemy import select
 from src.database.connection import get_db_session
 from src.database.models import InventoryItem as DBInventoryItem
 from src.database.operations import compute_content_hash
-from src.matching.matcher import match_product_to_inventory
 from src.models.inventory import InventoryItem as PydanticInventoryItem
 from src.models.workflow import WorkflowState
+
+from .utils.matcher import match_product_to_inventory
 
 
 def load_inventory_from_db() -> List[PydanticInventoryItem]:
@@ -77,16 +78,6 @@ def match_products(state: WorkflowState) -> WorkflowState:
 
     # Load inventory from database
     print("\n📦 Loading inventory from database...")
-    inventory_items = load_inventory_from_db()
-
-    if not inventory_items:
-        print("⚠️  No inventory items found in database")
-        print("   Run 'python scripts/import_inventory.py' to populate inventory")
-        state.errors.append("No inventory items available for matching")
-        return state
-
-    print(f"✅ Loaded {len(inventory_items)} inventory items")
-    state.inventory_items = inventory_items
 
     # Match each product
     print(
@@ -103,7 +94,6 @@ def match_products(state: WorkflowState) -> WorkflowState:
             # Perform matching
             matches, flags = match_product_to_inventory(
                 product=product,
-                inventory_items=inventory_items,
                 max_matches=3,
                 min_score=0.5,
                 review_threshold=0.7,

@@ -6,10 +6,11 @@ from rapidfuzz import fuzz
 from sqlalchemy.orm import Session
 
 from src.database.models import InventoryItem as DBInventoryItem
-from src.matching.hierarchy import PropertyHierarchy  # Direct import to avoid __init__
-from src.matching.normalizer import normalize_property_value  # Direct import
 from src.models.inventory import InventoryItem
 from src.models.product import ProductMention, ProductProperty
+
+from .hierarchy import PropertyHierarchy  # Direct import to avoid __init__
+from .normalizer import normalize_property_value  # Direct import
 
 
 def filter_inventory_by_hierarchical_properties(

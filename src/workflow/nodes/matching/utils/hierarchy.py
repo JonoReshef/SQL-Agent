@@ -56,11 +56,9 @@ def get_hierarchy_for_category(category: str) -> Optional[PropertyHierarchy]:
     Returns:
         PropertyHierarchy object, or None if category not found
     """
-    config_path = (
-        Path(__file__).parent.parent.parent / "config" / "products_config.yaml"
-    )
+    config_path = "config/products_config.yaml"
 
-    if not config_path.exists():
+    if not Path(config_path).exists():
         return None
 
     try:
@@ -74,7 +72,13 @@ def get_hierarchy_for_category(category: str) -> Optional[PropertyHierarchy]:
             if product.get("category", "").lower() == category_lower:
                 # Extract property names in order from config
                 properties = product.get("properties", [])
-                property_order = [prop["name"] for prop in properties if "name" in prop]
+                # Sort properties by priority (lower number = higher priority)
+                sorted_properties = sorted(
+                    properties, key=lambda p: p.get("priority", float("inf"))
+                )
+                property_order = [
+                    prop["name"] for prop in sorted_properties if "name" in prop
+                ]
 
                 if property_order:
                     return PropertyHierarchy(
