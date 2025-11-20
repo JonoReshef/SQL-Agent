@@ -51,8 +51,8 @@ class ProductProperty(BaseModel):
         description="Priority for hierarchical filtering (lower = higher priority)",
     )
     value: str = Field(..., description="Property value")
-    confidence: float = Field(
-        1.0, ge=0.0, le=1.0, description="Extraction confidence score"
+    confidence: Optional[float] = Field(
+        default=1.0, ge=0.0, le=1.0, description="Extraction confidence score"
     )
 
 
