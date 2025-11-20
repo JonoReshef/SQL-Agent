@@ -1,12 +1,12 @@
 """Workflow node for database persistence"""
 
-from models.analysis_workflow import WorkflowState
 from src.database.operations import (
     store_emails,
     store_inventory_matches,
     store_product_mentions,
     store_review_flags,
 )
+from src.models.analysis_workflow import WorkflowState
 
 
 def persist_to_database(state: WorkflowState) -> WorkflowState:

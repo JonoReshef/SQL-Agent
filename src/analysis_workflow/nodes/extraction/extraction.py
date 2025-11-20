@@ -2,9 +2,9 @@
 
 from typing import List
 
-from models.analysis_workflow import WorkflowState
 from src.database.operations import compute_content_hash
 from src.llm.extractors import extract_products_batch
+from src.models.analysis_workflow import WorkflowState
 from src.models.product import ProductMention
 
 

@@ -3,9 +3,9 @@
 from pathlib import Path
 from typing import List
 
-from models.analysis_workflow import WorkflowState
 from src.analysis_workflow.utils import clean_signature, read_msg_files_from_directory
 from src.database.operations import compute_content_hash
+from src.models.analysis_workflow import WorkflowState
 from src.models.email import Email
 
 
