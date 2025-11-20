@@ -2,7 +2,14 @@
 
 ## Executive Summary
 
-A test-driven Python system for analyzing Outlook emails to extract product information and generate Excel reports. The system processes individual `.msg` files (no threading), uses Azure OpenAI for intelligent extraction, and is orchestrated via LangGraph workflows.
+A test-driven Python system for analyzing Outlook emails to extract product information, match against inventory, and generate comprehensive Excel reports with database persistence. The system processes individual `.msg` files (no threading), uses Azure OpenAI (GPT-5) for intelligent extraction, PostgreSQL for data persistence, and is orchestrated via LangGraph workflows.
+
+**Key Features**:
+- Synchronous email analysis with LLM extraction
+- PostgreSQL database with inventory matching
+- Fuzzy property matching using rapidfuzz
+- Multi-sheet Excel reports with match results
+- 128/129 tests passing (99.2% success rate)
 
 ## Core Architectural Principles
 
@@ -26,6 +33,13 @@ A test-driven Python system for analyzing Outlook emails to extract product info
 - **Compile-time Checks**: Catch errors early
 - **Self-documenting**: Models serve as API documentation
 
+### 4. Database-Backed Persistence
+
+- **PostgreSQL with pgvector**: Relational database for structured data
+- **Foreign Key Relationships**: Proper data integrity
+- **Upsert Operations**: Idempotent database writes
+- **Optional Database**: System works without database if needed
+
 ## System Architecture
 
 ```
@@ -36,6 +50,24 @@ A test-driven Python system for analyzing Outlook emails to extract product info
 │  • Product Definitions (Fasteners, Threaded Rod, etc.)         │
 │  • Properties to Extract (grade, size, material, etc.)         │
 │  • Extraction Rules (patterns, formats)                        │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌────────────────────────────────────────────────────────────────┐
+│                     DATABASE LAYER                              │
+│                  (PostgreSQL 17 + pgvector)                     │
+│                                                                 │
+│  Tables:                                                        │
+│  • emails_processed - Email metadata and content               │
+│  • product_mentions - Extracted products (FK to emails)        │
+│  • inventory_items - Parsed inventory from Excel              │
+│  • inventory_matches - Product-to-inventory links (FK both)   │
+│  • match_review_flags - Manual review needed (FK products)    │
+│                                                                 │
+│  Features:                                                      │
+│  • Foreign key constraints for referential integrity           │
+│  • Indexes on frequently queried columns                       │
+│  • Upsert operations to prevent duplicates                     │
+│  • Docker compose for easy setup                               │
 └────────────────────────────────────────────────────────────────┘
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
@@ -65,30 +97,42 @@ A test-driven Python system for analyzing Outlook emails to extract product info
 ┌────────────────────────────────────────────────────────────────┐
 │                  LANGGRAPH WORKFLOW (Synchronous)               │
 │                                                                 │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐│
-│  │  INGESTION NODE │→ │ EXTRACTION NODE │→ │ REPORTING NODE  ││
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘│
+│  ┌──────────┐  ┌───────────┐  ┌─────────┐  ┌─────────────┐  ┌──────────┐│
+│  │INGESTION │→ │EXTRACTION │→ │MATCHING │→ │PERSISTENCE  │→ │REPORTING ││
+│  │   NODE   │  │   NODE    │  │  NODE*  │  │   NODE      │  │  NODE    ││
+│  └──────────┘  └───────────┘  └─────────┘  └─────────────┘  └──────────┘│
+│                                    *optional with --match flag             │
 │                                                                 │
-│  Ingestion:           Extraction:           Reporting:          │
-│  • Load .msg files    • Clean body text    • Aggregate data    │
-│  • Parse metadata     • LLM invoke()       • Format tables     │
-│  • Initial validation • Extract products   • Generate Excel    │
-│                       • Validate results    • Apply formatting  │
+│  Ingestion:           Extraction:           Matching:           │
+│  • Load .msg files    • Clean body text    • Load inventory    │
+│  • Parse metadata     • LLM invoke()       • Fuzzy match props │
+│  • Initial validation • Extract products   • Score confidence  │
+│                       • Validate results    • Generate flags    │
+│                                                                 │
+│  Persistence:         Reporting:                                │
+│  • Store emails       • Aggregate data                          │
+│  • Store products     • Format tables                           │
+│  • Store matches      • Add match/flag sheets                   │
+│  • Store flags        • Generate Excel                          │
 │                                                                 │
 │  State Machine (Pydantic BaseModel):                            │
 │  {                                                              │
+│    input_directory: str,                                        │
 │    emails: List[Email] = [],                                    │
-│    cleaned_emails: List[str] = [],                              │
 │    extracted_products: List[ProductMention] = [],               │
 │    analytics: List[ProductAnalytics] = [],                      │
+│    inventory_items: List[InventoryItem] = [],                   │
+│    product_matches: Dict[str, List[InventoryMatch]] = {},       │
+│    review_flags: List[ReviewFlag] = [],                         │
 │    report_path: str = "",                                       │
+│    matching_enabled: bool = False,                              │
 │    errors: List[str] = []  # Auto-initialized                   │
 │  }                                                              │
 └────────────────────────────────────────────────────────────────┘
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
 │                 AI EXTRACTION LAYER                             │
-│                  (Azure OpenAI GPT-4.1)                         │
+│                  (Azure OpenAI GPT-5)                           │
 │                                                                 │
 │  Prompt Engineering:                                            │
 │  ┌──────────────────────────────────────────────────────────┐  │
@@ -97,6 +141,46 @@ A test-driven Python system for analyzing Outlook emails to extract product info
 │  │ Extract:                                                 │  │
 │  │ - Product names and categories                          │  │
 │  │ - Properties (grade, size, material, finish, etc.)      │  │
+│  │ - Quantities and units                                  │  │
+│  │ - Context (quote request, order, inquiry)               │  │
+│  │ - Dates mentioned                                       │  │
+│  │                                                          │  │
+│  │ Return: JSON array of products                          │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  LLM Configuration:                                             │
+│  • Deployment: gpt-5                                            │
+│  • API Version: 2024-08-01-preview                              │
+│  • Temperature: 0 (deterministic extraction)                    │
+│  • Reasoning effort: low                                        │
+│  • Method: llm.invoke() - synchronous                           │
+│  • Caching: Redis (localhost:6379)                              │
+│  • Response: Structured JSON via with_structured_output()       │
+└────────────────────────────────────────────────────────────────┘
+                              ↓
+┌────────────────────────────────────────────────────────────────┐
+│                 INVENTORY MATCHING LAYER                        │
+│                  (Fuzzy Matching + Scoring)                     │
+│                                                                 │
+│  Property Normalizer (rapidfuzz):                               │
+│  • Normalize property values (e.g., "Gr 8" → "Grade 8")        │
+│  • Fuzzy match scores (0.0-1.0)                                │
+│  • Handle common variations and typos                          │
+│                                                                 │
+│  Product Matcher:                                               │
+│  • Category filtering (exact match required)                   │
+│  • Property matching (Jaccard similarity)                      │
+│  • Configurable thresholds (min_score=0.5)                     │
+│  • Ranked results (top N matches)                              │
+│  • Match reasoning generation                                  │
+│                                                                 │
+│  Review Flag Generation:                                        │
+│  • INSUFFICIENT_DATA - No matches found                        │
+│  • LOW_CONFIDENCE - Score < 0.7                                │
+│  • AMBIGUOUS_MATCH - Multiple high-scoring matches             │
+│  • TOO_MANY_MATCHES - >10 matches found                        │
+│  • Action recommendations for each flag                        │
+└────────────────────────────────────────────────────────────────┘
 │  │ - Quantities and units                                  │  │
 │  │ - Context (quote request, order, inquiry)               │  │
 │  │ - Dates mentioned                                       │  │
@@ -132,6 +216,21 @@ A test-driven Python system for analyzing Outlook emails to extract product info
 │  │ Email File | Subject | Sender | Date | Product Count  │    │
 │  │ Has Attachments | Parse Status                          │    │
 │  └────────────────────────────────────────────────────────┘    │
+│                                                                 │
+│  Sheet 4: INVENTORY MATCHES (if --match enabled)                │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │ Product | Inventory Item # | Description | Match Score│    │
+│  │ Rank | Matched Props | Missing Props | Reasoning      │    │
+│  └────────────────────────────────────────────────────────┘    │
+│  • Color-coded by score (green/yellow/orange)                  │
+│  • NO MATCHES highlighted in red                                │
+│                                                                 │
+│  Sheet 5: REVIEW FLAGS (if --match enabled)                     │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │ Product | Issue Type | Match Count | Top Confidence   │    │
+│  │ Reason | Action Needed                                  │    │
+│  └────────────────────────────────────────────────────────┘    │
+│  • Color-coded by priority (red/yellow/orange)                 │
 │                                                                 │
 │  Features:                                                      │
 │  • Conditional formatting for easy reading                      │
@@ -172,34 +271,93 @@ ProductProperty
   • confidence: float (0.0 - 1.0)
 
 ProductMention
+  • exact_product_text: str  # Original text from email
   • product_name: str
   • product_category: str
   • properties: List[ProductProperty]
-  • quantity: Optional[int]
+  • quantity: Optional[float]
   • unit: Optional[str]
   • context: str (quote_request, order, inquiry)
-  • date_requested: Optional[datetime]
+  • date_requested: Optional[str]
+  • requestor: Optional[str]
   • email_subject: str
   • email_sender: str
-  • email_date: Optional[datetime]
   • email_file: Optional[str]
 
 ProductAnalytics
   • product_name: str
   • product_category: str
   • total_mentions: int
-  • first_mention: Optional[datetime]
-  • last_mention: Optional[datetime]
-  • total_quantity: Optional[int]
+  • first_mention: Optional[str]
+  • last_mention: Optional[str]
+  • total_quantity: Optional[float]
   • properties_summary: Dict[str, List[str]]
   • contexts: List[str]
+  • people_involved: List[str]
+```
+
+### Inventory Models
+
+```python
+InventoryItem (extends ProductItem)
+  • item_number: str  # Unique inventory ID
+  • raw_description: str  # From Excel
+  • exact_product_text: str
+  • product_name: str
+  • product_category: str
+  • properties: List[ProductProperty]
+  • parse_confidence: float
+  • needs_manual_review: bool
+
+InventoryMatch
+  • inventory_item_number: str
+  • inventory_description: str
+  • match_score: float (0.0-1.0)
+  • rank: int (1 = best match)
+  • matched_properties: List[str]
+  • missing_properties: List[str]
+  • match_reasoning: str
+
+ReviewFlag
+  • product_text: str
+  • product_name: str
+  • product_category: str
+  • issue_type: str  # INSUFFICIENT_DATA, LOW_CONFIDENCE, etc.
+  • match_count: int
+  • top_confidence: Optional[float]
+  • reason: str
+  • action_needed: str
 ```
 
 ## Technology Stack Justification
 
 ### Why These Libraries?
 
-1. **extract-msg** (vs mail-parser)
+1. **PostgreSQL 17 + pgvector** (database)
+
+   - ✅ Industry-standard relational database
+   - ✅ pgvector extension for future semantic search
+   - ✅ Strong ACID guarantees
+   - ✅ Docker support for easy deployment
+   - ✅ SQLAlchemy 2.0 compatibility
+
+2. **SQLAlchemy 2.0** (ORM)
+
+   - ✅ Modern async-capable ORM (using sync mode)
+   - ✅ Type-safe queries with new syntax
+   - ✅ Relationship management
+   - ✅ Migration support via Alembic (future)
+   - ✅ Connection pooling built-in
+
+3. **rapidfuzz 3.14.3** (fuzzy matching)
+
+   - ✅ Fast Levenshtein distance calculations
+   - ✅ Multiple matching algorithms
+   - ✅ Property normalization support
+   - ✅ Active maintenance
+   - ✅ Pure Python (no C deps)
+
+4. **extract-msg** (vs mail-parser)
 
    - ✅ Already in requirements.txt
    - ✅ Specifically for Outlook .msg files
@@ -207,15 +365,16 @@ ProductAnalytics
    - ✅ Extracts attachments and metadata
    - ❌ mail-parser: Not maintained since 2020, for standard email formats
 
-2. **LangGraph** (vs raw LangChain)
+5. **LangGraph** (vs raw LangChain)
 
    - ✅ State machine workflow management
    - ✅ Easy node composition
    - ✅ Built-in error handling
    - ✅ Synchronous execution support
    - ✅ Visual workflow representation
+   - ✅ Redis caching integration
 
-3. **BeautifulSoup4** (vs regex only)
+6. **BeautifulSoup4** (vs regex only)
 
    - ✅ Robust HTML parsing
    - ✅ Handles malformed HTML
@@ -223,7 +382,7 @@ ProductAnalytics
    - ✅ Entity decoding
    - ✅ Preserves text content
 
-4. **Pydantic v2** (vs dataclasses)
+7. **Pydantic v2** (vs dataclasses)
 
    - ✅ Runtime validation
    - ✅ JSON serialization
@@ -231,7 +390,7 @@ ProductAnalytics
    - ✅ Documentation via models
    - ✅ OpenAPI integration ready
 
-5. **openpyxl** (vs pandas/xlsxwriter)
+8. **openpyxl** (vs pandas/xlsxwriter)
    - ✅ Pure Python (no external deps)
    - ✅ Rich formatting support
    - ✅ Multiple sheet management
@@ -243,7 +402,8 @@ ProductAnalytics
 ```
 1. INITIALIZATION
    ├─ Load products_config.yaml
-   ├─ Initialize Azure OpenAI client
+   ├─ Initialize Azure OpenAI client (with Redis caching)
+   ├─ Test database connection (if --match flag)
    └─ Create LangGraph workflow
 
 2. INGESTION PHASE
@@ -264,11 +424,29 @@ ProductAnalytics
    │  ├─ Cleaned email body
    │  └─ Example extractions
    ├─ Call llm.invoke() - synchronous
-   ├─ Parse JSON response
+   ├─ Parse JSON response via structured_output
    ├─ Validate ProductMention models
    └─ Add to state.extracted_products
 
-5. ANALYTICS PHASE
+5. MATCHING PHASE (if --match enabled)
+   ├─ Load inventory items from database
+   ├─ For each extracted product:
+   │  ├─ Filter by category (exact match)
+   │  ├─ Normalize properties (rapidfuzz)
+   │  ├─ Calculate Jaccard similarity scores
+   │  ├─ Rank matches by score
+   │  └─ Generate review flags if needed
+   └─ Update state with matches and flags
+
+6. PERSISTENCE PHASE
+   ├─ Store emails to emails_processed table
+   ├─ Store products to product_mentions table (FK to emails)
+   ├─ If matching enabled:
+   │  ├─ Store matches to inventory_matches (FK to products & inventory)
+   │  └─ Store flags to match_review_flags (FK to products)
+   └─ Commit transactions
+
+7. ANALYTICS PHASE
    ├─ Group products by name/category
    ├─ Calculate aggregates:
    │  ├─ Total mentions
@@ -277,19 +455,23 @@ ProductAnalytics
    │  └─ Property variations
    └─ Create ProductAnalytics models
 
-6. REPORTING PHASE
+8. REPORTING PHASE
    ├─ Create Excel workbook (openpyxl)
    ├─ Generate Sheet 1: Product Mentions
    ├─ Generate Sheet 2: Analytics
    ├─ Generate Sheet 3: Email Summary
+   ├─ If matching enabled:
+   │  ├─ Generate Sheet 4: Inventory Matches (color-coded)
+   │  └─ Generate Sheet 5: Review Flags (priority-coded)
    ├─ Apply formatting and filters
    └─ Save to output directory
 
-7. ERROR HANDLING
+9. ERROR HANDLING
    ├─ Log parsing errors (continue processing)
    ├─ Record LLM failures
    ├─ Track validation failures
-   └─ Generate error report in Excel
+   ├─ Database transaction rollbacks
+   └─ Generate error report in state
 ```
 
 ## Key Design Decisions Explained
@@ -414,54 +596,85 @@ ProductAnalytics
 2. ❌ Async processing (not needed yet)
 3. ❌ Real-time processing (batch workflow)
 4. ❌ Web interface (command-line only)
-5. ❌ Database storage (Excel output only)
+5. ✅ **Database storage** (PostgreSQL implemented)
 6. ❌ Multi-language support (English only)
+7. ❌ Semantic search with pgvector (prepared but not implemented)
 
 ## Deployment Requirements
 
 **System Requirements**:
 
 - Python 3.11+
-- 2GB RAM minimum
-- 100MB disk space
+- 4GB RAM minimum (for database + LLM caching)
+- 500MB disk space
 - Internet connection (Azure OpenAI)
+- Docker & Docker Compose (for PostgreSQL)
 
-**Dependencies**: See `requirements.txt`
+**Infrastructure**:
 
+- PostgreSQL 17 with pgvector extension
+- Redis 7 for LLM response caching
+- Docker containers for both services
+
+**Dependencies**: See `requirements.txt` and `pyproject.toml`
+
+Key libraries:
 - extract-msg==0.55.0
 - beautifulsoup4==4.13.5
 - langgraph==1.0.3
 - langchain-openai==1.0.2
+- langchain-redis==0.1.6
 - pydantic==2.12.4
 - openpyxl==3.1.5
+- sqlalchemy==2.0.36
+- psycopg[binary]==3.2.12
+- rapidfuzz==3.14.3
 - pytest==9.0.1
 - pyyaml==6.0.3
 
 ## Success Metrics
 
-**Phase 1 (Current)**: Foundation ✅
+**Phase 1: Foundation** ✅ COMPLETE
 
-- [x] 26/26 tests passing
+- [x] 128/129 tests passing (99.2%)
 - [x] Email parsing working
 - [x] Signature cleaning implemented
 - [x] Pydantic models defined
 
-**Phase 2 (Next)**: Core Workflow 🔄
+**Phase 2: Core Workflow** ✅ COMPLETE
 
-- [ ] LangGraph workflow implemented
-- [ ] Azure OpenAI integration working
-- [ ] Product extraction functional
-- [ ] Configuration system complete
+- [x] LangGraph workflow implemented
+- [x] Azure OpenAI integration working
+- [x] Product extraction functional
+- [x] Configuration system complete
 
-**Phase 3 (Final)**: Production Ready 📋
+**Phase 3: Database & Matching** ✅ COMPLETE
 
-- [ ] Excel report generation
-- [ ] Integration tests passing
-- [ ] End-to-end workflow complete
-- [ ] Documentation finalized
+- [x] PostgreSQL database schema
+- [x] SQLAlchemy models and operations
+- [x] Inventory loader and parser
+- [x] Fuzzy property matching
+- [x] Product-to-inventory matching
+- [x] Review flag generation
+
+**Phase 4: Production Ready** ✅ COMPLETE
+
+- [x] Excel report generation (5 sheets)
+- [x] Integration tests passing (8/8)
+- [x] End-to-end workflow complete
+- [x] Documentation finalized
+- [x] Database persistence working
+
+**Phase 5: Deployment** 📋 IN PROGRESS
+
+- [x] Docker Compose configuration
+- [x] Database migration scripts
+- [x] Import scripts for inventory
+- [ ] Full inventory import (11,197 items)
+- [ ] Production deployment guide
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: November 12, 2025  
-**Status**: Foundation Complete
+**Document Version**: 2.0  
+**Last Updated**: November 14, 2025  
+**Status**: Production Ready - Core Features Complete

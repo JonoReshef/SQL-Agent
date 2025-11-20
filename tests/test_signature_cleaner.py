@@ -1,7 +1,8 @@
 """Unit tests for signature and footer cleaning"""
 
 import pytest
-from src.email_processor.signature_cleaner import clean_signature, strip_html_tags
+
+from src.workflow.utils import clean_signature, strip_html_tags
 
 
 class TestSignatureCleaner:

@@ -1,9 +1,12 @@
 """LangGraph workflow state models"""
 
-from typing import List
+from typing import Dict, List
+
 from pydantic import BaseModel, Field
+
 from src.models.email import Email
-from src.models.product import ProductMention, ProductAnalytics
+from src.models.inventory import InventoryItem, InventoryMatch, ReviewFlag
+from src.models.product import ProductAnalytics, ProductMention
 
 
 class WorkflowState(BaseModel):
@@ -24,9 +27,31 @@ class WorkflowState(BaseModel):
 
     # Processing results
     extracted_products: List[ProductMention] = Field(default_factory=list)
+    unique_property_products: List[ProductMention] = Field(default_factory=list)
 
     # Analytics
     analytics: List[ProductAnalytics] = Field(default_factory=list)
+
+    # Inventory matching (new fields for Stage 5)
+    inventory_items: List[InventoryItem] = Field(
+        default_factory=list,
+        description="Loaded inventory items from database",
+    )
+
+    product_matches: Dict[str, List[InventoryMatch]] = Field(
+        default_factory=dict,
+        description="Matches for each product (keyed by product exact_product_text)",
+    )
+
+    review_flags: List[ReviewFlag] = Field(
+        default_factory=list,
+        description="Products flagged for manual review",
+    )
+
+    matching_enabled: bool = Field(
+        default=False,
+        description="Whether inventory matching is enabled for this run",
+    )
 
     # Output path
     report_path: str = Field(

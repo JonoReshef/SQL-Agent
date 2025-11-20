@@ -1,24 +1,30 @@
 """LangGraph workflow graph construction"""
 
-from typing import cast
-from langgraph.graph import StateGraph, END
-from langgraph.graph.state import CompiledStateGraph
-from src.models.workflow import WorkflowState
-from src.workflow.nodes.ingestion import ingest_emails
-from src.workflow.nodes.extraction import extract_products
-from src.workflow.nodes.reporting import generate_report
 from langchain_core.globals import set_llm_cache
 from langchain_redis import RedisCache
+from langgraph.graph import END, StateGraph
+from langgraph.graph.state import CompiledStateGraph
+
+from src.models.workflow import WorkflowState
+from src.workflow.nodes.extraction.extraction import extract_products
+from src.workflow.nodes.ingestion import ingest_emails
+from src.workflow.nodes.matching import match_products
+from src.workflow.nodes.persistence import persist_to_database
+from src.workflow.nodes.reporting import generate_report
 
 
-def create_workflow_graph() -> CompiledStateGraph:
+def create_workflow_graph(enable_matching: bool = False) -> CompiledStateGraph:
     """
     Create the email analysis workflow graph.
 
     Workflow:
     1. Ingestion: Load and clean .msg files from directory
     2. Extraction: Extract product mentions using LLM
-    3. Reporting: Generate Excel report
+    3. Matching: Match products against inventory (optional)
+    4. Reporting: Generate Excel report
+
+    Args:
+        enable_matching: Whether to enable inventory matching (requires database)
 
     Returns:
         Compiled StateGraph ready for execution
@@ -29,11 +35,22 @@ def create_workflow_graph() -> CompiledStateGraph:
     # Add nodes
     workflow.add_node("ingestion", ingest_emails)
     workflow.add_node("extraction", extract_products)
+    workflow.add_node("matching", match_products)
+    workflow.add_node("persistence", persist_to_database)
     workflow.add_node("reporting", generate_report)
 
-    # Define edges (linear workflow)
+    # Define edges
     workflow.add_edge("ingestion", "extraction")
-    workflow.add_edge("extraction", "reporting")
+
+    if enable_matching:
+        # With matching: extraction -> matching -> persistence -> reporting
+        workflow.add_edge("extraction", "matching")
+        workflow.add_edge("matching", "persistence")
+    else:
+        # Without matching: extraction -> persistence -> reporting
+        workflow.add_edge("extraction", "persistence")
+
+    workflow.add_edge("persistence", "reporting")
     workflow.add_edge("reporting", END)
 
     # Set entry point
@@ -51,13 +68,16 @@ def create_workflow_graph() -> CompiledStateGraph:
 GRAPH = create_workflow_graph()
 
 
-def run_workflow(input_directory: str, output_path: str) -> WorkflowState:
+def run_workflow(
+    input_directory: str, output_path: str, enable_matching: bool = False
+) -> WorkflowState:
     """
     Execute the complete email analysis workflow.
 
     Args:
         input_directory: Path to directory containing .msg files
         output_path: Path where Excel report should be generated
+        enable_matching: Whether to enable inventory matching
 
     Returns:
         Final workflow state with results
@@ -66,9 +86,10 @@ def run_workflow(input_directory: str, output_path: str) -> WorkflowState:
     initial_state = WorkflowState(
         input_directory=input_directory,
         report_path=output_path,
+        matching_enabled=enable_matching,
     )
     # Create and run workflow
-    workflow_graph = create_workflow_graph()
+    workflow_graph = create_workflow_graph(enable_matching=enable_matching)
     result = workflow_graph.invoke(initial_state)
     final_state = WorkflowState.model_validate(result)
 

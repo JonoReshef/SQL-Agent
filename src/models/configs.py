@@ -1,7 +1,10 @@
 """Models for the config file"""
 
 from typing import List, Optional, Set
-from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from src.models.product import ValueTypes
 
 
 class PropertyDefinition(BaseModel):
@@ -11,15 +14,23 @@ class PropertyDefinition(BaseModel):
         json_schema_extra={
             "example": {
                 "name": "grade",
-                "type": "string",
                 "examples": ["8", "5", "A490"],
+                "value_type": "measurement",
+                "priority": 1,
             }
         }
     )
 
     name: str = Field(..., description="Property name (e.g., 'grade', 'size')")
-    type: str = Field(..., description="Property type (string, number, etc.)")
     examples: List[str] = Field(default_factory=list, description="Example values")
+    value_type: str = Field(
+        default="description",
+        description="Type of the property value (e.g., 'measurement', 'description')",
+    )
+    priority: int = Field(
+        default=10,
+        description="Priority for hierarchical filtering (lower = higher priority)",
+    )
 
 
 class ProductDefinition(BaseModel):
@@ -120,3 +131,36 @@ class ProductConfig(BaseModel):
                 property_names.add(prop.name)
 
         return property_names
+
+    def get_property_metadata(
+        self, category: str, property_name: str
+    ) -> tuple[ValueTypes, int]:
+        """
+        Get value_type and priority for a property within a category.
+
+        Args:
+            category: Product category
+            property_name: Name of the property
+
+        Returns:
+            Tuple of (value_type, priority)
+            Defaults to ("description", 10) if not found
+        """
+        # Find product by category
+        product = None
+        for p in self.products:
+            if p.category.lower() == category.lower():
+                product = p
+                break
+
+        if not product:
+            return ("description", 10)
+
+        # Find property definition
+        property_name_lower = property_name.lower()
+        for prop_def in product.properties:
+            if prop_def.name.lower() == property_name_lower:
+                prod_def_value_type: ValueTypes = prop_def.value_type  # type: ignore
+                return (prod_def_value_type, prop_def.priority)
+
+        return ("description", 10)

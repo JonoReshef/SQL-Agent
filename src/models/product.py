@@ -1,9 +1,9 @@
 """Pydantic models for product data structures"""
 
 from datetime import datetime
-from typing import Optional, List, Dict
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Literal
+from typing import ClassVar, Dict, List, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 QuoteContext = Literal[
     "quote_request",
@@ -16,54 +16,118 @@ QuoteContext = Literal[
     "quote_response",
 ]
 
+ValueTypes = Literal[
+    "measurement",
+    "description",
+    "name",
+    "other",
+]
+
 
 class ProductProperty(BaseModel):
     """A single property of a product"""
 
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {"name": "grade", "value": "8", "confidence": 0.95}
+            "example": {
+                "name": "grade",
+                "value": "8",
+                "confidence": 0.95,
+                "value_type": "measurement",
+                "priority": 1,
+            }
         }
     )
 
     name: str = Field(
         ..., description="Property name (e.g., 'grade', 'size', 'material')"
     )
+    value_type: ValueTypes = Field(
+        default="description",
+        description="Property type (e.g., 'measurement', 'description')",
+    )
+    priority: int = Field(
+        default=10,
+        description="Priority for hierarchical filtering (lower = higher priority)",
+    )
     value: str = Field(..., description="Property value")
-    confidence: float = Field(
-        1.0, ge=0.0, le=1.0, description="Extraction confidence score"
+    confidence: Optional[float] = Field(
+        default=1.0, ge=0.0, le=1.0, description="Extraction confidence score"
     )
 
 
-class ProductExtractionItem(BaseModel):
-    """Single product extraction from email"""
+class ProductItem(BaseModel):
+    """Base product item model"""
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "exact_product_text": "100 pcs of grade 8 hex bolts",
+                "product_id": "HB-12345",
                 "product_name": "Hex Bolt",
                 "product_category": "Fasteners",
                 "properties": [
-                    {"name": "grade", "value": "8", "confidence": 0.95},
-                    {"name": "size", "value": "1/2-13", "confidence": 0.90},
+                    {
+                        "name": "grade",
+                        "value": "8",
+                        "value_type": "measurement",
+                        "confidence": 0.95,
+                    },
+                    {
+                        "name": "size",
+                        "value": "1/2-13",
+                        "value_type": "measurement",
+                        "confidence": 0.90,
+                    },
+                    {
+                        "name": "material",
+                        "value": "steel",
+                        "value_type": "description",
+                        "confidence": 1.0,
+                    },
                 ],
-                "quantity": 100,
-                "unit": "pcs",
-                "context": "quote_request",
-                "requestor": "customer@example.com",
-                "date_requested": "2025-02-15 14:30:00",
             }
         }
     )
     exact_product_text: str = Field(
-        ..., description="The exact text from the email that identified the product"
+        ..., description="The exact text which originally describes a product"
+    )
+    product_id: Optional[str | None] = Field(
+        default=None, description="Optional unique identifier for the product"
     )
     product_name: str = Field(description="Name of the product")
     product_category: str = Field(description="Category of the product")
     properties: list[ProductProperty] = Field(
         default_factory=list, description="Product properties as key-value pairs"
     )
+
+
+class ProductItemResult(ProductItem):
+    items: List[ProductItem] = Field(
+        default_factory=list, description="List of extracted products"
+    )
+
+
+class ProductExtractionItem(ProductItem):
+    """Single product extraction from email"""
+
+    # Get the example schema from the base ProductItem model (not a field)
+    model_schema: ClassVar[dict] = ProductItem.model_config.get("json_schema_extra", {})  # type: ignore
+    model_config_inherit: ClassVar[dict] = model_schema.get("example", {})
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                **model_config_inherit,
+                "quantity": 100,
+                "unit": "pcs",
+                "context": "quote_request",
+                "requestor": "john.doe@example.com",
+                "date_requested": "2025-02-15",
+            }
+        }
+    )
+
     quantity: Optional[float] = Field(None, description="Quantity mentioned")
     unit: Optional[str] = Field(None, description="Unit of measurement")
     context: QuoteContext | str = Field(
@@ -92,6 +156,9 @@ class ProductMention(ProductExtractionItem):
     email_subject: str = Field(..., description="Subject of email containing mention")
     email_sender: str = Field(..., description="Sender of email")
     email_file: Optional[str] = Field(None, description="Source .msg file path")
+    thread_hash: Optional[str] = Field(
+        None, description="SHA256 hash of source email thread for unique identification"
+    )
 
 
 class ProductAnalytics(BaseModel):

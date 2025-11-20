@@ -1,15 +1,23 @@
 """Azure OpenAI client wrapper"""
 
 import os
-from langchain_openai import AzureChatOpenAI
 from functools import lru_cache
+from typing import Union
+
 from dotenv import load_dotenv
+from langchain_core.runnables import Runnable
+from langchain_openai import AzureChatOpenAI
+from pydantic import BaseModel
+from typing_extensions import Literal
 
 load_dotenv()
 
 
 @lru_cache(maxsize=1)
-def get_llm_client() -> AzureChatOpenAI:
+def get_llm_client(
+    type: Literal["gpt5-low", "gpt4.1-mini", "gpt4.1"] = "gpt5-low",
+    output_structure: BaseModel | None = None,
+) -> Union[AzureChatOpenAI, Runnable]:
     """
     Get Azure OpenAI client (cached singleton).
 
@@ -27,13 +35,35 @@ def get_llm_client() -> AzureChatOpenAI:
     if not endpoint:
         raise ValueError("AZURE_LLM_ENDPOINT environment variable not set")
 
-    llm = AzureChatOpenAI(
-        api_key=api_key,  # type: ignore
-        azure_endpoint=endpoint,  # type: ignore
-        azure_deployment="gpt-5",  # type: ignore
-        api_version="2024-08-01-preview",  # type: ignore
-        verbose=False,
-        reasoning_effort="low",
-    )
+    if type == "gpt5-low":
+        llm = AzureChatOpenAI(
+            api_key=api_key,  # type: ignore
+            azure_endpoint=endpoint,  # type: ignore
+            azure_deployment="gpt-5",  # type: ignore
+            api_version="2024-08-01-preview",  # type: ignore
+            verbose=False,
+            reasoning_effort="low",
+        )
+    elif type == "gpt4.1-mini":
+        llm = AzureChatOpenAI(
+            api_key=api_key,  # type: ignore
+            azure_endpoint=endpoint,  # type: ignore
+            azure_deployment="gpt-4-1-mini",  # type: ignore
+            api_version="2024-08-01-preview",  # type: ignore
+            verbose=False,
+            temperature=0,
+        )
+    elif type == "gpt4.1":
+        llm = AzureChatOpenAI(
+            api_key=api_key,  # type: ignore
+            azure_endpoint=endpoint,  # type: ignore
+            azure_deployment="gpt-4.1",  # type: ignore
+            api_version="2024-08-01-preview",  # type: ignore
+            verbose=False,
+            temperature=0,
+        )
+
+    if output_structure:
+        llm = llm.with_structured_output(output_structure)  # type: ignore
 
     return llm

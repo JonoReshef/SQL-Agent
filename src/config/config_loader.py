@@ -1,14 +1,14 @@
 """Configuration loader for product definitions and extraction rules"""
 
-import yaml
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
-from functools import lru_cache
+
+import yaml
 
 from src.models.configs import ProductConfig
 
 
-@lru_cache(maxsize=1)
 def load_config(config_path: Optional[Path] = None) -> ProductConfig:
     """
     Load product configuration from YAML file.
@@ -39,6 +39,32 @@ def load_config(config_path: Optional[Path] = None) -> ProductConfig:
     return config
 
 
+def format_config(config: ProductConfig) -> str:
+    """
+    Format ProductConfig as a YAML string.
+
+    Args:
+        config: ProductConfig object
+    Returns:
+        YAML string representation
+    """
+    # Build product definitions section
+    products_info = []
+    for product in config.products:
+        products_info.append(
+            f"Product {product.name} which is in the category {product.category} has the following aliases: {', '.join(product.aliases)}. The below are the valid properties of {product.name} (with examples): "
+        )
+        for property in product.properties:
+            products_info.append(
+                f"-- {property.name} is ValueType: {property.value_type}, examples: {', '.join(property.examples)}"
+            )
+        products_info.append("\n-----\n")
+
+    products_section = "\n".join(products_info)
+
+    return products_section
+
+
 def reload_config(config_path: Optional[Path] = None) -> ProductConfig:
     """
     Force reload of configuration (clears cache).
@@ -49,5 +75,11 @@ def reload_config(config_path: Optional[Path] = None) -> ProductConfig:
     Returns:
         ProductConfig object
     """
-    load_config.cache_clear()
     return load_config(config_path)
+
+
+if __name__ == "__main__":
+    # Example usage
+    config_text = load_config()
+    print("Loaded Product Configuration:")
+    print(config_text)

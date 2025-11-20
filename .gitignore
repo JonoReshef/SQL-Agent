@@ -1,8 +1,11 @@
 data/
+.venv/
 __pycache__/
 *.log
 *.env
 *.db
+*.egg-info/
 output/
 .vscode/
 .langgraph_api/
+copilot-instructions.md

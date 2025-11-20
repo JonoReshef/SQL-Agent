@@ -2,12 +2,13 @@
 
 from pathlib import Path
 from unittest.mock import patch
-from src.workflow.nodes.ingestion import ingest_emails
-from src.workflow.nodes.extraction import extract_products
-from src.workflow.nodes.reporting import generate_report
-from src.models.workflow import WorkflowState
+
 from src.models.email import Email, EmailMetadata
 from src.models.product import ProductMention, ProductProperty
+from src.models.workflow import WorkflowState
+from workflow.nodes.extraction.extraction import extract_products
+from workflow.nodes.ingestion.ingestion import ingest_emails
+from workflow.nodes.reporting.reporting import generate_report
 
 
 class TestIngestionNode:
