@@ -29,6 +29,9 @@ PROPERTY_NORMALIZATIONS: Dict[str, Dict[str, str]] = {
         "black": "black oxide",
         "black oxide": "black oxide",
     },
+    "grade": {
+        "gr": "grade",
+    },
 }
 
 # Key terms to replace in property values if they appear
@@ -44,9 +47,6 @@ PROPERTY_REPLACEMENTS: Dict[str, Dict[str, str]] = {
         "threads per inch": "TPI",
         "t.p.i.": "TPI",
         "tpi": "TPI",
-    },
-    "grade": {
-        "gr": "grade",
     },
     "size": {"inch": '"'},
 }
