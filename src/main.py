@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-from src.workflow.graph import run_workflow
+from src.analysis_workflow.graph import run_workflow
 
 
 def main(input_dir: str, output_path: str, enable_matching: bool = False):
@@ -93,11 +93,7 @@ if __name__ == "__main__":
         main(src_email, output_report, enable_matching)
     else:
         print("Usage: python -m src.main [input_directory] [output_path] [--match]")
-        print(
-            "  input_directory: Directory containing .msg files (default: data/selected)"
-        )
-        print(
-            "  output_path: Path for Excel report (default: output/report_<timestamp>.xlsx)"
-        )
+        print("  input_directory: Directory containing .msg files (default: data/selected)")
+        print("  output_path: Path for Excel report (default: output/report_<timestamp>.xlsx)")
         print("  --match: Enable inventory matching (requires database)")
         sys.exit(1)
