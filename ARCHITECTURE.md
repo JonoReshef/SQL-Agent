@@ -2,14 +2,16 @@
 
 ## Executive Summary
 
-A test-driven Python system for analyzing Outlook emails to extract product information, match against inventory, and generate comprehensive Excel reports with database persistence. The system processes individual `.msg` files (no threading), uses Azure OpenAI (GPT-5) for intelligent extraction, PostgreSQL for data persistence, and is orchestrated via LangGraph workflows.
+A test-driven Python system for analyzing Outlook emails to extract product information, match against inventory using **database-driven hierarchical filtering**, and generate comprehensive 5-sheet Excel reports with full database persistence. The system processes individual `.msg` files (no threading), uses Azure OpenAI (GPT-5) for intelligent extraction, PostgreSQL 17 with **thread_hash** as primary key for deduplication, and is orchestrated via LangGraph workflows.
 
 **Key Features**:
+
 - Synchronous email analysis with LLM extraction
-- PostgreSQL database with inventory matching
+- PostgreSQL database with thread_hash PKs and content_hash for all records
+- Database-driven hierarchical matching (10-100x faster than linear scan)
 - Fuzzy property matching using rapidfuzz
-- Multi-sheet Excel reports with match results
-- 128/129 tests passing (99.2% success rate)
+- Multi-sheet Excel reports (3 or 5 sheets based on --match flag)
+- Production-ready deployment with Docker Compose
 
 ## Core Architectural Principles
 
@@ -57,17 +59,33 @@ A test-driven Python system for analyzing Outlook emails to extract product info
 │                  (PostgreSQL 17 + pgvector)                     │
 │                                                                 │
 │  Tables:                                                        │
-│  • emails_processed - Email metadata and content               │
-│  • product_mentions - Extracted products (FK to emails)        │
-│  • inventory_items - Parsed inventory from Excel              │
-│  • inventory_matches - Product-to-inventory links (FK both)   │
-│  • match_review_flags - Manual review needed (FK products)    │
+│  • emails_processed                                            │
+│    - thread_hash VARCHAR(64) PRIMARY KEY (SHA256 content hash) │
+│    - file_path, subject, sender, date_sent                     │
+│  • product_mentions                                            │
+│    - id SERIAL PRIMARY KEY                                      │
+│    - email_thread_hash FK → emails_processed.thread_hash       │
+│    - content_hash VARCHAR(64) (for change detection)           │
+│  • inventory_items                                             │
+│    - id SERIAL PRIMARY KEY                                      │
+│    - item_number VARCHAR(100) UNIQUE                           │
+│    - content_hash VARCHAR(64) (for change detection)           │
+│  • inventory_matches                                           │
+│    - id SERIAL PRIMARY KEY                                      │
+│    - product_mention_id FK → product_mentions.id              │
+│    - inventory_item_id FK → inventory_items.id                │
+│    - content_hash VARCHAR(64) (for change detection)           │
+│  • match_review_flags                                          │
+│    - id SERIAL PRIMARY KEY                                      │
+│    - product_mention_id FK → product_mentions.id              │
+│    - content_hash VARCHAR(64) (for change detection)           │
 │                                                                 │
 │  Features:                                                      │
-│  • Foreign key constraints for referential integrity           │
-│  • Indexes on frequently queried columns                       │
-│  • Upsert operations to prevent duplicates                     │
-│  • Docker compose for easy setup                               │
+│  • Foreign key constraints with CASCADE deletes                 │
+│  • Indexes on all FKs and content_hash columns                  │
+│  • Upsert operations based on natural keys                      │
+│  • Content hashing for intelligent change detection             │
+│  • Docker Compose for easy deployment                           │
 └────────────────────────────────────────────────────────────────┘
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
@@ -94,10 +112,44 @@ A test-driven Python system for analyzing Outlook emails to extract product info
 │    • Preserve core email content                               │
 └────────────────────────────────────────────────────────────────┘
                               ↓
-┌────────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────────────┐
 │                  LANGGRAPH WORKFLOW (Synchronous)               │
-│                                                                 │
-│  ┌──────────┐  ┌───────────┐  ┌─────────┐  ┌─────────────┐  ┌──────────┐│
+│                                                              │
+│  ┌──────────┐  ┌───────────┐  ┌─────────┐  ┌───────────┐  │
+│  │INGESTION │→ │EXTRACTION │→ │MATCHING*│→ │PERSISTENCE│  │
+│  │   NODE   │  │   NODE    │  │  NODE   │  │   NODE     │  │
+│  └──────────┘  └───────────┘  └─────────┘  └───────────┘  │
+│                                    *conditional with --match   │
+│                                           ↓                  │
+│                                    ┌───────────┐       │
+│                                    │ REPORTING │       │
+│                                    │   NODE    │       │
+│                                    └───────────┘       │
+│                                                              │
+│  Node Locations (src/analysis_workflow/nodes/):               │
+│  • ingestion/ingestion.py - Load & parse .msg files          │
+│  • extraction/extraction.py - LLM product extraction         │
+│  • matching/matching.py - Hierarchical inventory matching    │
+│    └─ utils/hierarchy.py - Property hierarchies           │
+│    └─ utils/filtering.py - Database-driven filtering     │
+│    └─ utils/matcher.py - Match scoring & ranking         │
+│    └─ utils/normalizer.py - Property normalization       │
+│  • persistence/persistence.py - Database storage with upsert │
+│  • reporting/reporting.py - 5-sheet Excel generation         │
+│                                                              │
+│  State Machine (Pydantic BaseModel in src/models/workflow.py):│
+│  {                                                            │
+│    input_directory: str,                                      │
+│    emails: List[Email] = [],                                  │
+│    extracted_products: List[ProductMention] = [],             │
+│    analytics: List[ProductAnalytics] = [],                    │
+│    matching_enabled: bool = False,                            │
+│    product_matches: List[InventoryMatch] = [],                │
+│    review_flags: List[ReviewFlag] = [],                       │
+│    report_path: str = "",                                       │
+│    errors: List[str] = []  # Auto-initialized                 │
+│  }                                                            │
+└─────────────────────────────────────────────────────────────┘
 │  │INGESTION │→ │EXTRACTION │→ │MATCHING │→ │PERSISTENCE  │→ │REPORTING ││
 │  │   NODE   │  │   NODE    │  │  NODE*  │  │   NODE      │  │  NODE    ││
 │  └──────────┘  └───────────┘  └─────────┘  └─────────────┘  └──────────┘│
@@ -160,26 +212,42 @@ A test-driven Python system for analyzing Outlook emails to extract product info
                               ↓
 ┌────────────────────────────────────────────────────────────────┐
 │                 INVENTORY MATCHING LAYER                        │
-│                  (Fuzzy Matching + Scoring)                     │
+│          (Database-Driven Hierarchical Filtering)               │
 │                                                                 │
-│  Property Normalizer (rapidfuzz):                               │
-│  • Normalize property values (e.g., "Gr 8" → "Grade 8")        │
-│  • Fuzzy match scores (0.0-1.0)                                │
+│  Module: src/analysis_workflow/nodes/matching/utils/            │
+│                                                                 │
+│  Property Hierarchy (hierarchy.py):                             │
+│  • Loads from config/products_config.yaml                       │
+│  • Cached with @lru_cache for performance                      │
+│  • Defines filter order: grade → size → length → material    │
+│                                                                 │
+│  Database Filtering (filtering.py):                             │
+│  • Progressive SQL queries on inventory_items table            │
+│  • Filters by category first (exact match)                     │
+│  • Then by properties in hierarchy order                       │
+│  • Uses JSON property column with GIN index                    │
+│  • Stops when result set < 10 items (graceful degradation)    │
+│  • 10-100x faster than in-memory linear scan                   │
+│                                                                 │
+│  Property Normalizer (normalizer.py):                           │
+•  Normalize values: "Gr 8" → "8", "ss" → "stainless steel"    │
+│  • Fuzzy match with rapidfuzz (80% similarity threshold)       │
+│  • Batch normalization for performance                         │
 │  • Handle common variations and typos                          │
 │                                                                 │
-│  Product Matcher:                                               │
-│  • Category filtering (exact match required)                   │
-│  • Property matching (Jaccard similarity)                      │
-│  • Configurable thresholds (min_score=0.5)                     │
-│  • Ranked results (top N matches)                              │
-│  • Match reasoning generation                                  │
+│  Product Matcher (matcher.py):                                  │
+│  • Calls database filtering to get candidates                  │
+│  • Scores remaining items with weighted properties            │
+│  • 40% name + 20% category + 40% properties                    │
+│  • Ranks by score, returns top N matches                       │
+│  • Generates match reasoning explanations                      │
 │                                                                 │
 │  Review Flag Generation:                                        │
 │  • INSUFFICIENT_DATA - No matches found                        │
 │  • LOW_CONFIDENCE - Score < 0.7                                │
-│  • AMBIGUOUS_MATCH - Multiple high-scoring matches             │
-│  • TOO_MANY_MATCHES - >10 matches found                        │
-│  • Action recommendations for each flag                        │
+│  • AMBIGUOUS_MATCH - Top 2 scores within 0.1                  │
+│  • MISSING_PROPERTIES - ≥2 properties not in inventory         │
+│  • Priority-coded actions for each flag type                   │
 └────────────────────────────────────────────────────────────────┘
 │  │ - Quantities and units                                  │  │
 │  │ - Context (quote request, order, inquiry)               │  │
@@ -619,6 +687,7 @@ ReviewFlag
 **Dependencies**: See `requirements.txt` and `pyproject.toml`
 
 Key libraries:
+
 - extract-msg==0.55.0
 - beautifulsoup4==4.13.5
 - langgraph==1.0.3

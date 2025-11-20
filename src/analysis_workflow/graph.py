@@ -5,12 +5,12 @@ from langchain_redis import RedisCache
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from src.analysis_workflow.nodes.extraction.extraction import extract_products
+from src.analysis_workflow.nodes.ingestion.ingestion import ingest_emails
+from src.analysis_workflow.nodes.matching.matching import match_products
+from src.analysis_workflow.nodes.persistence.persistence import persist_to_database
+from src.analysis_workflow.nodes.reporting.reporting import generate_report
 from src.models.workflow import WorkflowState
-from src.workflow.nodes.extraction.extraction import extract_products
-from src.workflow.nodes.ingestion import ingest_emails
-from src.workflow.nodes.matching import match_products
-from src.workflow.nodes.persistence import persist_to_database
-from src.workflow.nodes.reporting import generate_report
 
 
 def create_workflow_graph(enable_matching: bool = False) -> CompiledStateGraph:
