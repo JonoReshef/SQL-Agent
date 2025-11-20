@@ -84,3 +84,25 @@ Remember:
 5. Use PostgreSQL JSON operators (-> and ->>) for properties columns
 
 Generate the query now:"""
+
+
+# Create prompt for explanation and summary
+EXPLANATION_PROMPT = """
+Given this SQL query and its result, provide:
+1. A ONE-LINE explanation of what the query does (use simple, non-technical language)
+2. A BRIEF summary of what the result shows (e.g., "Found 80 records", "No data found", "Returned 5 product names")
+
+SQL Query:
+{query}
+
+Query Result:
+{result}  # Truncate long results
+
+Respond in this exact format:
+EXPLANATION: [your one-line explanation]
+SUMMARY: [your brief result summary]
+
+Example:
+EXPLANATION: Checking how many emails are stored in the database
+SUMMARY: Found 156 emails in total
+"""

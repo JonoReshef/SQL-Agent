@@ -4,12 +4,16 @@ from typing import Any, Dict
 
 from langchain_core.messages import ToolMessage
 
+from src.chat_workflow.prompts import EXPLANATION_PROMPT
 from src.chat_workflow.utils.tools import run_query_tool
 from src.llm.client import get_llm_client
-from src.models.chat_models import ChatState, QueryExecution
+from src.models.chat_models import ChatState, QueryExecution, QueryExplanation
+
+LLM = get_llm_client()
+LLM_STRUCTURED = get_llm_client(output_structure=QueryExplanation)
 
 
-def _generate_query_explanation_and_summary(query: str, result: str) -> tuple[str, str]:
+def _generate_query_explanation_and_summary(query: str, result: str) -> QueryExplanation:
     """
     Generate human-readable explanation and result summary for a SQL query.
 
@@ -21,50 +25,19 @@ def _generate_query_explanation_and_summary(query: str, result: str) -> tuple[st
         Tuple of (explanation, result_summary)
     """
     try:
-        llm = get_llm_client()
+        response = QueryExplanation.model_validate(
+            LLM_STRUCTURED.invoke(EXPLANATION_PROMPT.format(query=query, result=result))
+        )
 
-        # Create prompt for explanation and summary
-        prompt = f"""Given this SQL query and its result, provide:
-1. A ONE-LINE explanation of what the query does (use simple, non-technical language)
-2. A BRIEF summary of what the result shows (e.g., "Found 80 records", "No data found", "Returned 5 product names")
+        return response
 
-SQL Query:
-{query}
-
-Query Result:
-{result[:500]}  # Truncate long results
-
-Respond in this exact format:
-EXPLANATION: [your one-line explanation]
-SUMMARY: [your brief result summary]
-
-Example:
-EXPLANATION: Checking how many emails are stored in the database
-SUMMARY: Found 156 emails in total
-"""
-
-        response = llm.invoke(prompt)
-        content = response.content if hasattr(response, "content") else str(response)
-
-        # Ensure content is a string
-        if not isinstance(content, str):
-            content = str(content)
-
-        # Parse the response
-        explanation = "Querying the database"
-        summary = "Query executed"
-
-        for line in content.split("\\n"):
-            if line.startswith("EXPLANATION:"):
-                explanation = line.replace("EXPLANATION:", "").strip()
-            elif line.startswith("SUMMARY:"):
-                summary = line.replace("SUMMARY:", "").strip()
-
-        return explanation, summary
-
-    except Exception:
+    except Exception as e:
         # Fallback to generic messages if LLM fails
-        return "Querying the database", f"Query executed (result length: {len(result)} chars)"
+        print(f"   Warning: Failed to generate query explanation - {str(e)}")
+        return QueryExplanation(
+            description="Unable to generate explanation",
+            result_summary=None,
+        )
 
 
 def execute_query_node(state: ChatState) -> Dict[str, Any]:
@@ -104,11 +77,13 @@ def execute_query_node(state: ChatState) -> Dict[str, Any]:
             result = run_query_tool.invoke({"query": query})
 
             # Generate explanation and summary
-            explanation, summary = _generate_query_explanation_and_summary(query, result)
+            explanation = _generate_query_explanation_and_summary(query, result)
 
             # Create QueryExecution object with full details
             query_execution = QueryExecution(
-                query=query, explanation=explanation, result_summary=summary, raw_result=result
+                query=query,
+                query_explanation=explanation,
+                raw_result=result,
             )
             executed_queries.append(query_execution)
 

@@ -19,7 +19,7 @@ class QueryExplanation(BaseModel):
         ...,
         description="One-line non-technical explanation of what this query does.",
     )
-    result_summary: str = Field(
+    result_summary: str | None = Field(
         ...,
         description="Brief summary of what the query returned (e.g., 'Found 80 records which were used to narrow down the search area from [large category] to [smaller category]' or 'No matching data')",
     )
