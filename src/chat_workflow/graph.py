@@ -9,11 +9,11 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
 
-from src.chat_workflow.models import ChatState
-from src.chat_workflow.nodes.execute_query import run_query_tool
+from src.chat_workflow.nodes.execute_query import execute_query_node
 from src.chat_workflow.nodes.generate_query import generate_query_node
 from src.chat_workflow.nodes.get_schema import get_schema_tool
 from src.chat_workflow.nodes.list_tables import list_tables_node
+from src.models.chat_models import ChatState
 
 load_dotenv()
 
@@ -104,7 +104,7 @@ def create_chat_graph() -> CompiledStateGraph:
     workflow.add_node("list_tables", list_tables_node)
     workflow.add_node("get_schema", ToolNode([get_schema_tool]))
     workflow.add_node("generate_query", generate_query_node)
-    workflow.add_node("execute_query", ToolNode([run_query_tool]))
+    workflow.add_node("execute_query", execute_query_node)  # Use custom node for query tracking
 
     # Define workflow edges
     # Start -> List Tables (discover schema)

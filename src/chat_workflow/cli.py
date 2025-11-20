@@ -57,12 +57,16 @@ def run_cli_chat():
             try:
                 print("\n🔄 Processing...\n")
 
+                # Track last event for SQL query display
+                last_event = None
+
                 # Stream the response
                 for event in graph.stream(
                     {"messages": [HumanMessage(content=user_input)]},
                     config,  # type: ignore
                     stream_mode="values",
                 ):
+                    last_event = event
                     if "messages" in event and event["messages"]:
                         last_msg = event["messages"][-1]
 
@@ -74,6 +78,25 @@ def run_cli_chat():
                             content = last_msg.content
                             if content and content.strip():
                                 print(f"🤖 Agent: {content}\n")
+
+                # Display executed SQL queries for transparency
+                if (
+                    last_event
+                    and "executed_queries" in last_event
+                    and last_event["executed_queries"]
+                ):
+                    print("\\n" + "=" * 70)
+                    print("📊 SQL Queries Executed:")
+                    print("=" * 70)
+                    for i, query_exec in enumerate(last_event["executed_queries"], 1):
+                        print(f"\\nQuery {i}:")
+                        print(f"  💡 {query_exec.explanation}")
+                        print(f"  📈 Result: {query_exec.result_summary}")
+                        print("\\n  SQL:")
+                        # Indent SQL for readability
+                        for line in query_exec.query.split("\\n"):
+                            print(f"    {line}")
+                    print("\\n" + "=" * 70 + "\\n")
 
             except Exception as e:
                 print(f"\n❌ Error: {str(e)}\n")

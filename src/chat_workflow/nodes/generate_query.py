@@ -4,10 +4,10 @@ from typing import Any, Dict
 
 from langchain_core.messages import AIMessage, SystemMessage
 
-from src.chat_workflow.models import ChatState
 from src.chat_workflow.prompts import WESTBRAND_SYSTEM_PROMPT
 from src.chat_workflow.utils.tools import run_query_tool
 from src.llm.client import get_llm_client
+from src.models.chat_models import ChatState
 
 
 def generate_query_node(state: ChatState) -> Dict[str, Any]:

@@ -4,8 +4,8 @@ from typing import Any, Dict
 
 from langchain_core.messages import AIMessage
 
-from src.chat_workflow.models import ChatState
 from src.chat_workflow.utils.db_wrapper import get_sql_database
+from src.models.chat_models import ChatState
 
 
 def list_tables_node(state: ChatState) -> Dict[str, Any]:

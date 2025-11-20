@@ -4,8 +4,67 @@ from typing import Any, Dict
 
 from langchain_core.messages import ToolMessage
 
-from src.chat_workflow.models import ChatState
 from src.chat_workflow.utils.tools import run_query_tool
+from src.llm.client import get_llm_client
+from src.models.chat_models import ChatState, QueryExecution
+
+
+def _generate_query_explanation_and_summary(query: str, result: str) -> tuple[str, str]:
+    """
+    Generate human-readable explanation and result summary for a SQL query.
+
+    Args:
+        query: The SQL query that was executed
+        result: The result returned from the query
+
+    Returns:
+        Tuple of (explanation, result_summary)
+    """
+    try:
+        llm = get_llm_client()
+
+        # Create prompt for explanation and summary
+        prompt = f"""Given this SQL query and its result, provide:
+1. A ONE-LINE explanation of what the query does (use simple, non-technical language)
+2. A BRIEF summary of what the result shows (e.g., "Found 80 records", "No data found", "Returned 5 product names")
+
+SQL Query:
+{query}
+
+Query Result:
+{result[:500]}  # Truncate long results
+
+Respond in this exact format:
+EXPLANATION: [your one-line explanation]
+SUMMARY: [your brief result summary]
+
+Example:
+EXPLANATION: Checking how many emails are stored in the database
+SUMMARY: Found 156 emails in total
+"""
+
+        response = llm.invoke(prompt)
+        content = response.content if hasattr(response, "content") else str(response)
+
+        # Ensure content is a string
+        if not isinstance(content, str):
+            content = str(content)
+
+        # Parse the response
+        explanation = "Querying the database"
+        summary = "Query executed"
+
+        for line in content.split("\\n"):
+            if line.startswith("EXPLANATION:"):
+                explanation = line.replace("EXPLANATION:", "").strip()
+            elif line.startswith("SUMMARY:"):
+                summary = line.replace("SUMMARY:", "").strip()
+
+        return explanation, summary
+
+    except Exception:
+        # Fallback to generic messages if LLM fails
+        return "Querying the database", f"Query executed (result length: {len(result)} chars)"
 
 
 def execute_query_node(state: ChatState) -> Dict[str, Any]:
@@ -16,13 +75,14 @@ def execute_query_node(state: ChatState) -> Dict[str, Any]:
     1. Extracts SQL query from tool call
     2. Validates it's a SELECT query
     3. Executes against database
-    4. Returns formatted results
+    4. Generates human-readable explanation and summary
+    5. Returns formatted results with transparency details
 
     Args:
         state: Current chat state with query tool call
 
     Returns:
-        Dict with messages containing query results
+        Dict with messages containing query results and QueryExecution objects with explanations
     """
     # Get the last message which should contain tool calls
     last_message = state.messages[-1] if state.messages else None
@@ -31,7 +91,8 @@ def execute_query_node(state: ChatState) -> Dict[str, Any]:
         # No tool calls to execute
         return {"messages": []}
 
-    messages = []
+    tool_messages = []
+    executed_queries = []
 
     # Execute each tool call
     for tool_call in last_message.tool_calls:  # type: ignore
@@ -39,27 +100,25 @@ def execute_query_node(state: ChatState) -> Dict[str, Any]:
             # Extract query from tool call
             query = tool_call["args"].get("query", "")
 
-            # Store current query in state
-            messages.append({"current_query": query})
-
             # Execute the tool
             result = run_query_tool.invoke({"query": query})
 
+            # Generate explanation and summary
+            explanation, summary = _generate_query_explanation_and_summary(query, result)
+
+            # Create QueryExecution object with full details
+            query_execution = QueryExecution(
+                query=query, explanation=explanation, result_summary=summary, raw_result=result
+            )
+            executed_queries.append(query_execution)
+
             # Create tool message with result
             tool_message = ToolMessage(content=result, tool_call_id=tool_call["id"])
-            messages.append(tool_message)
+            tool_messages.append(tool_message)
 
-            # Store result in state
-            messages.append({"query_result": result})
-
-    # If we executed queries, return ToolMessages
-    # Filter out dict updates (state updates don't go in messages list)
-    tool_messages = [m for m in messages if isinstance(m, ToolMessage)]
-
-    # Get state updates
-    state_updates = {}
-    for m in messages:
-        if isinstance(m, dict):
-            state_updates.update(m)
-
-    return {"messages": tool_messages, **state_updates}
+    return {
+        "messages": tool_messages,
+        "executed_queries": executed_queries,
+        "current_query": executed_queries[-1].query if executed_queries else None,
+        "query_result": tool_messages[-1].content if tool_messages else None,
+    }
