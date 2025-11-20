@@ -5,7 +5,7 @@ from typing import List, Tuple
 from rapidfuzz import fuzz
 
 from src.database.connection import get_db_session, get_engine
-from src.database.filtering import filter_inventory_by_hierarchical_properties
+from src.matching.filtering import filter_inventory_by_hierarchical_properties
 from src.matching.hierarchy import get_hierarchy_for_category
 from src.matching.normalizer import find_matching_properties
 from src.models.inventory import InventoryItem, InventoryMatch, ReviewFlag
