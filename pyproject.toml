@@ -1,9 +1,52 @@
+[project]
+name = "westbrand-email-analysis"
+version = "2.0.0"
+description = "AI-powered email analysis system for extracting product information and matching against inventory"
+authors = [
+    {name = "WestBrand Team"}
+]
+requires-python = ">=3.13"
+readme = "README.md"
+license = {text = "Proprietary"}
+keywords = ["email-analysis", "nlp", "azure-openai", "langgraph", "inventory-matching"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Manufacturing",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    "extract-msg>=0.55.0",
+    "beautifulsoup4>=4.13.5",
+    "langgraph>=1.0.3",
+    "langchain-openai>=1.0.2",
+    "langchain-redis>=0.1.6",
+    "pydantic>=2.12.4",
+    "openpyxl>=3.1.5",
+    "sqlalchemy>=2.0.36",
+    "psycopg[binary]>=3.2.12",
+    "rapidfuzz>=3.14.3",
+    "pytest>=9.0.1",
+    "pyyaml>=6.0.3",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.1",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.8.0",
+]
+
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["src"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -16,5 +59,10 @@ markers = [
     "integration: Integration tests",
     "ai: Running tests that are calling AI systems"
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
 [tool.ruff.format]
 quote-style = "double"

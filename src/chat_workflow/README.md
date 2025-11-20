@@ -38,7 +38,7 @@ The SQL Chat Agent allows users to query the WestBrand PostgreSQL database using
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.13+
 - PostgreSQL database running (Docker)
 - Azure OpenAI API access
 
