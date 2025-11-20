@@ -4,40 +4,8 @@ from typing import Any, Dict
 
 from langchain_core.messages import ToolMessage
 
-from src.chat_workflow.prompts import EXPLANATION_PROMPT
 from src.chat_workflow.utils.tools import run_query_tool
-from src.llm.client import get_llm_client
-from src.models.chat_models import ChatState, QueryExecution, QueryExplanation
-
-LLM = get_llm_client()
-LLM_STRUCTURED = get_llm_client(output_structure=QueryExplanation)
-
-
-def _generate_query_explanation_and_summary(query: str, result: str) -> QueryExplanation:
-    """
-    Generate human-readable explanation and result summary for a SQL query.
-
-    Args:
-        query: The SQL query that was executed
-        result: The result returned from the query
-
-    Returns:
-        Tuple of (explanation, result_summary)
-    """
-    try:
-        response = QueryExplanation.model_validate(
-            LLM_STRUCTURED.invoke(EXPLANATION_PROMPT.format(query=query, result=result))
-        )
-
-        return response
-
-    except Exception as e:
-        # Fallback to generic messages if LLM fails
-        print(f"   Warning: Failed to generate query explanation - {str(e)}")
-        return QueryExplanation(
-            description="Unable to generate explanation",
-            result_summary=None,
-        )
+from src.models.chat_models import ChatState, QueryExecution
 
 
 def execute_query_node(state: ChatState) -> Dict[str, Any]:
@@ -76,13 +44,9 @@ def execute_query_node(state: ChatState) -> Dict[str, Any]:
             # Execute the tool
             result = run_query_tool.invoke({"query": query})
 
-            # Generate explanation and summary
-            explanation = _generate_query_explanation_and_summary(query, result)
-
             # Create QueryExecution object with full details
             query_execution = QueryExecution(
                 query=query,
-                query_explanation=explanation,
                 raw_result=result,
             )
             executed_queries.append(query_execution)

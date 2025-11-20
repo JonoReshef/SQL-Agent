@@ -10,6 +10,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
 
 from src.chat_workflow.nodes.execute_query import execute_query_node
+from src.chat_workflow.nodes.generate_explanations import generate_explanations
 from src.chat_workflow.nodes.generate_query import generate_query_node
 from src.chat_workflow.nodes.get_schema import get_schema_tool
 from src.chat_workflow.nodes.list_tables import list_tables_node
@@ -23,7 +24,7 @@ _checkpointer_cm = None
 _checkpointer = None
 
 
-def should_continue(state: ChatState) -> Literal["execute_query", "__end__"]:
+def should_continue(state: ChatState) -> Literal["execute_query", "generate_explanations"]:
     """
     Determine whether to execute query or end workflow.
 
@@ -35,7 +36,7 @@ def should_continue(state: ChatState) -> Literal["execute_query", "__end__"]:
     """
     # Get the last message
     if not state.messages:
-        return "__end__"
+        return "generate_explanations"
 
     last_message = state.messages[-1]
 
@@ -44,7 +45,7 @@ def should_continue(state: ChatState) -> Literal["execute_query", "__end__"]:
         return "execute_query"
 
     # No tool calls means LLM provided final answer
-    return "__end__"
+    return "generate_explanations"
 
 
 def _get_checkpointer():
@@ -105,6 +106,9 @@ def create_chat_graph() -> CompiledStateGraph:
     workflow.add_node("get_schema", ToolNode([get_schema_tool]))
     workflow.add_node("generate_query", generate_query_node)
     workflow.add_node("execute_query", execute_query_node)  # Use custom node for query tracking
+    workflow.add_node(
+        "generate_explanations", generate_explanations
+    )  # Placeholder for future explanation node
 
     # Define workflow edges
     # Start -> List Tables (discover schema)
@@ -118,11 +122,24 @@ def create_chat_graph() -> CompiledStateGraph:
 
     # Generate Query -> Conditional (execute query if tool call, else end)
     workflow.add_conditional_edges(
-        "generate_query", should_continue, {"execute_query": "execute_query", "__end__": END}
+        "generate_query",
+        should_continue,
+        {
+            "execute_query": "execute_query",
+            # Generating explanations is the precursor to ending the workflow
+            "generate_explanations": "generate_explanations",
+        },
     )
 
     # Execute Query -> Generate Query (loop for follow-up questions)
     workflow.add_edge("execute_query", "generate_query")
+    workflow.add_edge("generate_explanations", END)
 
     # Compile with checkpointer
     return workflow.compile(checkpointer=checkpointer)
+
+
+if __name__ == "__main__":
+    # For testing: create and print the graph structure
+    graph = create_chat_graph()
+    print(graph.get_graph().draw_mermaid())

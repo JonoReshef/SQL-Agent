@@ -5,6 +5,7 @@ import uuid
 from langchain_core.messages import HumanMessage
 
 from src.chat_workflow.graph import create_chat_graph
+from src.models.chat_models import ChatState
 
 
 def run_cli_chat():
@@ -85,18 +86,25 @@ def run_cli_chat():
                     and "executed_queries" in last_event
                     and last_event["executed_queries"]
                 ):
+                    final_state = ChatState.model_validate(last_event)
+                    if final_state.overall_summary:
+                        print("\\n " + "=" * 70)
+                        print("Process summary:")
+                        print(f"💡 {final_state.overall_summary}")
+
                     print("\\n" + "=" * 70)
                     print("📊 SQL Queries Executed:")
                     print("=" * 70)
-                    for i, query_exec in enumerate(last_event["executed_queries"], 1):
-                        print(f"\\nQuery {i}:")
-                        print(f"  💡 {query_exec.explanation}")
-                        print(f"  📈 Result: {query_exec.result_summary}")
-                        print("\\n  SQL:")
+                    for i, query_exec in enumerate(final_state.executed_queries, 1):
+                        if query_exec.query_explanation:
+                            print(f"\nQuery explanation {i}:")
+                            print(f"  💡 {query_exec.query_explanation.description}")
+                            print(f"  📈 Result: {query_exec.query_explanation.result_summary}")
+                        print("\n  SQL:")
                         # Indent SQL for readability
-                        for line in query_exec.query.split("\\n"):
+                        for line in query_exec.query.split("\n"):
                             print(f"    {line}")
-                    print("\\n" + "=" * 70 + "\\n")
+                    print("\n" + "=" * 70 + "\n")
 
             except Exception as e:
                 print(f"\n❌ Error: {str(e)}\n")

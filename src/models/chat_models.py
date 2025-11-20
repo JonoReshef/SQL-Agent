@@ -34,8 +34,8 @@ class QueryExecution(BaseModel):
     """
 
     query: str = Field(..., description="The actual SQL query that was executed")
-    query_explanation: QueryExplanation = Field(
-        ...,
+    query_explanation: QueryExplanation | None = Field(
+        default=None,
         description="One-line human-readable explanation of what this query does (non-technical)",
     )
     raw_result: Optional[str] = Field(
@@ -75,4 +75,7 @@ class ChatState(BaseModel):
     executed_queries: Annotated[List[QueryExecution], add] = Field(
         default_factory=list,
         description="Detailed list of all SQL queries executed with explanations and summaries (for transparency)",
+    )
+    overall_summary: Optional[str] = Field(
+        default=None, description="Explain the entire search process in a concise summary"
     )
