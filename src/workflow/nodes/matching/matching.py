@@ -89,7 +89,7 @@ def match_products(state: WorkflowState) -> WorkflowState:
     match_count = 0
     flag_count = 0
 
-    for product in state.extracted_products:
+    for product in state.unique_property_products:
         try:
             # Perform matching
             matches, flags = match_product_to_inventory(

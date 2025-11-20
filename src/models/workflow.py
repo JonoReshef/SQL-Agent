@@ -27,6 +27,7 @@ class WorkflowState(BaseModel):
 
     # Processing results
     extracted_products: List[ProductMention] = Field(default_factory=list)
+    unique_property_products: List[ProductMention] = Field(default_factory=list)
 
     # Analytics
     analytics: List[ProductAnalytics] = Field(default_factory=list)

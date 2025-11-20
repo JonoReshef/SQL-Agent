@@ -17,7 +17,8 @@ from src.models.product import ProductAnalytics, ProductMention
 
 
 def generate_excel_report(
-    products: List[ProductMention],
+    all_products: List[ProductMention],
+    unique_property_products: List[ProductMention],
     emails: List[Email],
     output_path: Path,
     product_matches: dict[str, List[InventoryMatch]] | None = None,
@@ -45,11 +46,11 @@ def generate_excel_report(
 
     # Create sheets
     ws_mentions = wb.create_sheet("Product Mentions")
-    create_product_mentions_sheet(ws_mentions, products)
+    create_product_mentions_sheet(ws_mentions, all_products)
 
     # Create analytics if we have products
-    if products:
-        analytics = _calculate_analytics(products)
+    if all_products:
+        analytics = _calculate_analytics(all_products)
         ws_analytics = wb.create_sheet("Analytics")
         create_analytics_sheet(ws_analytics, analytics)
     else:
@@ -62,7 +63,9 @@ def generate_excel_report(
     # Create inventory matches sheet if matches provided
     if product_matches:
         ws_matches = wb.create_sheet("Inventory Matches")
-        _create_inventory_matches_sheet(ws_matches, products, product_matches)
+        _create_inventory_matches_sheet(
+            ws_matches, unique_property_products, product_matches
+        )
 
     # Create review flags sheet if flags provided
     if review_flags:

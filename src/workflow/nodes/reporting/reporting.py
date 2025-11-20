@@ -24,7 +24,8 @@ def generate_report(state: WorkflowState) -> WorkflowState:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         result_path, analytics = generate_excel_report(
-            products=state.extracted_products,
+            all_products=state.extracted_products,
+            unique_property_products=state.unique_property_products,
             emails=state.emails,
             output_path=output_path,
             product_matches=state.product_matches if state.matching_enabled else None,
