@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 from langchain_core.messages import ToolMessage
 
-from src.chat_workflow.utils.tools import run_query_tool
+from src.chat_workflow.utils.tools import get_schema_tool, run_query_tool
 from src.models.chat_models import ChatState, QueryExecution
 
 
@@ -37,6 +37,24 @@ def execute_query_node(state: ChatState) -> Dict[str, Any]:
 
             # Execute the tool
             result = run_query_tool.invoke({"query": query})
+
+            # Create QueryExecution object with full details
+            query_execution = QueryExecution(
+                query=query,
+                raw_result=result,
+            )
+            executed_queries.append(query_execution)
+
+            # Create tool message with result
+            tool_message = ToolMessage(content=result, tool_call_id=tool_call["id"])
+            tool_messages.append(tool_message)
+
+        if tool_call["name"] == "get_schema_tool":
+            # Extract query from tool call
+            query = tool_call["args"].get("table_names", "")
+
+            # Execute the tool
+            result = get_schema_tool.invoke({"table_names": query})
 
             # Create QueryExecution object with full details
             query_execution = QueryExecution(
