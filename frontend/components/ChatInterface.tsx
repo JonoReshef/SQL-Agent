@@ -11,6 +11,12 @@ import type { ChatMessage } from '@/types/interfaces';
 
 export function ChatInterface() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Prevent hydration errors by only rendering client-specific code after mount
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const {
     threads,
@@ -126,6 +132,15 @@ export function ChatInterface() {
       clearError();
     }
   }, [error, addMessage, clearError]);
+
+  // Prevent hydration errors - only render after client mount
+  if (!isClient) {
+    return (
+      <div className='h-screen flex items-center justify-center'>
+        <div className='text-gray-500'>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className='h-screen flex'>

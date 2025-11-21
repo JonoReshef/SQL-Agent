@@ -1,7 +1,6 @@
 """FastAPI server for SQL chat agent"""
 
 import json
-from typing import AsyncGenerator
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -164,57 +163,59 @@ async def chat_stream(request: ChatRequest):
     Returns:
         StreamingResponse with SSE events
     """
+    import asyncio
 
-    async def event_generator() -> AsyncGenerator[str, None]:
-        """Generate SSE events from graph stream"""
+    def sync_event_generator():
+        """Generate SSE events from graph stream (synchronous)"""
         try:
+            print(
+                f"Starting stream for thread: {request.thread_id}, message: {request.message[:50]}...",
+                flush=True,
+            )
+
+            # Validate request
+            if not request.message or not request.message.strip():
+                raise ValueError("Message cannot be empty")
+
             graph = get_graph()
+            print("Graph retrieved successfully", flush=True)
+
             config = {"configurable": {"thread_id": request.thread_id}}
 
             executed_queries = []
 
-            # Stream events from graph
-            async for event in graph.astream_events(
+            # Use synchronous stream since PostgresSaver doesn't support async
+            print("Starting stream...", flush=True)
+            for event in graph.stream(
                 {"messages": [HumanMessage(content=request.message)]},
                 config,  # type: ignore
-                version="v2",
+                stream_mode="values",
             ):
-                # Stream LLM tokens
-                if event["event"] == "on_chat_model_stream":
-                    chunk = event.get("data", {}).get("chunk")
-                    if chunk and hasattr(chunk, "content") and chunk.content:
-                        yield f"data: {json.dumps({'type': 'token', 'content': chunk.content})}\n\n"
+                # Process each state update
+                if "messages" in event and event["messages"]:
+                    last_message = event["messages"][-1]
+                    if hasattr(last_message, "content") and last_message.content:
+                        # Stream the message content
+                        yield f"data: {json.dumps({'type': 'message', 'content': last_message.content})}\n\n"
 
-                # Stream node completions
-                elif event["event"] == "on_chain_end":
-                    output_data = event.get("data", {})
-                    if "output" in output_data:  # type: ignore
-                        output = output_data["output"]  # type: ignore
-                        if isinstance(output, dict):
-                            # Collect executed queries
-                            if "executed_queries" in output:
-                                for qe in output["executed_queries"]:
-                                    executed_queries.append(
-                                        {
-                                            "query": qe.query,
-                                            "explanation": (
-                                                qe.query_explanation.description
-                                                if qe.query_explanation
-                                                else "No explanation available"
-                                            ),
-                                            "result_summary": (
-                                                qe.query_explanation.result_summary
-                                                if qe.query_explanation
-                                                else "No result summary available"
-                                            ),
-                                        }
-                                    )
-
-                            # Stream messages
-                            if "messages" in output:
-                                last_message = output["messages"][-1]
-                                if hasattr(last_message, "content"):
-                                    yield f"data: {json.dumps({'type': 'message', 'content': last_message.content})}\n\n"
+                # Collect executed queries for transparency
+                if "executed_queries" in event:
+                    for qe in event["executed_queries"]:
+                        executed_queries.append(
+                            {
+                                "query": qe.query,
+                                "explanation": (
+                                    qe.query_explanation.description
+                                    if qe.query_explanation
+                                    else "No explanation available"
+                                ),
+                                "result_summary": (
+                                    qe.query_explanation.result_summary
+                                    if qe.query_explanation
+                                    else "No result summary available"
+                                ),
+                            }
+                        )
 
             # Send executed queries before end event for transparency
             if executed_queries:
@@ -224,11 +225,24 @@ async def chat_stream(request: ChatRequest):
             yield f"data: {json.dumps({'type': 'end'})}\n\n"
 
         except Exception as e:
-            error_data = json.dumps({"type": "error", "content": str(e)})
+            error_message = str(e) if str(e) else "An unexpected error occurred during streaming"
+            error_type = type(e).__name__
+            print(f"Stream error ({error_type}): {error_message}", flush=True)
+            import traceback
+
+            traceback.print_exc()
+            error_data = json.dumps({"type": "error", "content": error_message})
             yield f"data: {error_data}\n\n"
 
+    async def async_wrapper():
+        """Wrap synchronous generator in async context"""
+        for chunk in sync_event_generator():
+            yield chunk
+            # Small yield to prevent blocking
+            await asyncio.sleep(0)
+
     return StreamingResponse(
-        event_generator(),
+        async_wrapper(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

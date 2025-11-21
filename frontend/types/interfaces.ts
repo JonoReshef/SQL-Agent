@@ -13,7 +13,7 @@ export interface Thread {
   id: string; // UUID v4
   title: string; // First message or "New Chat"
   lastMessage: string; // Preview text
-  timestamp: Date;
+  timestamp: Date | string; // Date object or ISO string from localStorage
   messageCount: number;
 }
 
@@ -27,7 +27,7 @@ export interface ChatMessage {
   id: string;
   role: MessageRole;
   content: string;
-  timestamp: Date;
+  timestamp: Date | string; // Date object or ISO string from localStorage
   queries?: QueryExecution[]; // For assistant messages with SQL transparency
 }
 

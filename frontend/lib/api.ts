@@ -120,20 +120,24 @@ export function streamChatMessage(
                 handleStreamEvent(event);
               } catch (parseError) {
                 console.error('Failed to parse SSE event:', parseError);
+                console.error('Raw data:', data);
               }
             }
           }
         }
       }
     } catch (error) {
+      console.error('Stream error:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error message:', errorMessage);
       onError(errorMessage);
     }
   };
 
   // Handle individual stream events
   function handleStreamEvent(event: StreamEvent) {
+    console.log('Received stream event:', event);
     switch (event.type) {
       case 'token':
         if (event.content) {
@@ -161,6 +165,7 @@ export function streamChatMessage(
         break;
 
       case 'error':
+        console.error('Stream error event:', event);
         onError(event.content || 'Unknown error occurred');
         break;
 

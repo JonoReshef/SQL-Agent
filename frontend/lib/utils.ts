@@ -12,9 +12,11 @@ export function generateUUID(): string {
 /**
  * Format a date to relative time (e.g., "2 hours ago")
  */
-export function formatRelativeTime(date: Date): string {
+export function formatRelativeTime(date: Date | string): string {
+  // Ensure date is a Date object
+  const dateObj = date instanceof Date ? date : new Date(date);
   const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
 
   if (diffInSeconds < 60) {
     return 'just now';
@@ -69,8 +71,10 @@ export function extractTitle(text: string, maxLength: number = 50): string {
 /**
  * Format timestamp to readable string
  */
-export function formatTimestamp(date: Date): string {
-  return date.toLocaleTimeString('en-US', {
+export function formatTimestamp(date: Date | string): string {
+  // Ensure date is a Date object
+  const dateObj = date instanceof Date ? date : new Date(date);
+  return dateObj.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
   });
