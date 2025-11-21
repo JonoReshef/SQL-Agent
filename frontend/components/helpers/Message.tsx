@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { MessageRole, QueryExecution } from '@/types/interfaces';
 import { formatTimestamp } from '@/lib/utils';
 import { QueryDisplay } from './QueryDisplay';
@@ -32,7 +34,9 @@ export function Message({ role, content, timestamp, queries }: MessageProps) {
                 : 'bg-gray-100 text-gray-900'
           }`}
         >
-          <div className='whitespace-pre-wrap break-words'>{content}</div>
+          <div className='prose prose-sm max-w-none break-words'>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          </div>
           <div
             className={`text-xs mt-2 flex items-center justify-between ${
               isUser ? 'text-primary-100' : 'text-gray-500'

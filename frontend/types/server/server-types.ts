@@ -4,372 +4,309 @@
  */
 
 export interface paths {
-    "/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Root
-         * @description Root endpoint with API information
-         */
-        get: operations["root__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/chat": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Chat
-         * @description Non-streaming chat endpoint.
-         *
-         *     Processes a user message and returns the complete response.
-         *
-         *     Args:
-         *         request: ChatRequest with message and thread_id
-         *
-         *     Returns:
-         *         ChatResponse with agent's answer
-         *
-         *     Raises:
-         *         HTTPException: If graph execution fails
-         */
-        post: operations["chat_chat_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/chat/stream": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Chat Stream
-         * @description Streaming chat endpoint using Server-Sent Events (SSE).
-         *
-         *     Streams tokens and events in real-time as the agent processes the request.
-         *
-         *     Args:
-         *         request: ChatRequest with message and thread_id
-         *
-         *     Returns:
-         *         StreamingResponse with SSE events
-         */
-        post: operations["chat_stream_chat_stream_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/history/{thread_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get History
-         * @description Get conversation history for a thread.
-         *
-         *     Retrieves all checkpoints and messages for the specified thread.
-         *
-         *     Args:
-         *         thread_id: Thread identifier
-         *
-         *     Returns:
-         *         HistoryResponse with conversation history
-         *
-         *     Raises:
-         *         HTTPException: If history retrieval fails
-         */
-        get: operations["get_history_history__thread_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Health Check
-         * @description Health check endpoint
-         */
-        get: operations["health_check_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+  "/": {
+    /**
+     * Root
+     * @description Root endpoint with API information
+     */
+    get: operations["root__get"];
+  };
+  "/chat": {
+    /**
+     * Chat
+     * @description Non-streaming chat endpoint.
+     *
+     * Processes a user message and returns the complete response.
+     *
+     * Args:
+     *     request: ChatRequest with message and thread_id
+     *
+     * Returns:
+     *     ChatResponse with agent's answer
+     *
+     * Raises:
+     *     HTTPException: If graph execution fails
+     */
+    post: operations["chat_chat_post"];
+  };
+  "/chat/stream": {
+    /**
+     * Chat Stream
+     * @description Streaming chat endpoint using Server-Sent Events (SSE).
+     *
+     * Streams tokens and events in real-time as the agent processes the request.
+     *
+     * Args:
+     *     request: ChatRequest with message and thread_id
+     *
+     * Returns:
+     *     StreamingResponse with SSE events
+     */
+    post: operations["chat_stream_chat_stream_post"];
+  };
+  "/history/{thread_id}": {
+    /**
+     * Get History
+     * @description Get conversation history for a thread.
+     *
+     * Retrieves all checkpoints and messages for the specified thread.
+     *
+     * Args:
+     *     thread_id: Thread identifier
+     *
+     * Returns:
+     *     HistoryResponse with conversation history
+     *
+     * Raises:
+     *     HTTPException: If history retrieval fails
+     */
+    get: operations["get_history_history__thread_id__get"];
+  };
+  "/health": {
+    /**
+     * Health Check
+     * @description Health check endpoint
+     */
+    get: operations["health_check_health_get"];
+  };
 }
+
 export type webhooks = Record<string, never>;
+
 export interface components {
-    schemas: {
-        /**
-         * ChatRequest
-         * @description Request model for chat endpoints
-         */
-        ChatRequest: {
-            /**
-             * Message
-             * @description User's question or message
-             */
-            message: string;
-            /**
-             * Thread Id
-             * @description Thread ID for conversation continuity
-             */
-            thread_id: string;
-        };
-        /**
-         * ChatResponse
-         * @description Response model for non-streaming chat endpoint
-         */
-        ChatResponse: {
-            /**
-             * Response
-             * @description Agent's response
-             */
-            response: string;
-            /**
-             * Thread Id
-             * @description Thread ID for this conversation
-             */
-            thread_id: string;
-            /**
-             * Executed Queries
-             * @description SQL queries executed with explanations and summaries
-             */
-            executed_queries?: components["schemas"]["QueryExecutionResponse"][];
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /**
-         * HistoryResponse
-         * @description Response model for history endpoint
-         */
-        HistoryResponse: {
-            /**
-             * Thread Id
-             * @description Thread ID
-             */
-            thread_id: string;
-            /**
-             * History
-             * @description List of checkpoint states
-             */
-            history: unknown[];
-        };
-        /**
-         * QueryExecutionResponse
-         * @description Response model for query execution details
-         */
-        QueryExecutionResponse: {
-            /**
-             * Query
-             * @description The SQL query that was executed
-             */
-            query: string;
-            /**
-             * Explanation
-             * @description Human-readable explanation of what the query does
-             */
-            explanation: string;
-            /**
-             * Result Summary
-             * @description Brief summary of the query results
-             */
-            result_summary: string;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
+  schemas: {
+    /**
+     * ChatRequest
+     * @description Request model for chat endpoints
+     */
+    ChatRequest: {
+      /**
+       * Message
+       * @description User's question or message
+       */
+      message: string;
+      /**
+       * Thread Id
+       * @description Thread ID for conversation continuity
+       */
+      thread_id: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /**
+     * ChatResponse
+     * @description Response model for non-streaming chat endpoint
+     */
+    ChatResponse: {
+      /**
+       * Response
+       * @description Agent's response
+       */
+      response: string;
+      /**
+       * Thread Id
+       * @description Thread ID for this conversation
+       */
+      thread_id: string;
+      /**
+       * Executed Queries
+       * @description SQL queries executed with explanations and summaries
+       */
+      executed_queries?: components["schemas"]["QueryExecutionResponse"][];
+    };
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components["schemas"]["ValidationError"][];
+    };
+    /**
+     * HistoryResponse
+     * @description Response model for history endpoint
+     */
+    HistoryResponse: {
+      /**
+       * Thread Id
+       * @description Thread ID
+       */
+      thread_id: string;
+      /**
+       * History
+       * @description List of checkpoint states
+       */
+      history: unknown[];
+    };
+    /**
+     * QueryExecutionResponse
+     * @description Response model for query execution details
+     */
+    QueryExecutionResponse: {
+      /**
+       * Query
+       * @description The SQL query that was executed
+       */
+      query: string;
+      /**
+       * Explanation
+       * @description Human-readable explanation of what the query does
+       */
+      explanation: string;
+      /**
+       * Result Summary
+       * @description Brief summary of the query results
+       */
+      result_summary: string;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
+
 export type $defs = Record<string, never>;
+
+export type external = Record<string, never>;
+
 export interface operations {
-    root__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+  /**
+   * Root
+   * @description Root endpoint with API information
+   */
+  root__get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
+      };
     };
-    chat_chat_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChatResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /**
+   * Chat
+   * @description Non-streaming chat endpoint.
+   *
+   * Processes a user message and returns the complete response.
+   *
+   * Args:
+   *     request: ChatRequest with message and thread_id
+   *
+   * Returns:
+   *     ChatResponse with agent's answer
+   *
+   * Raises:
+   *     HTTPException: If graph execution fails
+   */
+  chat_chat_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChatRequest"];
+      };
     };
-    chat_stream_chat_stream_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ChatResponse"];
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatRequest"];
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    get_history_history__thread_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                thread_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HistoryResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /**
+   * Chat Stream
+   * @description Streaming chat endpoint using Server-Sent Events (SSE).
+   *
+   * Streams tokens and events in real-time as the agent processes the request.
+   *
+   * Args:
+   *     request: ChatRequest with message and thread_id
+   *
+   * Returns:
+   *     StreamingResponse with SSE events
+   */
+  chat_stream_chat_stream_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChatRequest"];
+      };
     };
-    health_check_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
+      };
     };
+  };
+  /**
+   * Get History
+   * @description Get conversation history for a thread.
+   *
+   * Retrieves all checkpoints and messages for the specified thread.
+   *
+   * Args:
+   *     thread_id: Thread identifier
+   *
+   * Returns:
+   *     HistoryResponse with conversation history
+   *
+   * Raises:
+   *     HTTPException: If history retrieval fails
+   */
+  get_history_history__thread_id__get: {
+    parameters: {
+      path: {
+        thread_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["HistoryResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Health Check
+   * @description Health check endpoint
+   */
+  health_check_health_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
 }

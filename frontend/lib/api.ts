@@ -7,13 +7,14 @@
  * - Conversation history retrieval
  */
 
-import type { components } from '@/types/server/server-types';
-import type { QueryExecution, StreamEvent, ApiError } from '@/types/interfaces';
-
-// Type aliases from server schema
-type ChatRequest = components['schemas']['ChatRequest'];
-type ChatResponse = components['schemas']['ChatResponse'];
-type HistoryResponse = components['schemas']['HistoryResponse'];
+import type {
+  ChatRequest,
+  ChatResponse,
+  HistoryResponse,
+  QueryExecution,
+  StreamEvent,
+  ApiError,
+} from '@/types/interfaces';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 

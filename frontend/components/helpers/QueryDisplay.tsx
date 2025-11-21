@@ -56,9 +56,9 @@ function QueryItem({ query, index }: QueryItemProps) {
             Query {index + 1}
           </div>
           <div className='text-sm text-gray-600 mt-1'>{query.explanation}</div>
-          {query.resultSummary && (
+          {query.result_summary && (
             <div className='text-xs text-gray-500 mt-1'>
-              {query.resultSummary}
+              {query.result_summary}
             </div>
           )}
         </div>
