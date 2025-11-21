@@ -105,6 +105,9 @@ class ChatState(BaseModel):
     execute_result: Optional[str] = Field(
         default=None, description="Result from the last executed query"
     )
+    status_update: Optional[str] = Field(
+        default=None, description="Update on current status of the processing. Sent to the frontend"
+    )
     error: Optional[str] = Field(default=None, description="Error message from failed operations")
     executed_queries: List[QueryExecution] = Field(
         default_factory=list,

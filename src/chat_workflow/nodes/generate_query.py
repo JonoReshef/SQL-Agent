@@ -105,11 +105,31 @@ def generate_query_node(state: ChatState) -> Dict[str, Any]:
 
         if not response or not hasattr(response, "tool_calls") or not response.tool_calls:  # type: ignore
             # If there are no tool calls then we are done so append the final message
-            return {"messages": [response], "query_result": response}
+            return {
+                "messages": [response],
+                "query_result": response,
+                "status_update": "Final answer generated. Generating explanations",
+            }
 
         else:
-            # If there was a tool call, return it for execution
-            return {"query_result": response}
+            # Generate a human readable explanation about what is going on
+            tool_call_names = list(set([tool.get("name", "") for tool in response.tool_calls]))  # type: ignore
+
+            tool_call_message = f"We have run {len(state.executed_queries)} queries so far."
+            if "get_schema_tool" in tool_call_names:
+                tool_call_message += " Getting information about the data"
+            if "run_query_tool" in tool_call_names:
+                total_queries = len(
+                    [tool for tool in response.tool_calls if tool.get("name") == "run_query_tool"]
+                )
+                tool_call_message += (
+                    f" Running {total_queries} {'query' if total_queries == 1 else 'queries'}. "
+                )
+
+            return {
+                "query_result": response,
+                "status_update": tool_call_message,
+            }
 
     except Exception as e:
         error_message = AIMessage(content=f"Error generating query: {str(e)}")

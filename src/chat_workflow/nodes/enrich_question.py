@@ -92,6 +92,7 @@ def enrich_question_node(state: ChatState) -> Dict[str, Any]:
     )
 
     return {
+        "status_update": "User question enriched with additional context",
         "executed_queries": [],  # Reset executed queries on enrichment because we have a new question
         "executed_queries_enriched": [],  # Reset executed queries on enrichment because we have a new question
         "enriched_query": response,
