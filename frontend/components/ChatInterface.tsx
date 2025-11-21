@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useChatThreads } from '@/hooks/useChatThreads';
 import { useChatStream } from '@/hooks/useChatStream';
 import { generateUUID } from '@/lib/utils';
@@ -12,6 +12,7 @@ import type { ChatMessage } from '@/types/interfaces';
 export function ChatInterface() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const messageAddedRef = useRef(false);
 
   // Prevent hydration errors by only rendering client-specific code after mount
   useEffect(() => {
@@ -58,6 +59,9 @@ export function ChatInterface() {
     message: string,
     threadId: string
   ) => {
+    // Reset the flag for new message
+    messageAddedRef.current = false;
+
     // Add user message
     const userMessage: ChatMessage = {
       id: generateUUID(),
@@ -90,17 +94,8 @@ export function ChatInterface() {
 
   // Update assistant message as streaming progresses
   useEffect(() => {
-    if (isStreaming && currentResponse) {
-      const assistantMessage: ChatMessage = {
-        id: generateUUID(),
-        role: 'assistant',
-        content: currentResponse,
-        timestamp: new Date(),
-        queries: queries.length > 0 ? queries : undefined,
-      };
-      updateLastMessage(assistantMessage);
-    } else if (!isStreaming && currentResponse) {
-      // Streaming complete, finalize message
+    if (!isStreaming && currentResponse && !messageAddedRef.current) {
+      // Streaming complete, add the final assistant message (only once)
       const assistantMessage: ChatMessage = {
         id: generateUUID(),
         role: 'assistant',
@@ -109,15 +104,11 @@ export function ChatInterface() {
         queries: queries.length > 0 ? queries : undefined,
       };
 
-      // Check if we need to add or update
-      const lastMessage = currentMessages[currentMessages.length - 1];
-      if (lastMessage && lastMessage.role === 'assistant') {
-        updateLastMessage(assistantMessage);
-      } else {
-        addMessage(assistantMessage);
-      }
+      // Always add as a new message (don't update)
+      addMessage(assistantMessage);
+      messageAddedRef.current = true;
     }
-  }, [isStreaming, currentResponse, queries]);
+  }, [isStreaming, currentResponse, queries, addMessage]);
 
   // Display errors
   useEffect(() => {
@@ -187,11 +178,7 @@ export function ChatInterface() {
         </div>
 
         {/* Messages */}
-        <ChatMessages
-          messages={currentMessages}
-          isStreaming={isStreaming}
-          streamingContent={currentResponse}
-        />
+        <ChatMessages messages={currentMessages} isStreaming={isStreaming} />
 
         {/* Input */}
         <ChatInput

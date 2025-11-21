@@ -1,39 +1,60 @@
 'use client';
 
-import type { MessageRole } from '@/types/interfaces';
+import { useState } from 'react';
+import type { MessageRole, QueryExecution } from '@/types/interfaces';
 import { formatTimestamp } from '@/lib/utils';
+import { QueryDisplay } from './QueryDisplay';
 
 interface MessageProps {
   role: MessageRole;
   content: string;
-  timestamp: Date;
+  timestamp: Date | string;
+  queries?: QueryExecution[];
 }
 
-export function Message({ role, content, timestamp }: MessageProps) {
+export function Message({ role, content, timestamp, queries }: MessageProps) {
+  const [showDetails, setShowDetails] = useState(false);
   const isUser = role === 'user';
   const isSystem = role === 'system';
+  const hasQueries = queries && queries.length > 0;
 
   return (
     <div
       className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 group`}
     >
-      <div
-        className={`max-w-[80%] rounded-lg px-4 py-3 ${
-          isUser
-            ? 'bg-primary-600 text-white'
-            : isSystem
-              ? 'bg-gray-200 text-gray-700 italic'
-              : 'bg-gray-100 text-gray-900'
-        }`}
-      >
-        <div className='whitespace-pre-wrap break-words'>{content}</div>
+      <div className='max-w-[80%]'>
         <div
-          className={`text-xs mt-2 ${
-            isUser ? 'text-primary-100' : 'text-gray-500'
+          className={`rounded-lg px-4 py-3 ${
+            isUser
+              ? 'bg-primary-600 text-white'
+              : isSystem
+                ? 'bg-gray-200 text-gray-700 italic'
+                : 'bg-gray-100 text-gray-900'
           }`}
         >
-          {formatTimestamp(timestamp)}
+          <div className='whitespace-pre-wrap break-words'>{content}</div>
+          <div
+            className={`text-xs mt-2 flex items-center justify-between ${
+              isUser ? 'text-primary-100' : 'text-gray-500'
+            }`}
+          >
+            <span>{formatTimestamp(timestamp)}</span>
+            {hasQueries && !isUser && (
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className='ml-4 text-xs underline hover:no-underline'
+              >
+                {showDetails ? 'Hide Details' : 'Show Details'}
+              </button>
+            )}
+          </div>
         </div>
+        {/* Collapsible query details */}
+        {hasQueries && showDetails && (
+          <div className='mt-2'>
+            <QueryDisplay queries={queries} />
+          </div>
+        )}
       </div>
     </div>
   );

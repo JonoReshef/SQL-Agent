@@ -186,17 +186,23 @@ async def chat_stream(request: ChatRequest):
 
             # Use synchronous stream since PostgresSaver doesn't support async
             print("Starting stream...", flush=True)
+            last_ai_message = None
             for event in graph.stream(
-                {"messages": [HumanMessage(content=request.message)]},
+                {"user_question": request.message},
                 config,  # type: ignore
                 stream_mode="values",
             ):
                 # Process each state update
                 if "messages" in event and event["messages"]:
                     last_message = event["messages"][-1]
-                    if hasattr(last_message, "content") and last_message.content:
-                        # Stream the message content
-                        yield f"data: {json.dumps({'type': 'message', 'content': last_message.content})}\n\n"
+                    # Only stream AIMessage responses (not HumanMessage or enrichments)
+                    if (
+                        hasattr(last_message, "content")
+                        and last_message.content
+                        and last_message.__class__.__name__ == "AIMessage"
+                    ):
+                        # Keep track of last AI message to send only once at the end
+                        last_ai_message = last_message.content
 
                 # Collect executed queries for transparency
                 if "executed_queries" in event:
@@ -216,6 +222,10 @@ async def chat_stream(request: ChatRequest):
                                 ),
                             }
                         )
+
+            # Send the final AI message
+            if last_ai_message:
+                yield f"data: {json.dumps({'type': 'message', 'content': last_ai_message})}\n\n"
 
             # Send executed queries before end event for transparency
             if executed_queries:

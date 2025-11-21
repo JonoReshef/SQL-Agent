@@ -9,20 +9,15 @@ import type { ChatMessage } from '@/types/interfaces';
 interface ChatMessagesProps {
   messages: ChatMessage[];
   isStreaming: boolean;
-  streamingContent: string;
 }
 
-export function ChatMessages({
-  messages,
-  isStreaming,
-  streamingContent,
-}: ChatMessagesProps) {
+export function ChatMessages({ messages, isStreaming }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [messages]);
 
   return (
     <div className='flex-1 overflow-y-auto px-4 py-6 bg-gray-50'>
@@ -54,28 +49,13 @@ export function ChatMessages({
             role={message.role}
             content={message.content}
             timestamp={message.timestamp}
+            queries={message.queries}
           />
-          {message.queries && message.queries.length > 0 && (
-            <div className='mb-4 max-w-[80%]'>
-              <QueryDisplay queries={message.queries} />
-            </div>
-          )}
         </div>
       ))}
 
-      {/* Streaming message */}
-      {isStreaming && streamingContent && (
-        <div className='mb-4'>
-          <Message
-            role='assistant'
-            content={streamingContent}
-            timestamp={new Date()}
-          />
-        </div>
-      )}
-
       {/* Streaming indicator */}
-      {isStreaming && !streamingContent && (
+      {isStreaming && (
         <div className='mb-4'>
           <StreamingIndicator />
         </div>
