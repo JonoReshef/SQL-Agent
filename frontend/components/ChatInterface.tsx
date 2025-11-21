@@ -28,6 +28,7 @@ export function ChatInterface() {
     switchThread,
     deleteThread,
     clearAllThreads,
+    updateThreadTitle,
     addMessage,
     updateLastMessage,
     isLoading,
@@ -145,6 +146,7 @@ export function ChatInterface() {
         onSwitchThread={switchThread}
         onDeleteThread={deleteThread}
         onClearAllThreads={clearAllThreads}
+        onRenameThread={updateThreadTitle}
         isMobileOpen={isSidebarOpen}
         onMobileClose={() => setIsSidebarOpen(false)}
       />

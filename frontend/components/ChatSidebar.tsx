@@ -11,6 +11,7 @@ interface ChatSidebarProps {
   onSwitchThread: (threadId: string) => void;
   onDeleteThread: (threadId: string) => void;
   onClearAllThreads: () => void;
+  onRenameThread: (threadId: string, newTitle: string) => void;
   isMobileOpen: boolean;
   onMobileClose: () => void;
 }
@@ -22,6 +23,7 @@ export function ChatSidebar({
   onSwitchThread,
   onDeleteThread,
   onClearAllThreads,
+  onRenameThread,
   isMobileOpen,
   onMobileClose,
 }: ChatSidebarProps) {
@@ -132,6 +134,7 @@ export function ChatSidebar({
                     isActive={thread.id === currentThreadId}
                     onClick={() => handleSwitchThread(thread.id)}
                     onDelete={() => handleDelete(thread.id)}
+                    onRename={(newTitle) => onRenameThread(thread.id, newTitle)}
                   />
                   {deleteConfirm === thread.id && (
                     <div
