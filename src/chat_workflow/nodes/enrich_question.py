@@ -10,7 +10,7 @@ from src.chat_workflow.prompts import DATABASE_SCHEMA_PROMPT
 from src.llm.client import get_llm_client
 from src.models.chat_models import ChatState, QuestionEnrichment
 
-LLM = get_llm_client(output_structure=QuestionEnrichment)
+LLM = get_llm_client(type="gpt4.1", output_structure=QuestionEnrichment)
 
 
 def enrich_question_node(state: ChatState) -> Dict[str, Any]:
