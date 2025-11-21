@@ -167,7 +167,7 @@ export function ChatSidebar({
             </div>
           )}
           <div className='px-4 py-3 text-xs text-gray-500'>
-            WestBrand SQL Chat Agent v1.0
+            WestBrand Chat Agent v0.0.1
           </div>
         </div>
       </div>

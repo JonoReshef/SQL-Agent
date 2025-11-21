@@ -173,10 +173,10 @@ export function ChatInterface() {
             </button>
             <div>
               <h1 className='text-xl font-semibold text-gray-900'>
-                WestBrand SQL Chat
+                Westbrand Product & Inventory Chat
               </h1>
               <p className='text-sm text-gray-500'>
-                Ask questions about your database in natural language
+                Ask questions about your data in natural language
               </p>
             </div>
           </div>
