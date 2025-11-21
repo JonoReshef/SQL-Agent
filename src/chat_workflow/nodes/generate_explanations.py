@@ -5,8 +5,6 @@ Based on the entire search process, explain why and how the querying worked
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
-from langchain_core.messages import AIMessage
-
 from src.chat_workflow.prompts import EXPLANATION_PROMPT
 from src.llm.client import get_llm_client
 from src.models.chat_models import ChatState, QueryExecution, QueryExplanation
@@ -15,7 +13,7 @@ LLM = get_llm_client()
 LLM_STRUCTURED = get_llm_client(output_structure=QueryExplanation)
 
 
-def _generate_query_explanation_and_summary(query: str, result: str) -> QueryExplanation:
+def _generate_query_explanation_and_summary(query: QueryExecution) -> QueryExecution:
     """
     Generate human-readable explanation and result summary for a SQL query.
 
@@ -28,18 +26,21 @@ def _generate_query_explanation_and_summary(query: str, result: str) -> QueryExp
     """
     try:
         response = QueryExplanation.model_validate(
-            LLM_STRUCTURED.invoke(EXPLANATION_PROMPT.format(query=query, result=result))
+            LLM_STRUCTURED.invoke(
+                EXPLANATION_PROMPT.format(query=query.query, result=query.raw_result)
+            )
         )
-
-        return response
+        # Update the query execution with the explanation
+        query.query_explanation = response
 
     except Exception as e:
         # Fallback to generic messages if LLM fails
         print(f"   Warning: Failed to generate query explanation - {str(e)}")
-        return QueryExplanation(
+        query.query_explanation = QueryExplanation(
             description="Unable to generate explanation",
             result_summary=None,
         )
+    return query
 
 
 def _generate_overall_explanation(executed_queries: List[QueryExecution]) -> str:
@@ -89,24 +90,23 @@ def generate_explanations_node(state: ChatState):
     """
 
     # Parallelized the explanation generation
-    executed_queries = state.executed_queries.copy() or []
+    executed_queries_with_explanations = []
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
-        for query in executed_queries:
+        for query in state.executed_queries:
             futures.append(
                 executor.submit(
                     _generate_query_explanation_and_summary,
-                    query.query,
-                    query.raw_result or "",
+                    query,
                 )
             )
 
-        for n, future in enumerate(futures):
-            executed_queries[n].query_explanation = future.result()
+        for future in futures:
+            executed_queries_with_explanations.append(future.result())
 
     # Based on all executed queries, generate overall explanation
-    overall_summary = _generate_overall_explanation(executed_queries)
+    overall_summary = _generate_overall_explanation(executed_queries_with_explanations)
     return {
         "overall_summary": overall_summary,
-        "executed_queries": executed_queries,
+        "executed_queries_enriched": executed_queries_with_explanations,
     }

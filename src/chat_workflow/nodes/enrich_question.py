@@ -26,8 +26,13 @@ def enrich_question_node(state: ChatState) -> Dict[str, Any]:
     Returns:
         Dict with enriched AIMessage
     """
-
     # Example enrichment: add clarifying details
+    complexity_guidance = (
+        "Focus on direct, precise answers. Generate 1-2 targeted questions that directly address the user's specific need."
+        if not state.anticipate_complexity
+        else "Be thorough and exploratory. Generate 2-3 comprehensive questions that explore related aspects and provide deeper insights."
+    )
+
     enriched_content = """
         You are an expert SQL and research assistant.
 
@@ -42,7 +47,9 @@ def enrich_question_node(state: ChatState) -> Dict[str, Any]:
         This is the conversation history so far:
         {previous_queries}
 
-        Using the provided schema and prior conversation history, expand the user question into up to 3 statements which will be answered by an SQL data analyst expert to more completely answer the users intent. 
+        {complexity_guidance}
+        
+        Using the provided schema and prior conversation history, expand the user question into additional statements which will be answered by an SQL data analyst expert to more completely answer the users intent. 
 
         For example: 
         User Question: "What were the sales last quarter?"
@@ -66,6 +73,7 @@ def enrich_question_node(state: ChatState) -> Dict[str, Any]:
                 user_question=state.user_question,
                 schema=DATABASE_SCHEMA_PROMPT,  # Placeholder for actual schema
                 previous_queries=state.messages[:-1],  # Placeholder for actual previous queries
+                complexity_guidance=complexity_guidance,
             )
         )
     )
@@ -83,4 +91,9 @@ def enrich_question_node(state: ChatState) -> Dict[str, Any]:
         """
     )
 
-    return {"enriched_query": response, "messages": [question]}
+    return {
+        "executed_queries": [],  # Reset executed queries on enrichment because we have a new question
+        "executed_queries_enriched": [],  # Reset executed queries on enrichment because we have a new question
+        "enriched_query": response,
+        "messages": [question],
+    }

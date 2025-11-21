@@ -80,6 +80,10 @@ class ChatState(BaseModel):
         default="",
         description="The current user question to be answered",
     )
+    anticipate_complexity: bool = Field(
+        default=False,
+        description="Whether to use thorough/exploratory analysis (True) or direct answers (False)",
+    )
     enriched_query: QuestionEnrichment = Field(
         default=QuestionEnrichment(additional_questions=[]),
         description="The enriched user question with additional context",
@@ -103,6 +107,10 @@ class ChatState(BaseModel):
     )
     error: Optional[str] = Field(default=None, description="Error message from failed operations")
     executed_queries: List[QueryExecution] = Field(
+        default_factory=list,
+        description="Detailed list of all SQL queries executed with explanations and summaries (for transparency)",
+    )
+    executed_queries_enriched: List[QueryExecution] = Field(
         default_factory=list,
         description="Detailed list of all SQL queries executed with explanations and summaries (for transparency)",
     )

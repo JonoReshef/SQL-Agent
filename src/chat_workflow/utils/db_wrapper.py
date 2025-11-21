@@ -11,6 +11,21 @@ from langchain_core.tools import BaseTool
 
 load_dotenv()
 
+# List of forbidden database keywords (DML/DDL operations)
+BLACK_LIST = [
+    "INSERT",
+    "UPDATE",
+    "DELETE",
+    "DROP",
+    "ALTER",
+    "CREATE",
+    "TRUNCATE",
+    "REPLACE",
+    "MERGE",
+    "GRANT",
+    "REVOKE",
+]
+
 
 @lru_cache(maxsize=1)
 def get_sql_database() -> SQLDatabase:
@@ -82,33 +97,12 @@ def validate_query_is_select(query: str) -> tuple[bool, str]:
     # Normalize query for checking
     query_upper = query.strip().upper()
 
-    # List of forbidden keywords (DML/DDL operations)
-    forbidden_keywords = [
-        "INSERT",
-        "UPDATE",
-        "DELETE",
-        "DROP",
-        "ALTER",
-        "CREATE",
-        "TRUNCATE",
-        "REPLACE",
-        "MERGE",
-        "GRANT",
-        "REVOKE",
-    ]
-
     # Check for forbidden keywords
-    for keyword in forbidden_keywords:
+    for keyword in BLACK_LIST:
         if keyword in query_upper:
             return (
                 False,
                 f"Query contains forbidden keyword: {keyword}. Only SELECT queries are allowed.",
             )
-
-    # Check that query starts with SELECT (after whitespace/comments)
-    # Remove leading comments and whitespace
-    query_stripped = query_upper.lstrip()
-    if not query_stripped.startswith("SELECT"):
-        return False, "Query must start with SELECT. Only read operations are permitted."
 
     return True, ""

@@ -90,6 +90,12 @@ export interface components {
        * @description Thread ID for conversation continuity
        */
       thread_id: string;
+      /**
+       * Anticipate Complexity
+       * @description Whether to use more thorough/exploratory analysis (True) or direct answers (False)
+       * @default false
+       */
+      anticipate_complexity?: boolean;
     };
     /**
      * ChatResponse

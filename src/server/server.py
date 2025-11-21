@@ -41,6 +41,10 @@ class ChatRequest(BaseModel):
 
     message: str = Field(..., description="User's question or message")
     thread_id: str = Field(..., description="Thread ID for conversation continuity")
+    anticipate_complexity: bool = Field(
+        default=False,
+        description="Whether to use more thorough/exploratory analysis (True) or direct answers (False)",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -106,9 +110,12 @@ async def chat(request: ChatRequest) -> ChatResponse:
         graph = get_graph()
         config = {"configurable": {"thread_id": request.thread_id}}
 
-        # Invoke graph with user message
+        # Invoke graph with user message and complexity setting
         result = graph.invoke(
-            {"messages": [HumanMessage(content=request.message)]},
+            {
+                "messages": [HumanMessage(content=request.message)],
+                "anticipate_complexity": request.anticipate_complexity,
+            },
             config,  # type: ignore
         )
 
@@ -188,7 +195,10 @@ async def chat_stream(request: ChatRequest):
             print("Starting stream...", flush=True)
             last_ai_message = None
             for event in graph.stream(
-                {"user_question": request.message},
+                {
+                    "user_question": request.message,
+                    "anticipate_complexity": request.anticipate_complexity,
+                },
                 config,  # type: ignore
                 stream_mode="values",
             ):
@@ -205,8 +215,8 @@ async def chat_stream(request: ChatRequest):
                         last_ai_message = last_message.content
 
                 # Collect executed queries for transparency
-                if "executed_queries" in event:
-                    for qe in event["executed_queries"]:
+                if "executed_queries_enriched" in event:
+                    for qe in event["executed_queries_enriched"]:
                         executed_queries.append(
                             {
                                 "query": qe.query,

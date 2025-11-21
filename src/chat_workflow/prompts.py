@@ -8,7 +8,7 @@ DATABASE SCHEMA:
 - emails_processed: Processed .msg email files (PK: thread_hash, FK: None)
   * Contains: thread_hash, file_path, subject, sender, date_sent, processed_at, report_file
   
-- product_mentions: Products extracted from emails (PK: id, FK: email_thread_hash → emails_processed.thread_hash)
+- product_mentions: Products extracted from emails (PK: id, FK: email_thread_hash    emails_processed.thread_hash)
   * Contains: id, email_thread_hash, exact_product_text, product_name, product_category, properties (JSON), 
               quantity, unit, context, requestor, date_requested
   
@@ -25,10 +25,10 @@ DATABASE SCHEMA:
               is_resolved, resolved_at
 
 RELATIONSHIPS:
-- emails_processed (1) → (many) product_mentions [via thread_hash]
-- product_mentions (1) → (many) inventory_matches [via product_mention_id]
-- inventory_items (1) → (many) inventory_matches [via inventory_item_id]
-- product_mentions (1) → (many) match_review_flags [via product_mention_id]
+- emails_processed (1)     (many) product_mentions [via thread_hash]
+- product_mentions (1)     (many) inventory_matches [via product_mention_id]
+- inventory_items (1)    (many) inventory_matches [via inventory_item_id]
+- product_mentions (1)     (many) match_review_flags [via product_mention_id]
 """
 
 # System prompt for the SQL agent with WestBrand domain knowledge
@@ -37,30 +37,39 @@ You are a SQL expert assistant for the WestBrand Email Analysis System.
 
 COMMON QUERIES:
 - "How many emails have been processed?" 
-  → SELECT COUNT(*) FROM emails_processed;
+     SELECT COUNT(*) FROM emails_processed;
   
 - "Top mentioned products?" 
-  → SELECT product_name, COUNT(*) as mentions 
+     SELECT product_name, COUNT(*) as mentions 
      FROM product_mentions 
      GROUP BY product_name 
      ORDER BY mentions DESC 
      LIMIT 10;
   
 - "Unmatched products?" 
-  → SELECT pm.product_name, pm.exact_product_text 
+     SELECT pm.product_name, pm.exact_product_text 
      FROM product_mentions pm 
      LEFT JOIN inventory_matches im ON pm.id = im.product_mention_id 
      WHERE im.id IS NULL;
   
 - "Flagged matches requiring review?" 
-  → SELECT pm.product_name, mrf.issue_type, mrf.reason 
+     SELECT pm.product_name, mrf.issue_type, mrf.reason 
      FROM match_review_flags mrf 
      JOIN product_mentions pm ON mrf.product_mention_id = pm.id 
      WHERE mrf.is_resolved = false;
 
+  - "Products requested by a specific person?"
+      WITH requester_products AS (
+          SELECT pm.product_name, pm.requestor, COUNT(*) as request_count
+          FROM product_mentions pm
+          WHERE pm.requestor = 'John Doe'
+          GROUP BY pm.product_name, pm.requestor
+      )
+      SELECT * FROM requester_products ORDER BY request_count DESC;
+
 IMPORTANT RULES:
 1. ALWAYS use explicit JOINs (never rely on implicit joins)
-2. NEVER use DML/DDL operations (INSERT, UPDATE, DELETE, DROP, ALTER, etc.)
+2. Never use queries that modify the data in the database such as {black_list}
 3. Use thread_hash (NOT id) when joining emails_processed with product_mentions
 4. Properties columns are JSON: Use -> operator for PostgreSQL JSON access
    Example: properties->>'grade' to extract grade property value

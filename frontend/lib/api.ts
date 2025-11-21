@@ -24,7 +24,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function sendChatMessage(
   message: string,
-  threadId: string
+  threadId: string,
+  anticipateComplexity: boolean = false
 ): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE_URL}/chat`, {
     method: 'POST',
@@ -34,6 +35,7 @@ export async function sendChatMessage(
     body: JSON.stringify({
       message,
       thread_id: threadId,
+      anticipate_complexity: anticipateComplexity,
     } as ChatRequest),
   });
 
@@ -63,7 +65,8 @@ export interface StreamCallbacks {
 export function streamChatMessage(
   message: string,
   threadId: string,
-  callbacks: StreamCallbacks
+  callbacks: StreamCallbacks,
+  anticipateComplexity: boolean = false
 ): () => void {
   const { onToken, onMessage, onQueries, onComplete, onError } = callbacks;
 
@@ -82,6 +85,7 @@ export function streamChatMessage(
         body: JSON.stringify({
           message,
           thread_id: threadId,
+          anticipate_complexity: anticipateComplexity,
         } as ChatRequest),
       });
 

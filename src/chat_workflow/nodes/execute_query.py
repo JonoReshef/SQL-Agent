@@ -2,7 +2,7 @@
 
 from typing import Any, Dict
 
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import ToolMessage
 
 from src.chat_workflow.utils.tools import run_query_tool
 from src.models.chat_models import ChatState, QueryExecution

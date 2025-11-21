@@ -13,6 +13,7 @@ export function ChatInterface() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const messageAddedRef = useRef(false);
+  const [anticipateComplexity, setAnticipateComplexity] = useState(false);
 
   // Prevent hydration errors by only rendering client-specific code after mount
   useEffect(() => {
@@ -75,8 +76,8 @@ export function ChatInterface() {
     const assistantMessageId = generateUUID();
 
     try {
-      // Send message and stream response
-      await sendMessage(message, threadId);
+      // Send message and stream response with complexity setting
+      await sendMessage(message, threadId, anticipateComplexity);
 
       // Note: The streaming is handled by useChatStream hook
       // We need to watch currentResponse and queries to update the message
@@ -149,31 +150,66 @@ export function ChatInterface() {
       {/* Main Chat Area */}
       <div className='flex-1 flex flex-col'>
         {/* Header */}
-        <div className='bg-white border-b border-gray-300 px-4 py-4 flex items-center'>
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className='md:hidden mr-3 p-2 hover:bg-gray-100 rounded'
-            aria-label='Open sidebar'
-          >
-            <svg
-              className='w-6 h-6'
-              fill='none'
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              strokeWidth='2'
-              viewBox='0 0 24 24'
-              stroke='currentColor'
+        <div className='bg-white border-b border-gray-300 px-4 py-4 flex items-center justify-between'>
+          <div className='flex items-center'>
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className='md:hidden mr-3 p-2 hover:bg-gray-100 rounded'
+              aria-label='Open sidebar'
             >
-              <path d='M4 6h16M4 12h16M4 18h16'></path>
-            </svg>
-          </button>
-          <div>
-            <h1 className='text-xl font-semibold text-gray-900'>
-              WestBrand SQL Chat
-            </h1>
-            <p className='text-sm text-gray-500'>
-              Ask questions about your database in natural language
-            </p>
+              <svg
+                className='w-6 h-6'
+                fill='none'
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth='2'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+              >
+                <path d='M4 6h16M4 12h16M4 18h16'></path>
+              </svg>
+            </button>
+            <div>
+              <h1 className='text-xl font-semibold text-gray-900'>
+                WestBrand SQL Chat
+              </h1>
+              <p className='text-sm text-gray-500'>
+                Ask questions about your database in natural language
+              </p>
+            </div>
+          </div>
+
+          {/* Complexity Toggle */}
+          <div className='flex items-center space-x-3'>
+            <label className='flex items-center cursor-pointer group'>
+              <span
+                className={`text-sm mr-3 transition-colors ${
+                  anticipateComplexity
+                    ? 'text-primary-600 font-medium'
+                    : 'text-gray-600'
+                }`}
+              >
+                {anticipateComplexity ? 'Thorough' : 'Quick'}
+              </span>
+              <div className='relative'>
+                <input
+                  type='checkbox'
+                  className='sr-only'
+                  checked={anticipateComplexity}
+                  onChange={(e) => setAnticipateComplexity(e.target.checked)}
+                />
+                <div
+                  className={`w-11 h-6 rounded-full transition-colors ${
+                    anticipateComplexity ? 'bg-primary-600' : 'bg-gray-300'
+                  }`}
+                ></div>
+                <div
+                  className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    anticipateComplexity ? 'transform translate-x-5' : ''
+                  }`}
+                ></div>
+              </div>
+            </label>
           </div>
         </div>
 

@@ -2,10 +2,10 @@
 
 from typing import Any, Dict
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from src.chat_workflow.prompts import DATABASE_SCHEMA_PROMPT, WESTBRAND_SYSTEM_PROMPT
-from src.chat_workflow.utils.db_wrapper import get_sql_database
+from src.chat_workflow.utils.db_wrapper import BLACK_LIST, get_sql_database
 from src.chat_workflow.utils.tools import get_schema_tool, run_query_tool
 from src.llm.client import get_llm_client
 from src.models.chat_models import ChatState
@@ -40,10 +40,20 @@ def generate_query_node(state: ChatState) -> Dict[str, Any]:
         # Include system prompt first
         system_message = SystemMessage(
             WESTBRAND_SYSTEM_PROMPT.format(
+                black_list=",".join(BLACK_LIST),
                 table_list=list_tables_node(),
                 database_schema=DATABASE_SCHEMA_PROMPT,
             )
         )
+
+        # Adjust guidance based on complexity setting
+        max_queries = 30 if state.anticipate_complexity else 10
+        complexity_guidance = (
+            f"Be direct and efficient. Focus on answering the specific question asked. Maximum {max_queries} queries total."
+            if not state.anticipate_complexity
+            else f"Be thorough and exploratory. Investigate related aspects and provide comprehensive insights. Maximum {max_queries} queries total to explore the data deeply."
+        )
+
         prompt = """
             This is the user question you must answer:
             {user_query}
@@ -51,16 +61,20 @@ def generate_query_node(state: ChatState) -> Dict[str, Any]:
             Here are supplementary questions that should be considered to understand the context and the reason why these questions are being asked:
             {enriched_query}
 
-            Here are the previous queries and results of those queries. From these results decide whether to perform one of these three actions:
-            - Generate new postgres SQL queries to use with the run_query_tool. If there are errors in the previous queries, learn from those errors to produce correct queries. Otherwise, use the previous queries to build more specific, accurate or investigative queries as needed to fully answer the user's question. 
-            - Get more information from the database using the get_schema_tool. If more information about the database schema then query this tool
-            - If the returned results fully answer the user's question, provide an evidenced based final answer and do not invoke any tools. Do not include any SQL in the final answer. Avoid referencing specific table or column names in the final answer and replace any non-human results such as hashes and IDs with more understandable terms.
+            Here are the previous queries and results of those queries. 
             {previous_queries_results}
 
             Here is the full previous conversation including both the user questions and the AI responses in chronological order from the start of the conversation to now:
             {previous_user_questions}
-
-            If appropriate generate 1-3 syntactically correct PostgreSQL queries to retrieve the information needed to answer the user's question. Use the tool run_query_tool to execute the queries against the database.
+            
+            COMPLEXITY GUIDANCE: {complexity_guidance}
+            
+            From these results decide whether to perform one of these three actions:
+            - Generate new postgres SQL queries to use with the run_query_tool. If there are errors in the previous queries, learn from those errors to produce correct queries. Otherwise, use the previous queries to build more specific, accurate or investigative queries as needed to fully answer the user's question. 
+            - Get more information from the database using the get_schema_tool. If more information about the database schema then query this tool
+            - If the returned results fully answer the user's question, provide an evidenced based final answer and do not invoke any tools. Do not include any SQL in the final answer. The final output must be rendered in markdown. Avoid referencing specific table or column names in the final answer and replace any non-human results such as hashes and IDs with more understandable terms.
+            
+            IMPORTANT: Track your query count. You have executed {query_count} queries so far. Maximum allowed: {max_queries}. If approaching the limit, prioritize providing a final answer with available data.
             """
 
         human_message = prompt.format(
@@ -78,6 +92,9 @@ def generate_query_node(state: ChatState) -> Dict[str, Any]:
                     for query in state.executed_queries
                 ]
             ),
+            complexity_guidance=complexity_guidance,
+            query_count=len(state.executed_queries),
+            max_queries=max_queries,
         )
 
         # Convert state messages to format LLM expects
