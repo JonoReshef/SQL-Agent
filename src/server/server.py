@@ -126,7 +126,17 @@ async def chat(request: ChatRequest) -> ChatResponse:
         executed_queries_raw = result.get("executed_queries", [])
         executed_queries = [
             QueryExecutionResponse(
-                query=qe.query, explanation=qe.explanation, result_summary=qe.result_summary
+                query=qe.query,
+                explanation=(
+                    qe.query_explanation.description
+                    if qe.query_explanation
+                    else "No explanation available"
+                ),
+                result_summary=(
+                    qe.query_explanation.result_summary
+                    if qe.query_explanation
+                    else "No result summary available"
+                ),
             )
             for qe in executed_queries_raw
         ]
@@ -187,8 +197,16 @@ async def chat_stream(request: ChatRequest):
                                     executed_queries.append(
                                         {
                                             "query": qe.query,
-                                            "explanation": qe.explanation,
-                                            "result_summary": qe.result_summary,
+                                            "explanation": (
+                                                qe.query_explanation.description
+                                                if qe.query_explanation
+                                                else "No explanation available"
+                                            ),
+                                            "result_summary": (
+                                                qe.query_explanation.result_summary
+                                                if qe.query_explanation
+                                                else "No result summary available"
+                                            ),
                                         }
                                     )
 
