@@ -31,18 +31,14 @@ try {
       console.error(
         'API is not available. Please make sure the FastAPI server is running.'
       );
-      console.error(
-        `   Try: cd ../backend && uvicorn src.akash_homes.server:app --reload`
-      );
+      console.error(`   Try: cd .. && python -m src.server.server`);
       process.exit(1);
     } else {
       console.warn('API is not available. Skipping type generation for now.');
       console.warn(
         `   The API will be checked again when you run: npm run sync-types`
       );
-      console.warn(
-        `   To start the API: cd ../backend && uvicorn src.akash_homes.server:app --reload`
-      );
+      console.warn(`   To start the API: cd .. && python -m src.server.server`);
       process.exit(0); // Exit successfully without generating types
     }
   }
