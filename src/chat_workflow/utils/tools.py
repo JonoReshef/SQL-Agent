@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from langchain_core.tools import tool
 
 from src.chat_workflow.utils.db_wrapper import get_sql_database, validate_query_is_select
@@ -35,6 +37,7 @@ def run_query_tool(query: str) -> str:
 
 
 @tool
+@lru_cache(maxsize=1)
 def get_schema_tool(table_names: str) -> str:
     """
     Get database schema for specified tables.
