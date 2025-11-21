@@ -120,7 +120,13 @@ export function ChatSidebar({
                     onDelete={() => handleDelete(thread.id)}
                   />
                   {deleteConfirm === thread.id && (
-                    <div className='absolute inset-0 bg-red-500 bg-opacity-90 flex items-center justify-center text-white text-sm font-medium'>
+                    <div 
+                      className='absolute inset-0 bg-red-500 bg-opacity-90 flex items-center justify-center text-white text-sm font-medium cursor-pointer'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(thread.id);
+                      }}
+                    >
                       Click again to confirm delete
                     </div>
                   )}
