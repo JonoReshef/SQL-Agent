@@ -67,15 +67,17 @@ WestBrand/
 │   ├── chat_workflow/
 │   │   ├── api.py                  # FastAPI REST server with streaming
 │   │   ├── cli.py                  # CLI interface for testing
-│   │   ├── graph.py                # LangGraph SQL chat workflow
+│   │   ├── graph.py                # LangGraph SQL chat workflow (4 nodes)
 │   │   ├── prompts.py              # System prompts for SQL generation
 │   │   ├── README.md               # Chat workflow documentation
-│   │   └── nodes/
-│   │       ├── list_tables.py      # Database table discovery
-│   │       ├── get_schema.py       # Table schema retrieval
-│   │       ├── generate_query.py   # Natural language to SQL
-│   │       ├── execute_query.py    # SQL execution and transparency
-│   │       └── generate_explanations.py  # Query explanation generation
+│   │   ├── nodes/
+│   │   │   ├── enrich_question.py      # Expand user questions
+│   │   │   ├── generate_query.py       # Natural language to SQL
+│   │   │   ├── execute_query.py        # SQL execution and tracking
+│   │   │   └── generate_explanations.py # Query explanation generation
+│   │   └── utils/
+│   │       ├── db_wrapper.py       # PostgreSQL connection setup
+│   │       └── tools.py            # LangChain tools (run_query, get_schema)
 │   ├── inventory/
 │   │   ├── loader.py               # Load inventory from Excel
 │   │   └── parser.py               # Parse inventory with LLM
@@ -98,11 +100,8 @@ WestBrand/
 │   ├── test_integration.py        # End-to-end tests
 │   └── chat_workflow/
 │       ├── test_graph.py          # Chat workflow graph tests
-│       ├── test_api.py            # FastAPI endpoint tests
-│       ├── test_execute_query.py  # Query execution tests
-│       ├── test_list_tables.py    # Table discovery tests
 │       ├── test_models.py         # Pydantic model tests
-│       ├── test_sql_transparency.py  # SQL transparency tests
+│       ├── test_nodes.py          # Individual node tests
 │       └── test_db_wrapper.py     # Database wrapper tests
 ├── data/                          # Email .msg files
 ├── output/                        # Generated Excel reports
@@ -169,15 +168,17 @@ WestBrand/
 
 ### 7. SQL Chat Workflow (`src/chat_workflow/`)
 
+- ✅ 4-node LangGraph workflow: enrich_question → generate_query ↔ execute_query → generate_explanations
+- ✅ Question enrichment to expand user queries for better intent understanding
 - ✅ Natural language to SQL translation using Azure OpenAI GPT-5
-- ✅ FastAPI REST API with streaming and non-streaming endpoints
+- ✅ PostgreSQL checkpointer for conversation persistence (thread-based)
+- ✅ Redis caching for LLM responses (reduces redundant API calls)
+- ✅ Query transparency: all SQL displayed with AI-generated explanations
+- ✅ Multi-query tracking with overall search process summary
 - ✅ CLI interface for interactive testing
-- ✅ PostgreSQL checkpointer for conversation persistence
 - ✅ Read-only query validation (SELECT only)
-- ✅ SQL query transparency with AI-generated explanations
-- ✅ Multi-turn conversation support with thread management
 - ✅ Domain-specific system prompts for WestBrand database
-- ✅ 52/56 tests passing (93% coverage)
+- 🔄 FastAPI REST API (may need updates for current workflow)
 
 ## Workflow Design
 
@@ -413,24 +414,23 @@ python -m src.main --match
 
 ### SQL Chat Interface
 
-Query the WestBrand database using natural language:
+Query the WestBrand database using natural language with automatic question enrichment and query transparency:
 
 ```bash
-# Start the CLI interface
+# Start the CLI interface (recommended)
 python -m src.chat_workflow.cli
 
-# Or start the REST API server
+# Or start the REST API server (may need updates)
 python -m src.chat_workflow.api
 # Server available at http://localhost:8000
-
-# Or using uvicorn with auto-reload
-uvicorn src.chat_workflow.api:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Example Chat Session:**
 
 ```
 You: How many emails are in the system?
+
+Enriching question...
 
 🤖 Agent: There are 156 emails in the database.
 
@@ -439,13 +439,23 @@ You: How many emails are in the system?
 ======================================================================
 
 Query 1:
-  💡 Counts the total number of emails in the database
+  💡 Counts the total number of processed email records
   📈 Result: Found 156 records
 
   SQL:
     SELECT COUNT(*) AS email_count FROM emails_processed;
 
+Overall Summary:
+Retrieved the total count of emails by querying the emails_processed table.
 ======================================================================
+```
+
+**Key Features:**
+- **Question Enrichment**: Automatically expands queries for better understanding
+- **Query Transparency**: All SQL displayed with AI explanations
+- **Conversation Persistence**: Thread-based history stored in PostgreSQL
+- **Redis Caching**: LLM responses cached to reduce costs
+- **Read-only Safety**: Only SELECT queries allowed
 
 You: Show me the top 5 most requested products
 

@@ -15,24 +15,30 @@ The SQL Chat Agent allows users to query the WestBrand PostgreSQL database using
 - **Azure OpenAI GPT-5**: Natural language to SQL conversion
 - **PostgreSQL**: Database backend with conversation persistence
 - **Pydantic v2**: Type-safe state models
+- **Redis**: LLM response caching
 
 ### Workflow Nodes
 
-1. **List Tables**: Discovers available database tables
-2. **Get Schema**: Fetches detailed table schemas
-3. **Generate Query**: Converts natural language to SQL
-4. **Execute Query**: Runs validated SELECT queries
-5. **Loop**: Supports multi-turn conversations
+The SQL Chat Agent uses a 4-node LangGraph workflow:
+
+1. **Enrich Question** (`nodes/enrich_question.py`): Expands user questions into 1-3 detailed sub-questions for better context and intent understanding
+2. **Generate Query** (`nodes/generate_query.py`): Uses LLM with tool binding to convert natural language to SQL queries, with access to `run_query_tool` and `get_schema_tool`
+3. **Execute Query** (`nodes/execute_query.py`): Validates and executes SQL queries (SELECT only), tracks executed queries for transparency
+4. **Generate Explanations** (`nodes/generate_explanations.py`): Creates AI-generated explanations and summaries for all executed queries
+
+**Workflow Loop**: After executing queries, the workflow loops back to `generate_query` to allow follow-up questions or generate the final answer when complete.
 
 ### Key Features
 
 - ✅ **Read-only access**: Only SELECT queries allowed
-- ✅ **Conversation persistence**: PostgreSQL-based checkpointing
+- ✅ **Conversation persistence**: PostgreSQL-based checkpointing with thread IDs
 - ✅ **Streaming responses**: Server-Sent Events (SSE)
 - ✅ **Multi-turn conversations**: Maintains context across queries
+- ✅ **Question enrichment**: Automatically expands ambiguous questions
+- ✅ **Query transparency**: All SQL queries displayed with AI-generated explanations
 - ✅ **Domain knowledge**: WestBrand-specific system prompts
-- ✅ **Type-safe**: Pydantic models with full validation
-- ✅ **Test coverage**: 51/51 tests passing
+- ✅ **Type-safe**: Pydantic v2 models with full validation
+- ✅ **Redis caching**: Reduces redundant LLM calls
 
 ## Installation
 
@@ -59,7 +65,7 @@ pip install langgraph-checkpoint-postgres fastapi uvicorn[standard]
 Add to `.env`:
 
 ```bash
-DATABASE_URL=postgresql://westbrand:westbrand_pass@localhost:5432/westbrand_db
+DATABASE_URL=postgresql://westbrand:<password>@localhost:5432/westbrand_db
 AZURE_LLM_API_KEY=<your-azure-openai-key>
 AZURE_LLM_ENDPOINT=<your-azure-endpoint>
 ```
@@ -98,7 +104,18 @@ curl -X POST http://localhost:8000/chat \
 ```json
 {
   "response": "There are 147 emails in the database.",
-  "thread_id": "user-123"
+  "thread_id": "user-123",
+  "executed_queries": [
+    {
+      "query": "SELECT COUNT(*) FROM emails_processed;",
+      "query_explanation": {
+        "description": "Counts the total number of processed email records",
+        "result_summary": "Found 147 records"
+      },
+      "raw_result": "[(147,)]"
+    }
+  ],
+  "overall_summary": "Retrieved the total count of emails by querying the emails_processed table."
 }
 ```
 
@@ -167,41 +184,79 @@ curl http://localhost:8000/health
 
 ```
 Q: "How many emails have been processed?"
+
+Enriched Questions:
+1. Total count of emails in the database
+2. Date range of processed emails
+3. Any recent email processing activity
+
 A: "There are 147 emails in the emails_processed table."
 
+📊 SQL Queries Executed:
+Query 1:
+  💡 Counts the total number of processed email records
+  📈 Result: Found 147 records
+  SQL: SELECT COUNT(*) FROM emails_processed;
+```
+
+```
 Q: "How many product mentions are there?"
 A: "There are 523 product mentions extracted from emails."
+
+📊 SQL Queries Executed:
+Query 1:
+  💡 Counts all product mentions in the database
+  📈 Result: Found 523 records
+  SQL: SELECT COUNT(*) FROM product_mentions;
 ```
 
 ### Product Analysis
 
 ```
 Q: "What are the top 5 most mentioned products?"
-A: SQL: SELECT product_name, COUNT(*) as mentions
+A: "The top 5 products are: Grade 8 Bolts (45 mentions), Stainless Fasteners (32 mentions)..."
+
+📊 SQL Queries Executed:
+Query 1:
+  💡 Groups products by name and counts mentions to find most frequently requested items
+  📈 Result: Found 5 products with mention counts
+  SQL: SELECT product_name, COUNT(*) as mentions
        FROM product_mentions
        GROUP BY product_name
        ORDER BY mentions DESC
        LIMIT 5;
+```
 
-   Top products: Grade 8 Bolts (45), Stainless Fasteners (32)...
-
+```
 Q: "Which products have no inventory matches?"
-A: SQL: SELECT pm.product_name
+A: "Found 23 products without matches..."
+
+📊 SQL Queries Executed:
+Query 1:
+  💡 Finds products that don't have corresponding inventory matches using a LEFT JOIN
+  📈 Result: Found 23 unmatched products
+  SQL: SELECT pm.product_name, pm.exact_product_text
        FROM product_mentions pm
        LEFT JOIN inventory_matches im ON pm.id = im.product_mention_id
        WHERE im.id IS NULL
-       LIMIT 10;
+       LIMIT 50;
 ```
 
 ### Match Quality
 
 ```
 Q: "Show me flagged matches requiring review"
-A: SQL: SELECT pm.product_name, mrf.issue_type, mrf.reason
+A: "Found 12 matches requiring manual review..."
+
+📊 SQL Queries Executed:
+Query 1:
+  💡 Retrieves unresolved quality issues by joining flags with product mentions
+  📈 Result: Found 12 flagged items
+  SQL: SELECT pm.product_name, mrf.issue_type, mrf.reason
        FROM match_review_flags mrf
        JOIN product_mentions pm ON mrf.product_mention_id = pm.id
        WHERE mrf.is_resolved = false
-       LIMIT 10;
+       LIMIT 20;
 ```
 
 ## Testing
@@ -218,41 +273,64 @@ pytest tests/chat_workflow/ --cov=src/chat_workflow --cov-report=html
 
 ### Test Categories
 
-- **test_models.py**: Pydantic state models (6 tests)
-- **test_db_wrapper.py**: Database utilities (14 tests)
-- **test_list_tables.py**: Table discovery node (4 tests)
-- **test_execute_query.py**: Query execution node (9 tests)
-- **test_graph.py**: LangGraph workflow (7 tests)
-- **test_api.py**: FastAPI endpoints (11 tests)
+```bash
+# Run specific test files
+pytest tests/chat_workflow/test_models.py -v        # Pydantic state models
+pytest tests/chat_workflow/test_nodes.py -v         # Individual workflow nodes
+pytest tests/chat_workflow/test_graph.py -v         # LangGraph workflow integration
 
-**Total: 51/51 tests passing ✅**
+# Current test status: Check with pytest for latest results
+```
+
+**Test Coverage Areas:**
+
+- Pydantic v2 state models (`ChatState`, `QuestionEnrichment`, `QueryExplanation`, `QueryExecution`)
+- Database utilities and connection management
+- Individual workflow nodes (enrich_question, generate_query, execute_query, generate_explanations)
+- LangGraph workflow integration and state management
+- FastAPI endpoints (streaming and non-streaming)
+- Conversation persistence with PostgreSQL checkpointer
 
 ## File Structure
 
 ```
 src/chat_workflow/
-├── __init__.py           # Exports for module
-├── api.py                # FastAPI server with 4 endpoints
-├── graph.py              # LangGraph workflow definition
-├── models.py             # Pydantic ChatState model
-├── prompts.py            # WestBrand system prompts
+├── __init__.py                  # Module exports
+├── cli.py                       # Interactive CLI interface
+├── graph.py                     # LangGraph workflow definition with 4 nodes
+├── prompts.py                   # WestBrand system prompts and schemas
+├── README.md                    # This file
 ├── nodes/
-│   ├── list_tables.py    # Discover tables
-│   ├── get_schema.py     # Fetch schemas
-│   ├── generate_query.py # NL → SQL
-│   └── execute_query.py  # Run SQL safely
+│   ├── __init__.py
+│   ├── enrich_question.py       # Expand user questions for better context
+│   ├── generate_query.py        # Natural language → SQL with tool binding
+│   ├── execute_query.py         # Validate and execute SELECT queries
+│   └── generate_explanations.py # Create AI explanations for queries
 └── utils/
-    ├── db_wrapper.py     # SQLDatabase setup
-    └── __init__.py
+    ├── __init__.py
+    ├── db_wrapper.py            # PostgreSQL connection setup
+    └── tools.py                 # LangChain tools (run_query_tool, get_schema_tool)
+
+src/models/
+└── chat_models.py               # Pydantic v2 models
+    ├── ChatState                # LangGraph state with message history
+    ├── QuestionEnrichment       # Enriched question details
+    ├── QueryExplanation         # Query explanation and summary
+    └── QueryExecution           # Individual query execution details
 
 tests/chat_workflow/
-├── test_models.py
-├── test_db_wrapper.py
+├── test_models.py               # Pydantic model tests
+├── test_nodes.py                # Individual node tests
+├── test_graph.py                # Workflow integration tests
+└── fixtures/                    # Test data
+```
+
 ├── test_list_tables.py
 ├── test_execute_query.py
 ├── test_graph.py
 └── test_api.py
-```
+
+````
 
 ## Safety Features
 
@@ -354,7 +432,7 @@ Edit `src/chat_workflow/prompts.py`:
 
 ```bash
 pip install langgraph-checkpoint-postgres
-```
+````
 
 ### Checkpointer Setup Fails
 
@@ -376,20 +454,21 @@ postgresql://user:password@host:port/database
 
 ### Planned Features
 
-- [ ] Query result caching (Redis)
-- [ ] Rate limiting per thread_id
+- [ ] Query result export to CSV/Excel
+- [ ] Advanced query optimization suggestions
+- [ ] Visual query plan display
+- [ ] Query history search across all threads
 - [ ] User authentication/authorization
-- [ ] Query cost estimation
-- [ ] Multi-database support
-- [ ] Query history search
-- [ ] Export results to CSV/Excel
+- [ ] Rate limiting per thread_id
 
 ### Performance Optimizations
 
-- [ ] Connection pooling
-- [ ] Response compression
-- [ ] Async database queries
-- [ ] LLM response caching
+- [x] Redis LLM response caching (implemented)
+- [x] PostgreSQL conversation persistence (implemented)
+- [ ] Connection pooling for database queries
+- [ ] Response compression for large result sets
+- [ ] Parallel query execution for independent queries
+- [ ] Query result caching with TTL
 
 ## License
 

@@ -692,7 +692,7 @@ QueryExplanation
 
 ### Overview
 
-The **SQL Chat Workflow** (`src/chat_workflow/`) provides a natural language interface to query the WestBrand PostgreSQL database. Users can ask questions in plain English, and the system translates them to SQL queries using Azure OpenAI GPT-5.
+The **SQL Chat Workflow** (`src/chat_workflow/`) provides a natural language interface to query the WestBrand PostgreSQL database. Users can ask questions in plain English, and the system translates them to SQL queries using Azure OpenAI GPT-5. The system features **question enrichment** to better understand user intent, **query transparency** with AI-generated explanations, and **conversation persistence** for multi-turn interactions.
 
 ### Key Components
 
@@ -702,89 +702,207 @@ The **SQL Chat Workflow** (`src/chat_workflow/`) provides a natural language int
 │                  (LangGraph State Machine)                      │
 │                                                                 │
 │  ┌──────────┐  ┌───────────┐  ┌─────────────┐  ┌──────────┐  │
-│  │  List    │→ │   Get     │→ │  Generate   │→ │ Execute  │  │
-│  │ Tables   │  │  Schema   │  │   Query     │  │  Query   │  │
+│  │ Enrich   │→ │ Generate  │→ │  Execute    │→ │ Generate │  │
+│  │ Question │  │  Query    │  │   Query     │  │ Explain. │  │
 │  └──────────┘  └───────────┘  └─────────────┘  └──────────┘  │
-│                                       ↑               ↓         │
-│                                       └───────────────┘         │
-│                                    (Loop for follow-ups)        │
+│                       ↑               ↓                         │
+│                       └───────────────┘                         │
+│                    (Loop for follow-ups)                        │
 │                                                                 │
-│  State: ChatState (Pydantic v2)                                │
-│  • messages: conversation history (add reducer)                │
-│  • available_tables: discovered table names                    │
-│  • executed_queries: SQL transparency tracking                 │
-│  • query_result: last result from database                     │
+│  State: ChatState (Pydantic v2 - src/models/chat_models.py)   │
+│  • user_question: Current question being answered              │
+│  • enriched_query: QuestionEnrichment (additional context)     │
+│  • messages: Conversation history (add reducer)                │
+│  • query_result: AIMessage with last LLM response              │
+│  • executed_queries: List[QueryExecution] (transparency)       │
+│  • overall_summary: AI-generated summary of search process     │
+│  • available_tables: Discovered table names                    │
+│  • current_query: Last SQL query executed                      │
+│  • execute_result: Result from last query                      │
+│  • error: Error message if operation failed                    │
 │                                                                 │
-│  Persistence: PostgreSQL Checkpointer                          │
+│  Persistence: PostgreSQL Checkpointer (LangGraph)              │
 │  • Thread-based conversation history                           │
 │  • Survives server restarts                                    │
 │  • Enables multi-turn conversations                            │
+│  • Checkpoint tables: checkpoints, checkpoint_writes           │
+│                                                                 │
+│  Caching: Redis (LangChain cache)                              │
+│  • Caches LLM responses to reduce redundant calls              │
+│  • Shared across conversation threads                          │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 ### Node Responsibilities
 
-1. **list_tables** (`nodes/list_tables.py`): Discovers available database tables using SQL introspection
-2. **get_schema** (`nodes/get_schema.py`): Fetches table schemas (columns, types) as LangChain tool
-3. **generate_query** (`nodes/generate_query.py`): LLM-powered natural language to SQL translation with tool binding
-4. **execute_query** (`nodes/execute_query.py`): Validates (SELECT only) and executes SQL, generates AI explanations
-5. **generate_explanations** (`nodes/generate_explanations.py`): Creates human-readable query explanations and result summaries
+1. **enrich_question** (`nodes/enrich_question.py`): 
+   - Takes user's original question
+   - Uses LLM to expand into 1-3 detailed sub-questions
+   - Provides context about user's intent and goals
+   - Returns `QuestionEnrichment` with additional questions and intended goal
+
+2. **generate_query** (`nodes/generate_query.py`): 
+   - Receives enriched question and conversation history
+   - LLM with tool binding (`run_query_tool`, `get_schema_tool`)
+   - Converts natural language to PostgreSQL queries
+   - Can call tools multiple times to gather schema info
+   - Returns AIMessage with tool_calls or final answer
+
+3. **execute_query** (`nodes/execute_query.py`): 
+   - Extracts SQL from tool_calls in AIMessage
+   - Validates queries are SELECT only (security)
+   - Executes against PostgreSQL database
+   - Creates `QueryExecution` objects with query and raw result
+   - Appends to state.executed_queries for transparency
+   - Returns ToolMessage with results
+
+4. **generate_explanations** (`nodes/generate_explanations.py`): 
+   - Processes all queries in state.executed_queries
+   - Generates AI explanations in parallel using ThreadPoolExecutor
+   - Creates one-line non-technical descriptions
+   - Generates result summaries ("Found 80 records")
+   - Produces overall summary of entire search process
+   - Updates QueryExecution objects with QueryExplanation
 
 ### Workflow Execution Flow
 
 ```
 1. USER INPUT
-   ├─ Natural language question
+   ├─ Natural language question (e.g., "How many emails were processed?")
    ├─ Thread ID for conversation continuity
    └─ Submit via CLI or REST API
 
-2. LIST TABLES NODE
-   ├─ Query information_schema.tables
-   ├─ Filter to WestBrand tables (emails_processed, product_mentions, etc.)
-   └─ Add to state.available_tables
+2. ENRICH QUESTION NODE
+   ├─ Receives user question and conversation history
+   ├─ LLM generates 1-3 clarifying sub-questions
+   ├─ Examples:
+   │  User: "What were sales last quarter?"
+   │  Enriched:
+   │    1. Total sales figures for each month in last quarter
+   │    2. Breakdown by product category
+   │    3. Significant trends or anomalies
+   ├─ Creates QuestionEnrichment object:
+   │  {
+   │    additional_questions: List[str],
+   │    intended_goal: Optional[str]
+   │  }
+   └─ Adds HumanMessage to state with enriched context
 
-3. GET SCHEMA NODE (Tool)
-   ├─ Called by LLM when needed
-   ├─ Query information_schema.columns for specific table
-   ├─ Return column names, types, constraints
-   └─ LLM uses this to build correct SQL
+3. GENERATE QUERY NODE
+   ├─ Receives:
+   │  ├─ Original user question
+   │  ├─ Enriched questions and goals
+   │  ├─ Conversation history (all previous messages)
+   │  ├─ Previously executed queries and results
+   │  └─ WestBrand system prompt with domain knowledge
+   ├─ LLM bound with tools:
+   │  ├─ run_query_tool: Execute PostgreSQL SELECT queries
+   │  └─ get_schema_tool: Fetch table schemas dynamically
+   ├─ LLM decides:
+   │  ├─ Generate new SQL queries if more data needed
+   │  ├─ Call get_schema_tool if schema info needed
+   │  └─ Provide final answer if question fully answered
+   ├─ Returns AIMessage with:
+   │  ├─ tool_calls (if more queries needed) OR
+   │  └─ content (final answer text)
+   └─ Updates state.query_result
 
-4. GENERATE QUERY NODE
-   ├─ LLM receives:
-   │  ├─ User question
-   │  ├─ Available tables
-   │  ├─ WestBrand domain knowledge (system prompt)
-   │  └─ get_schema tool binding
-   ├─ LLM may call get_schema tool multiple times
-   ├─ LLM generates SQL query
-   └─ Returns AIMessage with tool_calls
+4. CONDITIONAL ROUTING (should_continue)
+   ├─ Checks state.query_result.tool_calls
+   ├─ If tool_calls exist → go to EXECUTE QUERY
+   └─ If no tool_calls → go to GENERATE EXPLANATIONS (done)
 
-5. EXECUTE QUERY NODE
-   ├─ Extract SQL from tool_calls
-   ├─ Validate: Must be SELECT only (security)
-   ├─ Execute against PostgreSQL
-   ├─ Generate AI explanation and result summary
-   ├─ Add QueryExecution to state.executed_queries
-   └─ Return ToolMessage with result
+5. EXECUTE QUERY NODE (if tool calls present)
+   ├─ Iterates through all tool_calls
+   ├─ For each run_query_tool call:
+   │  ├─ Extract SQL query from tool arguments
+   │  ├─ Validate: Must be SELECT only (security)
+   │  ├─ Execute query against PostgreSQL
+   │  ├─ Create QueryExecution object:
+   │  │  {
+   │  │    query: str (the SQL),
+   │  │    raw_result: str (database result),
+   │  │    query_explanation: None (filled later)
+   │  │  }
+   │  └─ Append to state.executed_queries
+   ├─ Creates ToolMessage for each result
+   ├─ Updates state.current_query and execute_result
+   └─ Loops back to GENERATE QUERY for next step
 
-6. GENERATE EXPLANATIONS NODE
-   ├─ Takes all executed queries
-   ├─ Generates one-line explanations (non-technical)
-   ├─ Creates result summaries ("Found 80 records")
-   └─ Adds to QueryExecution objects
+6. GENERATE EXPLANATIONS NODE (when done querying)
+   ├─ Receives all QueryExecution objects from state
+   ├─ For each query (parallel with ThreadPoolExecutor):
+   │  ├─ Sends query + result to LLM
+   │  ├─ LLM generates QueryExplanation:
+   │  │  {
+   │  │    description: "One-line non-technical explanation",
+   │  │    result_summary: "Found 80 records" or similar
+   │  │  }
+   │  └─ Adds explanation to QueryExecution
+   ├─ Generates overall_summary:
+   │  └─ AI summary of entire multi-query search process
+   ├─ Updates state with explained queries
+   └─ Workflow ends (returns to user)
 
-7. SHOULD_CONTINUE ROUTER
-   ├─ Check last message for tool_calls
-   ├─ If tool_calls → execute_query (loop)
-   ├─ If no tool_calls → generate_explanations (end)
-   └─ Enables multi-turn conversations
+7. PERSISTENCE (automatic at each step)
+   ├─ LangGraph PostgresSaver checkpoints every state change
+   ├─ Checkpoint includes:
+   │  ├─ thread_id (conversation identifier)
+   │  ├─ checkpoint_id (unique per state)
+   │  ├─ Full message history
+   │  ├─ All executed queries with explanations
+   │  └─ Metadata (step number, timestamp)
+   └─ Enables conversation resume and history retrieval
 
-8. PERSISTENCE
-   ├─ Every state change saved to PostgreSQL
-   ├─ Checkpoint includes full message history
-   ├─ Thread ID links related conversations
-   └─ Can resume conversations later
+8. FINAL RESPONSE TO USER
+   ├─ Natural language answer from LLM
+   ├─ All executed queries with:
+   │  ├─ 💡 One-line explanation
+   │  ├─ 📈 Result summary
+   │  └─ Formatted SQL query
+   └─ Overall summary of search process
 ```
+
+### Data Models
+
+#### State Models (`src/models/chat_models.py`)
+
+```python
+class QuestionEnrichment(BaseModel):
+    """Enrichment details for user question"""
+    additional_questions: List[str]  # Clarifying sub-questions
+    intended_goal: Optional[str]     # Why these questions help
+
+class QueryExplanation(BaseModel):
+    """AI-generated explanation of query execution"""
+    description: str                 # One-line non-technical explanation
+    result_summary: str | None       # "Found 80 records" or similar
+
+class QueryExecution(BaseModel):
+    """Single SQL query execution with transparency"""
+    query: str                       # The actual SQL
+    raw_result: Optional[str]        # Database result
+    query_explanation: Optional[QueryExplanation]  # AI explanation
+
+class ChatState(BaseModel):
+    """LangGraph state for SQL chat workflow"""
+    user_question: str                              # Current question
+    enriched_query: QuestionEnrichment              # Expanded context
+    messages: Annotated[List[BaseMessage], add]     # Conversation history (add reducer)
+    query_result: AIMessage                         # Last LLM response
+    executed_queries: List[QueryExecution]          # All queries (transparency)
+    overall_summary: Optional[str]                  # AI summary of search
+    available_tables: List[str]                     # Discovered tables
+    current_query: Optional[str]                    # Last SQL executed
+    execute_result: Optional[str]                   # Last query result
+    error: Optional[str]                            # Error if any
+```
+
+**Key Features:**
+- Pydantic v2 with `ConfigDict(arbitrary_types_allowed=True)` for LangChain types
+- `messages` uses `add` reducer (never overwrites, always appends)
+- All queries tracked in `executed_queries` for full transparency
+- AI-generated explanations added post-execution
 
 ### API Interfaces
 
@@ -793,8 +911,10 @@ The **SQL Chat Workflow** (`src/chat_workflow/`) provides a natural language int
 ```bash
 python -m src.chat_workflow.cli
 
-# Interactive REPL
+# Interactive REPL with question enrichment and query transparency
 You: How many emails are in the system?
+
+Enriching question...
 🤖 Agent: There are 156 emails in the database.
 
 ======================================================================
@@ -802,19 +922,24 @@ You: How many emails are in the system?
 ======================================================================
 
 Query 1:
-  💡 Counts the total number of emails in the database
+  💡 Counts the total number of processed email records
   📈 Result: Found 156 records
 
   SQL:
     SELECT COUNT(*) AS email_count FROM emails_processed;
+
+Overall Summary:
+Retrieved total email count by querying emails_processed table.
 ======================================================================
 ```
 
 #### 2. REST API (`api.py` - FastAPI)
 
+**Status**: API implementation exists but may require updates to match current workflow (4-node design with enrichment and explanations).
+
 **Non-Streaming Endpoint:**
 
-```
+```bash
 POST /chat
 {
   "message": "How many emails are in the system?",
@@ -827,35 +952,42 @@ Response:
   "executed_queries": [
     {
       "query": "SELECT COUNT(*) FROM emails_processed;",
-      "explanation": "Counts total emails",
-      "result_summary": "Found 156 records"
+      "query_explanation": {
+        "description": "Counts total processed emails",
+        "result_summary": "Found 156 records"
+      },
+      "raw_result": "[(156,)]"
     }
-  ]
+  ],
+  "overall_summary": "Retrieved email count from database."
 }
 ```
 
 **Streaming Endpoint:**
 
-```
+```bash
 POST /chat/stream
 Server-Sent Events (SSE):
 data: {"type": "token", "content": "There"}
 data: {"type": "token", "content": " are"}
-data: {"type": "token", "content": " 156"}
 data: {"type": "sql", "query": "SELECT COUNT(*)..."}
-data: {"type": "done"}
+data: {"type": "end"}
+```
+data: {"type": "end"}
 ```
 
-### SQL Query Transparency
+### Key Features
 
-**Feature**: Every query execution is tracked with AI-generated explanations for full transparency.
+#### Query Transparency
+
+**Every query execution is tracked with AI-generated explanations for full transparency.**
 
 **Benefits**:
-
 - Users understand what SQL is being run
 - Educational - learn SQL by example
 - Debugging - verify query correctness
 - Audit trail - track database access
+- Multi-query workflow visibility
 
 **Implementation** (`QueryExecution` model):
 
@@ -863,10 +995,67 @@ data: {"type": "done"}
 QueryExecution
   • query: str  # Actual SQL executed
   • query_explanation: QueryExplanation
-    - description: str  # "Counts total emails"
+    - description: str  # "Counts total emails in database"
     - result_summary: str  # "Found 156 records"
-  • raw_result: Optional[str]  # Query result
+  • raw_result: Optional[str]  # Database result: "[(156,)]"
 ```
+
+**Display Format**:
+
+```
+Query 1:
+  💡 Counts the total number of processed email records
+  📈 Result: Found 156 records
+  
+  SQL:
+    SELECT COUNT(*) FROM emails_processed;
+```
+
+#### Question Enrichment
+
+**LLM expands user questions into detailed sub-questions** to better understand intent.
+
+**Example**:
+
+```
+User: "What were sales last quarter?"
+
+Enriched Questions:
+1. Total sales figures for each month in last quarter
+2. Breakdown by product category
+3. Significant trends or anomalies
+
+Intended Goal: Provide comprehensive quarterly sales analysis
+```
+
+**Implementation** (`QuestionEnrichment` model):
+
+```python
+QuestionEnrichment
+  • additional_questions: List[str]  # 1-3 clarifying questions
+  • intended_goal: Optional[str]     # Why these help
+```
+
+#### Conversation Persistence
+
+**PostgreSQL checkpointer** stores full conversation history:
+
+- Thread ID links related conversations
+- Survives server restarts
+- Enables conversation resume
+- Full message history with state
+
+**Tables** (auto-created by LangGraph):
+- `checkpoints`: Main checkpoint storage
+- `checkpoint_writes`: Intermediate writes
+
+#### Safety Features
+
+**Read-Only SQL Enforcement**:
+- Only SELECT queries allowed
+- INSERT, UPDATE, DELETE rejected
+- DDL operations (DROP, ALTER, CREATE) blocked
+- Query validation before execution
 
 ### Security Features
 
