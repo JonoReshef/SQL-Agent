@@ -2,6 +2,7 @@
 Based on the entire search process, explain why and how the querying worked
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
 from langchain_core.messages import AIMessage
@@ -87,13 +88,21 @@ def generate_explanations_node(state: ChatState):
         Updated state with explanations added to each QueryExecution
     """
 
-    # This should be parallelized
+    # Parallelized the explanation generation
     executed_queries = state.executed_queries.copy() or []
-    for n, query in enumerate(executed_queries):
-        # Update the stored state with explanations
-        executed_queries[n].query_explanation = _generate_query_explanation_and_summary(
-            query.query, query.raw_result or ""
-        )
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = []
+        for query in executed_queries:
+            futures.append(
+                executor.submit(
+                    _generate_query_explanation_and_summary,
+                    query.query,
+                    query.raw_result or "",
+                )
+            )
+
+        for n, future in enumerate(futures):
+            executed_queries[n].query_explanation = future.result()
 
     # Based on all executed queries, generate overall explanation
     overall_summary = _generate_overall_explanation(executed_queries)
