@@ -14,6 +14,7 @@ def run_query_tool(query: str) -> str:
     Returns:
         Query results as formatted string
     """
+    print("Running 'run_query_tool' with query:", query)
     try:
         # Validate query is read-only
         is_valid, error_msg = validate_query_is_select(query)
@@ -31,3 +32,32 @@ def run_query_tool(query: str) -> str:
 
     except Exception as e:
         return f"Error executing query: {str(e)}"
+
+
+@tool
+def get_schema_tool(table_names: str) -> str:
+    """
+    Get database schema for specified tables.
+
+    Args:
+        table_names: Comma-separated list of table names
+
+    Returns:
+        Schema information including CREATE statements and sample rows
+    """
+    print("Running 'get_schema_tool' for tables:", table_names)
+    try:
+        db = get_sql_database()
+        # Parse comma-separated table names
+        tables = [t.strip() for t in table_names.split(",")]
+
+        # Get schema info
+        schema_info = db.get_table_info_no_throw(tables)
+
+        if not schema_info:
+            return f"No schema information found for tables: {table_names}"
+
+        return schema_info
+
+    except Exception as e:
+        return f"Error getting schema: {str(e)}"

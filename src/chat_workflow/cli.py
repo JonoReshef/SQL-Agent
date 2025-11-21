@@ -17,12 +17,12 @@ def run_cli_chat():
     """
     try:
         graph = create_chat_graph()
-        thread_id = str(uuid.uuid4())
+        thread_id = str(uuid.uuid4())[:8]
 
         print("=" * 70)
         print("🤖 WestBrand SQL Chat Agent - CLI Interface")
         print("=" * 70)
-        print(f"Thread ID: {thread_id[:8]}...")
+        print(f"Thread ID: {thread_id}")
         print("Type 'exit' or 'quit' to end the session")
         print("Type 'history' to view conversation history")
         print("=" * 70)
@@ -63,7 +63,7 @@ def run_cli_chat():
 
                 # Stream the response
                 for event in graph.stream(
-                    {"messages": [HumanMessage(content=user_input)]},
+                    {"user_question": user_input},
                     config,  # type: ignore
                     stream_mode="values",
                 ):

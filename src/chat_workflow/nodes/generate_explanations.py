@@ -1,8 +1,10 @@
 """
-Based on the entire search process, explain the workflows stages
+Based on the entire search process, explain why and how the querying worked
 """
 
 from typing import List
+
+from langchain_core.messages import AIMessage
 
 from src.chat_workflow.prompts import EXPLANATION_PROMPT
 from src.llm.client import get_llm_client
@@ -75,7 +77,7 @@ def _generate_overall_explanation(executed_queries: List[QueryExecution]) -> str
         return "Unable to generate overall explanation."
 
 
-def generate_explanations(state: ChatState):
+def generate_explanations_node(state: ChatState):
     """
     Explanation node: Generate explanations for all executed queries.
 

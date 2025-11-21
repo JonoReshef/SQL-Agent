@@ -3,8 +3,26 @@
 from operator import add
 from typing import Annotated, List, Optional
 
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class QuestionEnrichment(BaseModel):
+    """
+    Enrichment details for a user question.
+
+    This model captures additional context or clarifying questions
+    generated to better understand the user's intent.
+    """
+
+    additional_questions: List[str] = Field(
+        ...,
+        description="List of additional clarifying questions generated to better understand the user's intent",
+    )
+    intended_goal: Optional[str] = Field(
+        default=None,
+        description="Explanation of how these additional questions help achieve the user's intended goal",
+    )
 
 
 class QueryExplanation(BaseModel):
@@ -58,6 +76,18 @@ class ChatState(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)  # Pydantic v2 config
 
+    user_question: str = Field(
+        default="",
+        description="The current user question to be answered",
+    )
+    enriched_query: QuestionEnrichment = Field(
+        default=QuestionEnrichment(additional_questions=[]),
+        description="The enriched user question with additional context",
+    )
+    query_result: AIMessage = Field(
+        default=AIMessage(content=""),
+        description="The AIMessage containing the result of the last query",
+    )
     messages: Annotated[List[BaseMessage], add] = Field(
         default_factory=list,
         description="Conversation history with add reducer for appending messages",
@@ -68,11 +98,11 @@ class ChatState(BaseModel):
     current_query: Optional[str] = Field(
         default=None, description="SQL query currently being executed"
     )
-    query_result: Optional[str] = Field(
+    execute_result: Optional[str] = Field(
         default=None, description="Result from the last executed query"
     )
     error: Optional[str] = Field(default=None, description="Error message from failed operations")
-    executed_queries: Annotated[List[QueryExecution], add] = Field(
+    executed_queries: List[QueryExecution] = Field(
         default_factory=list,
         description="Detailed list of all SQL queries executed with explanations and summaries (for transparency)",
     )

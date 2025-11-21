@@ -4,16 +4,16 @@ import os
 from typing import Literal
 
 from dotenv import load_dotenv
+from langchain_core.globals import set_llm_cache
+from langchain_redis import RedisCache
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
-from langgraph.prebuilt import ToolNode
 
+from src.chat_workflow.nodes.enrich_question import enrich_question_node
 from src.chat_workflow.nodes.execute_query import execute_query_node
-from src.chat_workflow.nodes.generate_explanations import generate_explanations
+from src.chat_workflow.nodes.generate_explanations import generate_explanations_node
 from src.chat_workflow.nodes.generate_query import generate_query_node
-from src.chat_workflow.nodes.get_schema import get_schema_tool
-from src.chat_workflow.nodes.list_tables import list_tables_node
 from src.models.chat_models import ChatState
 
 load_dotenv()
@@ -34,11 +34,8 @@ def should_continue(state: ChatState) -> Literal["execute_query", "generate_expl
     Returns:
         Next node name or END
     """
-    # Get the last message
-    if not state.messages:
-        return "generate_explanations"
 
-    last_message = state.messages[-1]
+    last_message = state.query_result
 
     # Check if last message has tool calls
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:  # type: ignore
@@ -102,23 +99,19 @@ def create_chat_graph() -> CompiledStateGraph:
     workflow = StateGraph(ChatState)
 
     # Add nodes
-    workflow.add_node("list_tables", list_tables_node)
-    workflow.add_node("get_schema", ToolNode([get_schema_tool]))
+    workflow.add_node("enrich_question", enrich_question_node)
     workflow.add_node("generate_query", generate_query_node)
     workflow.add_node("execute_query", execute_query_node)  # Use custom node for query tracking
     workflow.add_node(
-        "generate_explanations", generate_explanations
+        "generate_explanations", generate_explanations_node
     )  # Placeholder for future explanation node
 
     # Define workflow edges
     # Start -> List Tables (discover schema)
-    workflow.add_edge("__start__", "list_tables")
-
-    # List Tables -> Get Schema (get detailed table info)
-    workflow.add_edge("list_tables", "get_schema")
+    workflow.add_edge("__start__", "enrich_question")
 
     # Get Schema -> Generate Query (create SQL from user question)
-    workflow.add_edge("get_schema", "generate_query")
+    workflow.add_edge("enrich_question", "generate_query")
 
     # Generate Query -> Conditional (execute query if tool call, else end)
     workflow.add_conditional_edges(
@@ -136,7 +129,12 @@ def create_chat_graph() -> CompiledStateGraph:
     workflow.add_edge("generate_explanations", END)
 
     # Compile with checkpointer
-    return workflow.compile(checkpointer=checkpointer)
+    redis_cache = RedisCache(redis_url="redis://localhost:6379")
+    set_llm_cache(redis_cache)
+
+    return workflow.compile(checkpointer=checkpointer).with_config(
+        {"recursion_limit": 50},
+    )
 
 
 if __name__ == "__main__":
