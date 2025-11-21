@@ -117,17 +117,19 @@ export function useChatThreads(): UseChatThreadsReturn {
             const history = await getChatHistory(threadId);
             // Convert history to ChatMessage format
             const messages: ChatMessage[] = [];
-            for (const checkpoint of history.history) {
-              if (checkpoint.messages) {
-                for (const msg of checkpoint.messages) {
-                  messages.push({
-                    id: generateUUID(),
-                    role: msg.type === 'HumanMessage' ? 'user' : 'assistant',
-                    content: msg.content,
-                    timestamp: checkpoint.timestamp
-                      ? new Date(checkpoint.timestamp)
-                      : new Date(),
-                  });
+            if (history.history) {
+              for (const checkpoint of history.history) {
+                if (checkpoint.messages) {
+                  for (const msg of checkpoint.messages) {
+                    messages.push({
+                      id: generateUUID(),
+                      role: msg.type === 'HumanMessage' ? 'user' : 'assistant',
+                      content: msg.content,
+                      timestamp: checkpoint.timestamp
+                        ? new Date(checkpoint.timestamp)
+                        : new Date(),
+                    });
+                  }
                 }
               }
             }

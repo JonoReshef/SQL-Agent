@@ -118,6 +118,34 @@ export interface components {
        */
       executed_queries?: components["schemas"]["QueryExecutionResponse"][];
     };
+    /**
+     * CheckpointData
+     * @description Single checkpoint in conversation history
+     */
+    CheckpointData: {
+      /**
+       * Checkpoint Id
+       * @description Unique checkpoint identifier
+       */
+      checkpoint_id: string;
+      /**
+       * Messages
+       * @description Messages in this checkpoint
+       */
+      messages?: components["schemas"]["MessageHistory"][];
+      /**
+       * Timestamp
+       * @description ISO timestamp when checkpoint was created
+       */
+      timestamp?: string | null;
+      /**
+       * Metadata
+       * @description Additional checkpoint metadata
+       */
+      metadata?: {
+        [key: string]: unknown;
+      };
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
@@ -135,9 +163,25 @@ export interface components {
       thread_id: string;
       /**
        * History
-       * @description List of checkpoint states
+       * @description List of checkpoint states with messages
        */
-      history: unknown[];
+      history?: components["schemas"]["CheckpointData"][];
+    };
+    /**
+     * MessageHistory
+     * @description Single message in conversation history
+     */
+    MessageHistory: {
+      /**
+       * Type
+       * @description Message type (HumanMessage, AIMessage, etc.)
+       */
+      type: string;
+      /**
+       * Content
+       * @description Message content
+       */
+      content: string;
     };
     /**
      * QueryExecutionResponse

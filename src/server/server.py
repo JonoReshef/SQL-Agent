@@ -1,14 +1,22 @@
 """FastAPI server for SQL chat agent"""
 
 import json
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
-from pydantic import BaseModel, Field
 
 from src.chat_workflow.graph import create_chat_graph
+from src.models.server import (
+    ChatRequest,
+    ChatResponse,
+    CheckpointData,
+    HistoryResponse,
+    MessageHistory,
+    QueryExecutionResponse,
+)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -25,43 +33,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# Request/Response models
-class QueryExecutionResponse(BaseModel):
-    """Response model for query execution details"""
-
-    query: str = Field(..., description="The SQL query that was executed")
-    explanation: str = Field(..., description="Human-readable explanation of what the query does")
-    result_summary: str = Field(..., description="Brief summary of the query results")
-
-
-class ChatRequest(BaseModel):
-    """Request model for chat endpoints"""
-
-    message: str = Field(..., description="User's question or message")
-    thread_id: str = Field(..., description="Thread ID for conversation continuity")
-    anticipate_complexity: bool = Field(
-        default=False,
-        description="Whether to use more thorough/exploratory analysis (True) or direct answers (False)",
-    )
-
-
-class ChatResponse(BaseModel):
-    """Response model for non-streaming chat endpoint"""
-
-    response: str = Field(..., description="Agent's response")
-    thread_id: str = Field(..., description="Thread ID for this conversation")
-    executed_queries: list[QueryExecutionResponse] = Field(
-        default_factory=list, description="SQL queries executed with explanations and summaries"
-    )
-
-
-class HistoryResponse(BaseModel):
-    """Response model for history endpoint"""
-
-    thread_id: str = Field(..., description="Thread ID")
-    history: list = Field(..., description="List of checkpoint states")
 
 
 # Initialize graph (singleton)
@@ -296,18 +267,36 @@ async def get_history(thread_id: str) -> HistoryResponse:
         history = []
         for state_snapshot in graph.get_state_history(config):  # type: ignore
             checkpoint_config = state_snapshot.config.get("configurable", {})  # type: ignore
-            checkpoint_data = {
-                "checkpoint_id": checkpoint_config.get("checkpoint_id", "unknown"),
-                "messages": [
-                    {
-                        "type": msg.__class__.__name__,
-                        "content": msg.content if hasattr(msg, "content") else str(msg),
-                    }
-                    for msg in state_snapshot.values.get("messages", [])
-                ],
-                "timestamp": str(state_snapshot.created_at) if state_snapshot.created_at else None,
-                "metadata": state_snapshot.metadata,
-            }
+
+            # Convert messages to MessageHistory objects
+            messages = [
+                MessageHistory(
+                    type=msg.__class__.__name__,
+                    content=msg.content if hasattr(msg, "content") else str(msg),
+                )
+                for msg in state_snapshot.values.get("messages", [])
+            ]
+
+            # Create CheckpointData object
+            # Convert metadata to dict (handle CheckpointMetadata or dict types)
+            metadata_dict: dict[str, Any] = {}
+            if state_snapshot.metadata:
+                try:
+                    # Try to convert to dict if it's a CheckpointMetadata object
+                    if hasattr(state_snapshot.metadata, "__dict__"):
+                        metadata_dict = dict(vars(state_snapshot.metadata))
+                    elif isinstance(state_snapshot.metadata, dict):
+                        metadata_dict = dict(state_snapshot.metadata)
+                except Exception:
+                    # Fallback to empty dict if conversion fails
+                    pass
+
+            checkpoint_data = CheckpointData(
+                checkpoint_id=checkpoint_config.get("checkpoint_id", "unknown"),
+                messages=messages,
+                timestamp=str(state_snapshot.created_at) if state_snapshot.created_at else None,
+                metadata=metadata_dict,
+            )
             history.append(checkpoint_data)
 
         return HistoryResponse(thread_id=thread_id, history=history)

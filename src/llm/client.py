@@ -1,7 +1,6 @@
 """Azure OpenAI client wrapper"""
 
 import os
-from functools import lru_cache
 from typing import Union
 
 from dotenv import load_dotenv
@@ -13,10 +12,9 @@ from typing_extensions import Literal
 load_dotenv()
 
 
-@lru_cache(maxsize=1)
 def get_llm_client(
     type: Literal["gpt5-low", "gpt4.1-mini", "gpt4.1"] = "gpt5-low",
-    output_structure: BaseModel | None = None,
+    output_structure: type[BaseModel] | None = None,
 ) -> Union[AzureChatOpenAI, Runnable]:
     """
     Get Azure OpenAI client (cached singleton).
