@@ -65,7 +65,7 @@ def _generate_overall_explanation(executed_queries: List[QueryExecution]) -> str
         )
 
         overall_prompt = """
-            Based on the following executed queries, their explanations and results provide a concise summary of the overall search process: {explanations}
+            Based on the following executed queries, their explanations and results provide a concise 1-2 line summary of the overall search process. Only output the summary no additional text: {explanations}
         """
 
         overall_summary = LLM.invoke(

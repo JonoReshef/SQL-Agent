@@ -14,6 +14,7 @@ export interface UseChatStreamReturn {
   currentResponse: string;
   currentStatus: string;
   queries: QueryExecution[];
+  overallSummary: string;
   error: string | null;
   clearError: () => void;
 }
@@ -26,6 +27,7 @@ export function useChatStream(): UseChatStreamReturn {
   const [currentResponse, setCurrentResponse] = useState('');
   const [currentStatus, setCurrentStatus] = useState('');
   const [queries, setQueries] = useState<QueryExecution[]>([]);
+  const [overallSummary, setOverallSummary] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -46,6 +48,7 @@ export function useChatStream(): UseChatStreamReturn {
       setCurrentResponse('');
       setCurrentStatus('');
       setQueries([]);
+      setOverallSummary('');
       setError(null);
 
       // Start streaming
@@ -63,6 +66,10 @@ export function useChatStream(): UseChatStreamReturn {
 
           onQueries: (newQueries: QueryExecution[]) => {
             setQueries(newQueries);
+          },
+
+          onSummary: (summary: string) => {
+            setOverallSummary(summary);
           },
 
           onStatus: (status: string) => {
@@ -107,6 +114,7 @@ export function useChatStream(): UseChatStreamReturn {
     currentResponse,
     currentStatus,
     queries,
+    overallSummary,
     error,
     clearError,
   };

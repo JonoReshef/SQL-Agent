@@ -40,6 +40,7 @@ export function ChatInterface() {
     currentResponse,
     currentStatus,
     queries,
+    overallSummary,
     error,
     clearError,
   } = useChatStream();
@@ -106,13 +107,14 @@ export function ChatInterface() {
         content: currentResponse,
         timestamp: new Date(),
         queries: queries.length > 0 ? queries : undefined,
+        overallSummary: overallSummary || undefined,
       };
 
       // Always add as a new message (don't update)
       addMessage(assistantMessage);
       messageAddedRef.current = true;
     }
-  }, [isStreaming, currentResponse, queries, addMessage]);
+  }, [isStreaming, currentResponse, queries, overallSummary, addMessage]);
 
   // Display errors
   useEffect(() => {

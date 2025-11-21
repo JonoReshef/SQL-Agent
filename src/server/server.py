@@ -216,6 +216,10 @@ async def chat_stream(request: ChatRequest):
             if executed_queries:
                 yield f"data: {json.dumps({'type': 'queries', 'queries': executed_queries})}\n\n"
 
+            # Send overall summary if available
+            if "overall_summary" in event and event["overall_summary"]:
+                yield f"data: {json.dumps({'type': 'summary', 'content': event['overall_summary']})}\n\n"
+
             # Send end event
             yield f"data: {json.dumps({'type': 'end'})}\n\n"
 

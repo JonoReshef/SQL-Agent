@@ -60,6 +60,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date | string; // Date object or ISO string from localStorage
   queries?: QueryExecution[]; // For assistant messages with SQL transparency
+  overallSummary?: string; // High-level summary of the entire query process
 }
 
 // ============================================================================
@@ -70,6 +71,7 @@ export type StreamEventType =
   | 'token'
   | 'message'
   | 'queries'
+  | 'summary'
   | 'status'
   | 'end'
   | 'error';

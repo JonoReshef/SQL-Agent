@@ -55,6 +55,7 @@ export function ChatMessages({
             content={message.content}
             timestamp={message.timestamp}
             queries={message.queries}
+            overallSummary={message.overallSummary}
           />
         </div>
       ))}

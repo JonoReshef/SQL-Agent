@@ -12,9 +12,16 @@ interface MessageProps {
   content: string;
   timestamp: Date | string;
   queries?: QueryExecution[];
+  overallSummary?: string;
 }
 
-export function Message({ role, content, timestamp, queries }: MessageProps) {
+export function Message({
+  role,
+  content,
+  timestamp,
+  queries,
+  overallSummary,
+}: MessageProps) {
   const [showDetails, setShowDetails] = useState(false);
   const isUser = role === 'user';
   const isSystem = role === 'system';
@@ -56,7 +63,7 @@ export function Message({ role, content, timestamp, queries }: MessageProps) {
         {/* Collapsible query details */}
         {hasQueries && showDetails && (
           <div className='mt-2'>
-            <QueryDisplay queries={queries} />
+            <QueryDisplay queries={queries} overallSummary={overallSummary} />
           </div>
         )}
       </div>

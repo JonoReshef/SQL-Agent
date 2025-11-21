@@ -58,6 +58,7 @@ export interface StreamCallbacks {
   onToken: (token: string) => void;
   onMessage: (message: string) => void;
   onQueries: (queries: QueryExecution[]) => void;
+  onSummary: (summary: string) => void;
   onStatus: (status: string) => void;
   onComplete: () => void;
   onError: (error: string) => void;
@@ -69,10 +70,16 @@ export function streamChatMessage(
   callbacks: StreamCallbacks,
   anticipateComplexity: boolean = false
 ): () => void {
-  const { onToken, onMessage, onQueries, onStatus, onComplete, onError } =
-    callbacks;
+  const {
+    onToken,
+    onMessage,
+    onQueries,
+    onSummary,
+    onStatus,
+    onComplete,
+    onError,
+  } = callbacks;
 
-  let eventSource: EventSource | null = null;
   let isComplete = false;
 
   // Start streaming request
@@ -164,6 +171,12 @@ export function streamChatMessage(
         }
         break;
 
+      case 'summary':
+        if (event.content) {
+          onSummary(event.content);
+        }
+        break;
+
       case 'status':
         if (event.content) {
           onStatus(event.content);
@@ -192,9 +205,6 @@ export function streamChatMessage(
 
   // Return cleanup function
   return () => {
-    if (eventSource) {
-      eventSource.close();
-    }
     isComplete = true;
   };
 }
