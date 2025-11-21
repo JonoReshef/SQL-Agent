@@ -12,6 +12,7 @@ export interface UseChatStreamReturn {
   ) => Promise<void>;
   isStreaming: boolean;
   currentResponse: string;
+  currentStatus: string;
   queries: QueryExecution[];
   error: string | null;
   clearError: () => void;
@@ -23,6 +24,7 @@ export interface UseChatStreamReturn {
 export function useChatStream(): UseChatStreamReturn {
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
+  const [currentStatus, setCurrentStatus] = useState('');
   const [queries, setQueries] = useState<QueryExecution[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +44,7 @@ export function useChatStream(): UseChatStreamReturn {
       // Reset state
       setIsStreaming(true);
       setCurrentResponse('');
+      setCurrentStatus('');
       setQueries([]);
       setError(null);
 
@@ -62,14 +65,20 @@ export function useChatStream(): UseChatStreamReturn {
             setQueries(newQueries);
           },
 
+          onStatus: (status: string) => {
+            setCurrentStatus(status);
+          },
+
           onComplete: () => {
             setIsStreaming(false);
+            setCurrentStatus('');
             cleanupRef.current = null;
           },
 
           onError: (errorMessage: string) => {
             setError(errorMessage);
             setIsStreaming(false);
+            setCurrentStatus('');
             cleanupRef.current = null;
           },
         },
@@ -96,6 +105,7 @@ export function useChatStream(): UseChatStreamReturn {
     sendMessage,
     isStreaming,
     currentResponse,
+    currentStatus,
     queries,
     error,
     clearError,

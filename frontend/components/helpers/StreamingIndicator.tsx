@@ -1,6 +1,13 @@
 'use client';
 
-export function StreamingIndicator() {
+interface StreamingIndicatorProps {
+  status?: string;
+}
+
+export function StreamingIndicator({ status }: StreamingIndicatorProps) {
+  // Default message if no status provided
+  const displayText = status || 'Agent is thinking...';
+
   return (
     <div className='flex items-center space-x-2 text-gray-600'>
       <div className='flex space-x-1'>
@@ -14,7 +21,7 @@ export function StreamingIndicator() {
           style={{ animationDelay: '0.2s' }}
         ></div>
       </div>
-      <span className='text-sm'>Agent is thinking...</span>
+      <span className='text-sm'>{displayText}</span>
     </div>
   );
 }

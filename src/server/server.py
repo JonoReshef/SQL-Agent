@@ -173,6 +173,10 @@ async def chat_stream(request: ChatRequest):
                 config,  # type: ignore
                 stream_mode="values",
             ):
+                # Send status updates to frontend
+                if "status_update" in event and event["status_update"]:
+                    yield f"data: {json.dumps({'type': 'status', 'content': event['status_update']})}\n\n"
+
                 # Process each state update
                 if "messages" in event and event["messages"]:
                     last_message = event["messages"][-1]

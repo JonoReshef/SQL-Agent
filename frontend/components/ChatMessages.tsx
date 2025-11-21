@@ -9,9 +9,14 @@ import type { ChatMessage } from '@/types/interfaces';
 interface ChatMessagesProps {
   messages: ChatMessage[];
   isStreaming: boolean;
+  streamingStatus?: string;
 }
 
-export function ChatMessages({ messages, isStreaming }: ChatMessagesProps) {
+export function ChatMessages({
+  messages,
+  isStreaming,
+  streamingStatus,
+}: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -57,7 +62,7 @@ export function ChatMessages({ messages, isStreaming }: ChatMessagesProps) {
       {/* Streaming indicator */}
       {isStreaming && (
         <div className='mb-4'>
-          <StreamingIndicator />
+          <StreamingIndicator status={streamingStatus} />
         </div>
       )}
 

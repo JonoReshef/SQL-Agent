@@ -38,6 +38,7 @@ export function ChatInterface() {
     sendMessage,
     isStreaming,
     currentResponse,
+    currentStatus,
     queries,
     error,
     clearError,
@@ -218,7 +219,11 @@ export function ChatInterface() {
         </div>
 
         {/* Messages */}
-        <ChatMessages messages={currentMessages} isStreaming={isStreaming} />
+        <ChatMessages
+          messages={currentMessages}
+          isStreaming={isStreaming}
+          streamingStatus={currentStatus}
+        />
 
         {/* Input */}
         <ChatInput

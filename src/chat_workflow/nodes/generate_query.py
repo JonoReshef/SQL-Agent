@@ -105,17 +105,18 @@ def generate_query_node(state: ChatState) -> Dict[str, Any]:
 
         if not response or not hasattr(response, "tool_calls") or not response.tool_calls:  # type: ignore
             # If there are no tool calls then we are done so append the final message
+            total_executed_queries = len(state.executed_queries)
             return {
                 "messages": [response],
                 "query_result": response,
-                "status_update": "Final answer generated. Generating explanations",
+                "status_update": f"Final answer generated after {total_executed_queries} {'query' if total_executed_queries == 1 else 'queries'}. Generating explanations",
             }
 
         else:
             # Generate a human readable explanation about what is going on
             tool_call_names = list(set([tool.get("name", "") for tool in response.tool_calls]))  # type: ignore
 
-            tool_call_message = f"We have run {len(state.executed_queries)} queries so far."
+            tool_call_message = f"We have run {len(state.executed_queries)} {'query' if len(state.executed_queries) == 1 else 'queries'} so far."
             if "get_schema_tool" in tool_call_names:
                 tool_call_message += " Getting information about the data"
             if "run_query_tool" in tool_call_names:

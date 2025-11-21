@@ -66,7 +66,13 @@ export interface ChatMessage {
 // Streaming Events (Frontend-only - SSE)
 // ============================================================================
 
-export type StreamEventType = 'token' | 'message' | 'queries' | 'end' | 'error';
+export type StreamEventType =
+  | 'token'
+  | 'message'
+  | 'queries'
+  | 'status'
+  | 'end'
+  | 'error';
 
 export interface StreamEvent {
   type: StreamEventType;

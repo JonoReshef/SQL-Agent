@@ -9,8 +9,8 @@ from src.chat_workflow.prompts import EXPLANATION_PROMPT
 from src.llm.client import get_llm_client
 from src.models.chat_models import ChatState, QueryExecution, QueryExplanation
 
-LLM = get_llm_client()
-LLM_STRUCTURED = get_llm_client(output_structure=QueryExplanation)
+LLM = get_llm_client(type="gpt4.1")
+LLM_STRUCTURED = get_llm_client(type="gpt4.1", output_structure=QueryExplanation)
 
 
 def _generate_query_explanation_and_summary(query: QueryExecution) -> QueryExecution:
@@ -109,4 +109,5 @@ def generate_explanations_node(state: ChatState):
     return {
         "overall_summary": overall_summary,
         "executed_queries_enriched": executed_queries_with_explanations,
+        "status_update": None,
     }
