@@ -17,6 +17,7 @@ export interface UseChatThreadsReturn {
   createThread: () => string;
   switchThread: (threadId: string) => Promise<void>;
   deleteThread: (threadId: string) => void;
+  clearAllThreads: () => void;
   updateThreadTitle: (threadId: string, title: string) => void;
   addMessage: (message: ChatMessage) => void;
   updateLastMessage: (message: ChatMessage) => void;
@@ -153,25 +154,44 @@ export function useChatThreads(): UseChatThreadsReturn {
   // Delete thread
   const deleteThread = useCallback(
     (threadId: string) => {
-      // Remove from threads list
-      setThreads((prev) => prev.filter((t) => t.id !== threadId));
+      setThreads((prev) => {
+        const remainingThreads = prev.filter((t) => t.id !== threadId);
 
-      // Remove messages from localStorage
-      const messagesKey = `${MESSAGES_KEY_PREFIX}${threadId}`;
-      localStorage.removeItem(messagesKey);
+        // Remove messages from localStorage
+        const messagesKey = `${MESSAGES_KEY_PREFIX}${threadId}`;
+        localStorage.removeItem(messagesKey);
 
-      // If deleted current thread, switch to most recent or create new
-      if (threadId === currentThreadId) {
-        const remainingThreads = threads.filter((t) => t.id !== threadId);
-        if (remainingThreads.length > 0) {
-          switchThread(remainingThreads[0].id);
-        } else {
-          createThread();
+        // If deleted current thread, switch to most recent or clear
+        if (threadId === currentThreadId) {
+          if (remainingThreads.length > 0) {
+            // Switch to first remaining thread
+            setTimeout(() => switchThread(remainingThreads[0].id), 0);
+          } else {
+            // No threads left - clear current thread and messages
+            setCurrentThreadId(null);
+            setCurrentMessages([]);
+          }
         }
-      }
+
+        return remainingThreads;
+      });
     },
-    [threads, currentThreadId, setThreads, switchThread, createThread]
+    [currentThreadId, setThreads, setCurrentThreadId, switchThread]
   );
+
+  // Clear all threads
+  const clearAllThreads = useCallback(() => {
+    // Remove all message data from localStorage
+    threads.forEach((thread) => {
+      const messagesKey = `${MESSAGES_KEY_PREFIX}${thread.id}`;
+      localStorage.removeItem(messagesKey);
+    });
+
+    // Clear threads and current state
+    setThreads([]);
+    setCurrentThreadId(null);
+    setCurrentMessages([]);
+  }, [threads, setThreads, setCurrentThreadId]);
 
   // Update thread title
   const updateThreadTitle = useCallback(
@@ -258,6 +278,7 @@ export function useChatThreads(): UseChatThreadsReturn {
     createThread,
     switchThread,
     deleteThread,
+    clearAllThreads,
     updateThreadTitle,
     addMessage,
     updateLastMessage,

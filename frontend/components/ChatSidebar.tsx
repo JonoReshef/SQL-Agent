@@ -10,6 +10,7 @@ interface ChatSidebarProps {
   onCreateThread: () => void;
   onSwitchThread: (threadId: string) => void;
   onDeleteThread: (threadId: string) => void;
+  onClearAllThreads: () => void;
   isMobileOpen: boolean;
   onMobileClose: () => void;
 }
@@ -20,10 +21,12 @@ export function ChatSidebar({
   onCreateThread,
   onSwitchThread,
   onDeleteThread,
+  onClearAllThreads,
   isMobileOpen,
   onMobileClose,
 }: ChatSidebarProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [clearAllConfirm, setClearAllConfirm] = useState(false);
 
   const handleDelete = (threadId: string) => {
     if (deleteConfirm === threadId) {
@@ -39,6 +42,17 @@ export function ChatSidebar({
   const handleSwitchThread = (threadId: string) => {
     onSwitchThread(threadId);
     onMobileClose(); // Close sidebar on mobile after switching
+  };
+
+  const handleClearAll = () => {
+    if (clearAllConfirm) {
+      onClearAllThreads();
+      setClearAllConfirm(false);
+      onMobileClose();
+    } else {
+      setClearAllConfirm(true);
+      setTimeout(() => setClearAllConfirm(false), 3000);
+    }
   };
 
   return (
@@ -120,7 +134,7 @@ export function ChatSidebar({
                     onDelete={() => handleDelete(thread.id)}
                   />
                   {deleteConfirm === thread.id && (
-                    <div 
+                    <div
                       className='absolute inset-0 bg-red-500 bg-opacity-90 flex items-center justify-center text-white text-sm font-medium cursor-pointer'
                       onClick={(e) => {
                         e.stopPropagation();
@@ -137,8 +151,24 @@ export function ChatSidebar({
         </div>
 
         {/* Footer */}
-        <div className='p-4 border-t border-gray-300 text-xs text-gray-500'>
-          WestBrand SQL Chat Agent v1.0
+        <div className='border-t border-gray-300'>
+          {threads.length > 0 && (
+            <div className='p-3'>
+              <button
+                onClick={handleClearAll}
+                className={`w-full px-3 py-2 text-sm rounded transition-colors ${
+                  clearAllConfirm
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {clearAllConfirm ? 'Click again to confirm' : 'Clear All Chats'}
+              </button>
+            </div>
+          )}
+          <div className='px-4 py-3 text-xs text-gray-500'>
+            WestBrand SQL Chat Agent v1.0
+          </div>
         </div>
       </div>
     </>
