@@ -212,6 +212,7 @@ def store_inventory_matches(
     """
     inserted = 0
     updated = 0
+    skipped = 0
     errors = []
 
     with get_db_session() as session:
@@ -242,10 +243,10 @@ def store_inventory_matches(
                         item_number_to_id[match.inventory_item_number] = db_inventory.id
 
         # Now insert/update matches
-        for product_hash, matches in product_matches.items():
+        for product_hash, matches in list(product_matches.items()):
             product_mention_id = product_hash_to_id.get(product_hash)
             if not product_mention_id:
-                errors.append(f"Match for '{product_hash[:50]}': Product not found in database")
+                errors.append(f"Match for '{product_hash}': Product not found in database")
                 continue
 
             for match in matches:
@@ -281,8 +282,12 @@ def store_inventory_matches(
                         session.add(db_match)
                         inserted += 1
 
+                    else:
+                        # Match already exists, skip
+                        skipped += 1
+
                     # Commit every 50 matches
-                    if (inserted + updated) % 50 == 0:
+                    if (inserted + updated) % 50 == 0 and (inserted + updated) > 0:
                         session.commit()
 
                 except Exception as e:
@@ -302,6 +307,7 @@ def store_inventory_matches(
     return {
         "inserted": inserted,
         "updated": updated,
+        "skipped": skipped,
         "errors": len(errors),
         "error_details": errors,
     }

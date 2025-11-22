@@ -56,7 +56,9 @@ def persist_to_database(state: WorkflowState) -> WorkflowState:
     if state.matching_enabled and state.product_matches:
         try:
             result = store_inventory_matches(state.product_matches, state.extracted_products)
-            print(f"   Matches: {result['inserted']} inserted, {result['updated']} updated")
+            print(
+                f"   Matches: {result['inserted']} inserted, {result['updated']} updated, {result['skipped']} skipped"
+            )
             if result["errors"]:
                 print(f"   ⚠️  {result['errors']} match errors")
                 state.errors.extend(result["error_details"])
