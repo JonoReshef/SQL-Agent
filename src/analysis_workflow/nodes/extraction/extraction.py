@@ -2,10 +2,10 @@
 
 from typing import List
 
-from src.database.operations import compute_content_hash
-from src.llm.extractors import extract_products_batch
+from src.analysis_workflow.nodes.extraction.extractors import extract_products_batch
 from src.models.analysis_workflow import WorkflowState
 from src.models.product import ProductMention
+from src.utils.compute_content_hash import compute_content_hash
 
 
 def extract_products(state: WorkflowState) -> WorkflowState:

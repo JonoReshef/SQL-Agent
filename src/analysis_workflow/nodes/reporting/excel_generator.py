@@ -10,10 +10,10 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
-from src.database.operations import compute_content_hash
 from src.models.email import Email
 from src.models.inventory import InventoryMatch, ReviewFlag
 from src.models.product import ProductAnalytics, ProductMention
+from src.utils.compute_content_hash import compute_content_hash
 
 
 def generate_excel_report(
@@ -57,15 +57,13 @@ def generate_excel_report(
         analytics = []
 
     # Create email summary
-    ws_summary = wb.create_sheet("Email Summary")
-    create_email_summary_sheet(ws_summary, emails)
+    # ws_summary = wb.create_sheet("Email Summary")
+    # create_email_summary_sheet(ws_summary, emails)
 
     # Create inventory matches sheet if matches provided
     if product_matches:
         ws_matches = wb.create_sheet("Inventory Matches")
-        _create_inventory_matches_sheet(
-            ws_matches, unique_property_products, product_matches
-        )
+        _create_inventory_matches_sheet(ws_matches, unique_property_products, product_matches)
 
     # Create review flags sheet if flags provided
     if review_flags:
@@ -79,9 +77,7 @@ def generate_excel_report(
     return output_path, analytics
 
 
-def create_product_mentions_sheet(
-    ws: Worksheet, products: List[ProductMention]
-) -> None:
+def create_product_mentions_sheet(ws: Worksheet, products: List[ProductMention]) -> None:
     """
     Create Product Mentions sheet with all product details.
 
@@ -108,9 +104,7 @@ def create_product_mentions_sheet(
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(
-            start_color="CCE5FF", end_color="CCE5FF", fill_type="solid"
-        )
+        cell.fill = PatternFill(start_color="CCE5FF", end_color="CCE5FF", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data
@@ -118,23 +112,17 @@ def create_product_mentions_sheet(
         # Format properties as string
         props_str = ", ".join([f"{p.name}={p.value}" for p in product.properties])
 
-        ws.cell(
-            row=row_idx, column=1, value=_sanitize_for_excel(product.exact_product_text)
-        )
-        ws.cell(
-            row=row_idx, column=2, value=_sanitize_for_excel(product.product_category)
-        )
+        ws.cell(row=row_idx, column=1, value=_sanitize_for_excel(product.exact_product_text))
+        ws.cell(row=row_idx, column=2, value=_sanitize_for_excel(product.product_category))
 
         ws.cell(row=row_idx, column=3, value=_sanitize_for_excel(props_str))
         ws.cell(row=row_idx, column=4, value=_sanitize_for_excel(product.requestor))
         ws.cell(row=row_idx, column=5, value=product.quantity)
         ws.cell(row=row_idx, column=6, value=_sanitize_for_excel(product.unit))
         ws.cell(row=row_idx, column=7, value=_sanitize_for_excel(product.context))
-        ws.cell(
-            row=row_idx, column=8, value=_sanitize_for_excel(product.date_requested)
-        )
+        ws.cell(row=row_idx, column=8, value=_sanitize_for_excel(product.date_requested))
         ws.cell(row=row_idx, column=9, value=_sanitize_for_excel(product.email_subject))
-        ws.cell(row=row_idx, column=10, value=_sanitize_for_excel(product.email_sender))
+        ws.cell(row=row_idx, column=10, value=_sanitize_for_excel(product.requestor))
         ws.cell(row=row_idx, column=12, value=_sanitize_for_excel(product.email_file))
     # Auto-fit columns
     for col_idx, col in enumerate(ws.columns, start=1):
@@ -179,32 +167,23 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(
-            start_color="FFE5CC", end_color="FFE5CC", fill_type="solid"
-        )
+        cell.fill = PatternFill(start_color="FFE5CC", end_color="FFE5CC", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data
     for row_idx, analytic in enumerate(analytics, start=2):
         # Format property variations
         props_str = "; ".join(
-            [
-                f"{key}: {', '.join(values)}"
-                for key, values in analytic.properties_summary.items()
-            ]
+            [f"{key}: {', '.join(values)}" for key, values in analytic.properties_summary.items()]
         )
 
         # Format contexts
         contexts_str = ", ".join(analytic.contexts)
 
         ws.cell(row=row_idx, column=1, value=_sanitize_for_excel(analytic.product_name))
-        ws.cell(
-            row=row_idx, column=2, value=_sanitize_for_excel(analytic.product_category)
-        )
+        ws.cell(row=row_idx, column=2, value=_sanitize_for_excel(analytic.product_category))
         ws.cell(row=row_idx, column=3, value=analytic.total_mentions)
-        ws.cell(
-            row=row_idx, column=4, value=_sanitize_for_excel(analytic.first_mention)
-        )
+        ws.cell(row=row_idx, column=4, value=_sanitize_for_excel(analytic.first_mention))
         ws.cell(row=row_idx, column=5, value=_sanitize_for_excel(analytic.last_mention))
         ws.cell(row=row_idx, column=6, value=analytic.total_quantity)
         ws.cell(row=row_idx, column=7, value=_sanitize_for_excel(props_str))
@@ -252,9 +231,7 @@ def create_email_summary_sheet(ws: Worksheet, emails: List[Email]) -> None:
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(
-            start_color="E5FFCC", end_color="E5FFCC", fill_type="solid"
-        )
+        cell.fill = PatternFill(start_color="E5FFCC", end_color="E5FFCC", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data
@@ -264,9 +241,7 @@ def create_email_summary_sheet(ws: Worksheet, emails: List[Email]) -> None:
         body_length = len(email.cleaned_body) if email.cleaned_body else len(email.body)
 
         ws.cell(row=row_idx, column=1, value=_sanitize_for_excel(email.file_path))
-        ws.cell(
-            row=row_idx, column=2, value=_sanitize_for_excel(email.metadata.subject)
-        )
+        ws.cell(row=row_idx, column=2, value=_sanitize_for_excel(email.metadata.subject))
         ws.cell(row=row_idx, column=3, value=_sanitize_for_excel(email.metadata.sender))
         ws.cell(row=row_idx, column=4, value=_sanitize_for_excel(recipients_str))
         ws.cell(row=row_idx, column=5, value=_sanitize_for_excel(email.metadata.date))
@@ -390,9 +365,7 @@ def _create_inventory_matches_sheet(
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(
-            start_color="D0F0C0", end_color="D0F0C0", fill_type="solid"
-        )
+        cell.fill = PatternFill(start_color="D0F0C0", end_color="D0F0C0", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data
@@ -407,20 +380,14 @@ def _create_inventory_matches_sheet(
                 column=1,
                 value=_sanitize_for_excel(product.exact_product_text),
             )
-            ws.cell(
-                row=row_idx, column=2, value=_sanitize_for_excel(product.product_name)
-            )
+            ws.cell(row=row_idx, column=2, value=_sanitize_for_excel(product.product_name))
             ws.cell(
                 row=row_idx,
                 column=3,
                 value=_sanitize_for_excel(product.product_category),
             )
-            ws.cell(
-                row=row_idx, column=4, value=_sanitize_for_excel(product.email_subject)
-            )
-            ws.cell(
-                row=row_idx, column=5, value=_sanitize_for_excel(product.email_sender)
-            )
+            ws.cell(row=row_idx, column=4, value=_sanitize_for_excel(product.email_subject))
+            ws.cell(row=row_idx, column=5, value=_sanitize_for_excel(product.requestor))
             ws.cell(row=row_idx, column=6, value="NO MATCHES")
             # Highlight no match rows in light red
             for col in range(1, 13):
@@ -450,12 +417,7 @@ def _create_inventory_matches_sheet(
                     row=row_idx,
                     column=4,
                     value=_sanitize_for_excel(
-                        "; ".join(
-                            [
-                                f"{value.name}: {value.value}"
-                                for value in product.properties
-                            ]
-                        )
+                        "; ".join([f"{value.name}: {value.value}" for value in product.properties])
                     ),
                 )
                 ws.cell(
@@ -483,10 +445,7 @@ def _create_inventory_matches_sheet(
                     column=9,
                     value=_sanitize_for_excel(
                         "; ".join(
-                            [
-                                f"{prop.name}: {prop.value}"
-                                for prop in match.inventory_properties
-                            ]
+                            [f"{prop.name}: {prop.value}" for prop in match.inventory_properties]
                         )
                     ),
                 )
@@ -570,9 +529,7 @@ def _create_review_flags_sheet(ws: Worksheet, review_flags: List[ReviewFlag]) ->
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(
-            start_color="FFD966", end_color="FFD966", fill_type="solid"
-        )
+        cell.fill = PatternFill(start_color="FFD966", end_color="FFD966", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data

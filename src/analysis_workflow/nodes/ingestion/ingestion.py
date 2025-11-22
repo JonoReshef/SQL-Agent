@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import List
 
 from src.analysis_workflow.utils import clean_signature, read_msg_files_from_directory
-from src.database.operations import compute_content_hash
 from src.models.analysis_workflow import WorkflowState
 from src.models.email import Email
+from src.utils.compute_content_hash import compute_content_hash
 
 
 def ingest_emails(state: WorkflowState) -> WorkflowState:

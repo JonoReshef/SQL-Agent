@@ -6,9 +6,9 @@ from sqlalchemy import select
 
 from src.database.connection import get_db_session
 from src.database.models import InventoryItem as DBInventoryItem
-from src.database.operations import compute_content_hash
 from src.models.analysis_workflow import WorkflowState
 from src.models.inventory import InventoryItem as PydanticInventoryItem
+from src.utils.compute_content_hash import compute_content_hash
 
 from .utils.matcher import match_product_to_inventory
 
