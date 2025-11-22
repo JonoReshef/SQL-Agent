@@ -14,6 +14,7 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+
   pgdb:
     image: pgvector/pgvector:pg17
     container_name: westbrand-db
@@ -27,6 +28,52 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - westbrand-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER} -d ${PGDATABASE}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: westbrand-backend
+    environment:
+      AZURE_LLM_API_KEY: ${AZURE_LLM_API_KEY}
+      AZURE_LLM_ENDPOINT: ${AZURE_LLM_ENDPOINT}
+      DATABASE_URL: postgresql://${PGUSER}:${PGPASSWORD}@pgdb:5432/${PGDATABASE}
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./config:/app/config
+    depends_on:
+      redis:
+        condition: service_healthy
+      pgdb:
+        condition: service_healthy
+    networks:
+      - westbrand-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: westbrand-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - westbrand-network
+    restart: unless-stopped
 
 volumes:
   redis_data:

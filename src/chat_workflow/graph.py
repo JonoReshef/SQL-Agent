@@ -129,7 +129,8 @@ def create_chat_graph() -> CompiledStateGraph:
     workflow.add_edge("generate_explanations", END)
 
     # Compile with checkpointer
-    redis_cache = RedisCache(redis_url="redis://localhost:6379")
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    redis_cache = RedisCache(redis_url=redis_url)
     set_llm_cache(redis_cache)
 
     return workflow.compile(checkpointer=checkpointer).with_config(

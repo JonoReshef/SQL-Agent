@@ -1,5 +1,7 @@
 """LangGraph workflow graph construction"""
 
+import os
+
 from langchain_core.globals import set_llm_cache
 from langchain_redis import RedisCache
 from langgraph.graph import END, StateGraph
@@ -56,7 +58,8 @@ def create_workflow_graph(enable_matching: bool = False) -> CompiledStateGraph:
     # Set entry point
     workflow.set_entry_point("ingestion")
 
-    redis_cache = RedisCache(redis_url="redis://localhost:6379")
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    redis_cache = RedisCache(redis_url=redis_url)
     set_llm_cache(redis_cache)
 
     graph = workflow.compile().with_config({"recursion_limit": 50})
