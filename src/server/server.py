@@ -160,8 +160,6 @@ async def chat_stream(request: ChatRequest):
 
             config = {"configurable": {"thread_id": request.thread_id}}
 
-            executed_queries = []
-
             # Use synchronous stream since PostgresSaver doesn't support async
             print("Starting stream...", flush=True)
             last_ai_message = None
@@ -177,48 +175,45 @@ async def chat_stream(request: ChatRequest):
                 if "status_update" in event and event["status_update"]:
                     yield f"data: {json.dumps({'type': 'status', 'content': event['status_update']})}\n\n"
 
-                # Process each state update
-                if "messages" in event and event["messages"]:
-                    last_message = event["messages"][-1]
-                    # Only stream AIMessage responses (not HumanMessage or enrichments)
-                    if (
-                        hasattr(last_message, "content")
-                        and last_message.content
-                        and last_message.__class__.__name__ == "AIMessage"
-                    ):
-                        # Keep track of last AI message to send only once at the end
-                        last_ai_message = last_message.content
-
-                # Collect executed queries for transparency
-                if "executed_queries_enriched" in event:
-                    for qe in event["executed_queries_enriched"]:
-                        executed_queries.append(
-                            {
-                                "query": qe.query,
-                                "explanation": (
-                                    qe.query_explanation.description
-                                    if qe.query_explanation
-                                    else "No explanation available"
-                                ),
-                                "result_summary": (
-                                    qe.query_explanation.result_summary
-                                    if qe.query_explanation
-                                    else "No result summary available"
-                                ),
-                            }
-                        )
-
-            # Send the final AI message
-            if last_ai_message:
-                yield f"data: {json.dumps({'type': 'message', 'content': last_ai_message})}\n\n"
-
             # Send executed queries before end event for transparency
-            if executed_queries:
+            if "executed_queries_enriched" in event and event["executed_queries_enriched"]:
+                # Store only the last executed queries for final transparency
+                executed_queries = []
+                for qe in event["executed_queries_enriched"]:
+                    executed_queries.append(
+                        {
+                            "query": qe.query,
+                            "explanation": (
+                                qe.query_explanation.description
+                                if qe.query_explanation
+                                else "No explanation available"
+                            ),
+                            "result_summary": (
+                                qe.query_explanation.result_summary
+                                if qe.query_explanation
+                                else "No result summary available"
+                            ),
+                        }
+                    )
+
                 yield f"data: {json.dumps({'type': 'queries', 'queries': executed_queries})}\n\n"
 
             # Send overall summary if available
             if "overall_summary" in event and event["overall_summary"]:
                 yield f"data: {json.dumps({'type': 'summary', 'content': event['overall_summary']})}\n\n"
+
+            # At end of stream, send final data
+            if "messages" in event and event["messages"]:
+                last_message = event["messages"][-1]
+                # Only stream AIMessage responses (not HumanMessage or enrichments)
+                if (
+                    hasattr(last_message, "content")
+                    and last_message.content
+                    and last_message.__class__.__name__ == "AIMessage"
+                ):
+                    # Keep track of last AI message to send only once at the end
+                    last_ai_message = last_message.content
+                    yield f"data: {json.dumps({'type': 'token', 'content': last_ai_message})}\n\n"
 
             # Send end event
             yield f"data: {json.dumps({'type': 'end'})}\n\n"
