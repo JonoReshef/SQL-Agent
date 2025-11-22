@@ -1,10 +1,7 @@
 """Database operations for persisting workflow data"""
 
-import hashlib
-import json
 from typing import List
 
-from pydantic import BaseModel
 from sqlalchemy import select
 
 from src.database.connection import get_db_session
@@ -21,37 +18,7 @@ from src.database.models import (
 from src.models.email import Email
 from src.models.inventory import InventoryMatch, ReviewFlag
 from src.models.product import ProductMention
-
-
-def compute_content_hash(*args, len=16) -> str:
-    """
-    Compute SHA256 hash of content for duplicate detection.
-
-    Args:
-        *args: Variable arguments to include in hash
-        len: Length of the returned hash string (default 16)
-
-    Returns:
-        Hex string of SHA256 hash
-    """
-    # Create a deterministic string representation
-    content_parts = []
-    for arg in args:
-        if arg is None:
-            content_parts.append("NULL")
-        elif isinstance(arg, BaseModel):
-            # For Pydantic models, use mode='json' to handle datetime objects
-            content_parts.append(
-                json.dumps(arg.model_dump(mode="json"), sort_keys=True)
-            )
-        elif isinstance(arg, (dict, list)):
-            # For JSON-serializable objects, use sorted JSON
-            content_parts.append(json.dumps(arg, sort_keys=True, default=str))
-        else:
-            content_parts.append(str(arg))
-
-    content_str = "|".join(content_parts)
-    return hashlib.sha256(content_str.encode("utf-8")).hexdigest()[:len]
+from src.utils.compute_content_hash import compute_content_hash
 
 
 def sanitize_for_db(text: str | None) -> str | None:
@@ -97,9 +64,7 @@ def store_emails(emails: List[Email]) -> dict:
                     thread_hash = compute_content_hash(email)
 
                 # Check if email already exists by thread_hash
-                stmt = select(EmailProcessed).where(
-                    EmailProcessed.thread_hash == thread_hash
-                )
+                stmt = select(EmailProcessed).where(EmailProcessed.thread_hash == thread_hash)
                 existing = session.execute(stmt).scalar_one_or_none()
 
                 if not existing:
@@ -170,9 +135,7 @@ def store_product_mentions(products: List[ProductMention], emails: List[Email]) 
                     continue
 
                 # Verify email exists in database
-                stmt = select(EmailProcessed).where(
-                    EmailProcessed.thread_hash == thread_hash
-                )
+                stmt = select(EmailProcessed).where(EmailProcessed.thread_hash == thread_hash)
                 db_email = session.execute(stmt).scalar_one_or_none()
                 if not db_email:
                     errors.append(
@@ -187,9 +150,7 @@ def store_product_mentions(products: List[ProductMention], emails: List[Email]) 
                 )
 
                 # Check if product mention already exists by content hash
-                stmt = select(DBProductMention).where(
-                    DBProductMention.content_hash == content_hash
-                )
+                stmt = select(DBProductMention).where(DBProductMention.content_hash == content_hash)
                 existing = session.execute(stmt).scalar_one_or_none()
 
                 if not existing:
@@ -284,9 +245,7 @@ def store_inventory_matches(
         for product_hash, matches in product_matches.items():
             product_mention_id = product_hash_to_id.get(product_hash)
             if not product_mention_id:
-                errors.append(
-                    f"Match for '{product_hash[:50]}': Product not found in database"
-                )
+                errors.append(f"Match for '{product_hash[:50]}': Product not found in database")
                 continue
 
             for match in matches:
@@ -348,9 +307,7 @@ def store_inventory_matches(
     }
 
 
-def store_review_flags(
-    review_flags: List[ReviewFlag], products: List[ProductMention]
-) -> dict:
+def store_review_flags(review_flags: List[ReviewFlag], products: List[ProductMention]) -> dict:
     """
     Store review flags to database.
     Uses product_mention_id foreign key.
@@ -381,9 +338,7 @@ def store_review_flags(
         for flag in review_flags:
             product_mention_id = product_text_to_id.get(flag.product_text)
             if not product_mention_id:
-                errors.append(
-                    f"Flag for '{flag.product_text[:50]}': Product not found in database"
-                )
+                errors.append(f"Flag for '{flag.product_text[:50]}': Product not found in database")
                 continue
 
             try:
@@ -391,9 +346,7 @@ def store_review_flags(
                 content_hash = compute_content_hash(product_mention_id, flag)
 
                 # Check if flag already exists by content hash
-                stmt = select(MatchReviewFlag).where(
-                    MatchReviewFlag.content_hash == content_hash
-                )
+                stmt = select(MatchReviewFlag).where(MatchReviewFlag.content_hash == content_hash)
                 existing = session.execute(stmt).first()
 
                 if not existing:
