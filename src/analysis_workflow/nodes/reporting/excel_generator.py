@@ -57,8 +57,8 @@ def generate_excel_report(
         analytics = []
 
     # Create email summary
-    # ws_summary = wb.create_sheet("Email Summary")
-    # create_email_summary_sheet(ws_summary, emails)
+    ws_summary = wb.create_sheet("Email Summary")
+    create_email_summary_sheet(ws_summary, emails, all_products)
 
     # Create inventory matches sheet if matches provided
     if product_matches:
@@ -208,7 +208,9 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
     ws.freeze_panes = "A2"
 
 
-def create_email_summary_sheet(ws: Worksheet, emails: List[Email]) -> None:
+def create_email_summary_sheet(
+    ws: Worksheet, emails: List[Email], products: List[ProductMention]
+) -> None:
     """
     Create Email Summary sheet.
 
@@ -223,9 +225,16 @@ def create_email_summary_sheet(ws: Worksheet, emails: List[Email]) -> None:
         "Sender",
         "Recipients",
         "Date",
+        "Number of Products Mentioned",
         "Has Attachments",
         "Body Length",
     ]
+
+    # Map email thread_hash to number of products mentioned
+    email_product_count = {email.thread_hash: 0 for email in emails}
+    for product in products:
+        if product.thread_hash in email_product_count:
+            email_product_count[product.thread_hash] += 1
 
     # Write headers
     for col_idx, header in enumerate(headers, start=1):
@@ -245,8 +254,9 @@ def create_email_summary_sheet(ws: Worksheet, emails: List[Email]) -> None:
         ws.cell(row=row_idx, column=3, value=_sanitize_for_excel(email.metadata.sender))
         ws.cell(row=row_idx, column=4, value=_sanitize_for_excel(recipients_str))
         ws.cell(row=row_idx, column=5, value=_sanitize_for_excel(email.metadata.date))
-        ws.cell(row=row_idx, column=6, value=has_attachments)
-        ws.cell(row=row_idx, column=7, value=body_length)
+        ws.cell(row=row_idx, column=6, value=email_product_count.get(email.thread_hash, 0))
+        ws.cell(row=row_idx, column=7, value=has_attachments)
+        ws.cell(row=row_idx, column=8, value=body_length)
 
     # Auto-fit columns
     for col_idx, col in enumerate(ws.columns, start=1):
