@@ -45,32 +45,18 @@ def parse_inventory_description(
     try:
         # Build extraction prompt
         prompt = """
-        You are an expert and analyzing and categorizing inventory items based on product descriptions. You will receive a list of {count_items} inventory items. Process all {count_items} items. For each item extract the following details:
-
+        You are an expert at analyzing and categorizing inventory items based on product descriptions. You will receive a list of {count_items} inventory items and your job is to extract structured product information from each description. Process all {count_items} items. 
+        
+        For each item extract the following details:
         1. exact_product_text: The full free text snippet that is describing the product.
         2. product_id: The unique identifier of the product which will be supplied alongside the description.
         3. product_name: The name of the product. 
         4. product_category: The category of the product. 
         5. properties: A list of properties with name, value, and confidence score. Do NOT include value_type or priority - these will be added automatically from the config.
 
-        Output the results as a list of objects in the following format:
-        [
-            {{
-                "exact_product_text": str,
-                "product_id": str,
-                "product_name": str,
-                "product_category": str,
-                "properties": [
-                    {{
-                        "name": str,
-                        "value": str,
-                        "confidence": float (0.0 to 1.0)
-                    }}
-                ]
-            }}
-        ]
-
         Below are the key product types to search for in the emails. They include examples of the product configurations which should help identify relevant products in the email. Do not use these values directly, only use them to guide extraction.
+
+        Output in the items attribute a list of ProductItem objects.
 
         PRODUCT DEFINITIONS:
         {product_definitions}
@@ -80,22 +66,22 @@ def parse_inventory_description(
         """
 
         # Call LLM for extraction
-        response: ProductItemResult = structured_llm.invoke(
-            [
-                HumanMessage(
-                    content=prompt.format(
-                        count_items=len(item_numbers),
-                        product_definitions=format_config(load_config()),
-                        descriptions=[
-                            f"product_id: {item_number}: exact_product_text: {description}"
-                            for item_number, description in zip(
-                                item_numbers, descriptions
-                            )
-                        ],
+        response = ProductItemResult.model_validate(
+            structured_llm.invoke(
+                [
+                    HumanMessage(
+                        content=prompt.format(
+                            count_items=len(item_numbers),
+                            product_definitions=format_config(load_config()),
+                            descriptions=[
+                                f"product_id: {item_number}: exact_product_text: {description}"
+                                for item_number, description in zip(item_numbers, descriptions)
+                            ],
+                        )
                     )
-                )
-            ]
-        )  # type: ignore
+                ]
+            )
+        )
 
         inventory_items = []
         unextracted_items = item_numbers.copy()
@@ -110,7 +96,8 @@ def parse_inventory_description(
 
             # Average confidence is the mean of all property confidences
             avg_confidence = (
-                sum(prop.confidence for prop in item.properties) / len(item.properties)
+                sum(prop.confidence for prop in item.properties if prop.confidence is not None)
+                / len(item.properties)
                 if item.properties
                 else 0.0
             )
@@ -125,7 +112,11 @@ def parse_inventory_description(
             needs_review = (
                 avg_confidence < 0.7
                 or len(enriched_properties) == 0
-                or any(prop.confidence < 0.5 for prop in enriched_properties)
+                or any(
+                    prop.confidence < 0.5
+                    for prop in enriched_properties
+                    if prop.confidence is not None
+                )
             )
 
             # Create InventoryItem
@@ -165,26 +156,46 @@ def parse_inventory_batch(
     """
     parsed_items = []
     batch_size = 50
-    total_items = 200
-    inventory_items_processing = inventory_items.copy()[:total_items]
+    inventory_items_processing = inventory_items.copy()
 
-    with tqdm(total=total_items) as pbar:
-        while len(inventory_items_processing) > 0:
-            batch = inventory_items_processing[:batch_size]
+    stored_missed_items = []
+
+    # Process in parallel batches
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        item_batches = []
+        descriptions_batches = []
+        for n in range(0, len(inventory_items_processing), batch_size):
+            batch = inventory_items_processing[n : n + batch_size]
             item_numbers = [item["item_number"] for item in batch]
             descriptions = [item["raw_description"] for item in batch]
+            item_batches.append(item_numbers)
+            descriptions_batches.append(descriptions)
 
-            parsed_batch, _ = parse_inventory_description(item_numbers, descriptions)
-            extracted_items = [p.product_id for p in parsed_batch]
+        # Submit all tasks
+        future_to_task = {
+            executor.submit(parse_inventory_description, items, descriptions)
+            for items, descriptions in zip(item_batches, descriptions_batches)
+        }
+        for future in tqdm(future_to_task, desc="Parsing Batches"):
+            try:
+                batch_parsed_items, missed_items = future.result()
+                stored_missed_items.extend(missed_items)
+                parsed_items.extend(batch_parsed_items)
+            except Exception as e:
+                print(f"Error parsing batch: {e}")
 
-            inventory_items_processing = [
-                item
-                for item in inventory_items_processing
-                if item["item_number"] not in extracted_items
-            ]
-            parsed_items.extend(parsed_batch)
-            pbar.update(
-                len(parsed_batch),
-            )
+    # Process missed items individually
+    while len(stored_missed_items) > 0:
+        batch = stored_missed_items[:batch_size]
+        item_numbers = [item["item_number"] for item in batch]
+        descriptions = [item["raw_description"] for item in batch]
+
+        parsed_batch, _ = parse_inventory_description(item_numbers, descriptions)
+        extracted_items = [p.product_id for p in parsed_batch]
+
+        stored_missed_items = [
+            item for item in stored_missed_items if item["item_number"] not in extracted_items
+        ]
+        parsed_items.extend(parsed_batch)
 
     return parsed_items
