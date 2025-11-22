@@ -46,7 +46,7 @@ def get_llm_client(
         llm = AzureChatOpenAI(
             api_key=api_key,  # type: ignore
             azure_endpoint=endpoint,  # type: ignore
-            azure_deployment="gpt-4-1-mini",  # type: ignore
+            azure_deployment="gpt-4.1-mini",  # type: ignore
             api_version="2024-08-01-preview",  # type: ignore
             verbose=False,
             temperature=0,
