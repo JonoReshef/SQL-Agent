@@ -56,7 +56,7 @@ def format_config(config: ProductConfig) -> str:
         )
         for property in product.properties:
             products_info.append(
-                f"-- {property.name} is ValueType: {property.value_type}, examples: {', '.join(property.examples)}"
+                f"-- {property.name} has the following examples: {', '.join(property.examples)}"
             )
         products_info.append("\n-----\n")
 
