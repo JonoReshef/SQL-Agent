@@ -101,9 +101,7 @@ def read_msg_file(file_path: Path) -> Email:
     )
 
 
-def read_msg_files_from_directory(
-    directory: Path, recursive: bool = False
-) -> List[Email]:
+def read_msg_files_from_directory(directory: Path, recursive: bool = False) -> List[Email]:
     """
     Read all .msg files from a directory.
 
@@ -118,7 +116,7 @@ def read_msg_files_from_directory(
 
     # Get all .msg files
     if recursive:
-        msg_files = list(directory.rglob("*.msg"))[:50]
+        msg_files = list(directory.rglob("*.msg"))
     else:
         msg_files = list(directory.glob("*.msg"))
 
