@@ -70,12 +70,10 @@ jsonpath-ng==1.7.0
 jsonpointer==3.0.0
 jsonschema-rs==0.29.1
 kiwisolver==1.4.9
-langchain-classic==1.0.0
 langchain-community==0.4.1
 langchain-core==1.0.5
 langchain-openai==1.0.3
 langchain-redis==0.2.4
-langchain-text-splitters==1.0.0
 langdetect==1.0.9
 langgraph==1.0.3
 langgraph-api==0.5.13
