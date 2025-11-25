@@ -227,7 +227,7 @@ def create_email_summary_sheet(
         "Date",
         "Number of Products Mentioned",
         "Has Attachments",
-        "Body Length",
+        "Body Length (words)",
     ]
 
     # Map email thread_hash to number of products mentioned
@@ -247,7 +247,7 @@ def create_email_summary_sheet(
     for row_idx, email in enumerate(emails, start=2):
         recipients_str = ", ".join(email.metadata.recipients)
         has_attachments = "Yes" if email.attachments else "No"
-        body_length = len(email.cleaned_body) if email.cleaned_body else len(email.body)
+        body_length = len(email.cleaned_body.split()) if email.cleaned_body else "Unknown"
 
         ws.cell(row=row_idx, column=1, value=_sanitize_for_excel(email.file_path))
         ws.cell(row=row_idx, column=2, value=_sanitize_for_excel(email.metadata.subject))
@@ -383,8 +383,10 @@ def _create_inventory_matches_sheet(
     for product in products:
         matches = product_matches.get(compute_content_hash(product), [])
 
-        if not matches:
-            # Show product with no matches
+        def _write_product_info():
+            """
+            Helper function which writes the product info to the current row
+            """
             ws.cell(
                 row=row_idx,
                 column=1,
@@ -396,9 +398,20 @@ def _create_inventory_matches_sheet(
                 column=3,
                 value=_sanitize_for_excel(product.product_category),
             )
-            ws.cell(row=row_idx, column=4, value=_sanitize_for_excel(product.email_subject))
-            ws.cell(row=row_idx, column=5, value=_sanitize_for_excel(product.requestor))
-            ws.cell(row=row_idx, column=6, value="NO MATCHES")
+            ws.cell(
+                row=row_idx,
+                column=4,
+                value=_sanitize_for_excel(
+                    "; ".join([f"{value.name}: {value.value}" for value in product.properties])
+                ),
+            )
+            ws.cell(row=row_idx, column=5, value=_sanitize_for_excel(product.email_subject))
+            ws.cell(row=row_idx, column=6, value=_sanitize_for_excel(product.email_sender))
+
+        # Show product with no matches
+        if not matches:
+            _write_product_info()
+            ws.cell(row=row_idx, column=7, value="NO MATCHES")
             # Highlight no match rows in light red
             for col in range(1, 13):
                 ws.cell(row=row_idx, column=col).fill = PatternFill(
@@ -408,38 +421,7 @@ def _create_inventory_matches_sheet(
         else:
             # Show each match as a separate row
             for match in matches:
-                ws.cell(
-                    row=row_idx,
-                    column=1,
-                    value=_sanitize_for_excel(product.exact_product_text),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=2,
-                    value=_sanitize_for_excel(product.product_name),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=3,
-                    value=_sanitize_for_excel(product.product_category),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=4,
-                    value=_sanitize_for_excel(
-                        "; ".join([f"{value.name}: {value.value}" for value in product.properties])
-                    ),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=5,
-                    value=_sanitize_for_excel(product.email_subject),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=6,
-                    value=_sanitize_for_excel(product.email_sender),
-                )
+                _write_product_info()
                 ws.cell(
                     row=row_idx,
                     column=7,
