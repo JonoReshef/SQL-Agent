@@ -6,13 +6,14 @@ from copy import deepcopy
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import extract_msg
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 from src.models.email import Email, EmailMetadata
+from utils.compute_content_hash import compute_content_hash
 
 # Suppress INFO messages from extract_msg
 logging.getLogger("extract_msg").setLevel(logging.ERROR)
@@ -112,7 +113,7 @@ def read_msg_files_from_directory(directory: Path, recursive: bool = False) -> L
     Returns:
         List of Email objects
     """
-    emails = []
+    emails: Dict[str, Email] = {}
 
     # Get all .msg files
     if recursive:
@@ -126,13 +127,23 @@ def read_msg_files_from_directory(directory: Path, recursive: bool = False) -> L
     ):
         try:
             email = read_msg_file(msg_file)
-            emails.append(email)
+            email.cleaned_body = clean_signature(email.body)
+            email.thread_hash = compute_content_hash(email)
+            key = str(email.metadata.subject).lower().strip()
+            # Avoid duplicates based on subject. Store the largest cleaned body.
+            if emails.get(key) is None:
+                email.thread_hash = compute_content_hash(email)
+                emails[key] = email
+            else:
+                # Store the email with the longest body for duplicate subjects
+                if len(email.cleaned_body or "") > len(emails[key].cleaned_body or ""):
+                    emails[key] = email
         except Exception as e:
             # Log error but continue processing other files
             print(f"Warning: Failed to parse {msg_file}: {e}")
             continue
 
-    return emails
+    return list(emails.values())
 
 
 def _parse_email_date(date_value) -> datetime | None:
