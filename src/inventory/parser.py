@@ -13,6 +13,7 @@ from src.llm.client import get_llm_client
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+
 from langchain_core.messages import HumanMessage
 
 from src.models.inventory import InventoryItem
@@ -27,7 +28,7 @@ structured_llm = get_llm_client(
 
 def parse_inventory_description(
     item_numbers: list[str], descriptions: list[str]
-) -> tuple[list[InventoryItem], list[str]]:
+) -> tuple[list[InventoryItem], tuple[list[str], list[str]]]:
     """
     Parse inventory description to extract structured product information.
 
@@ -84,7 +85,8 @@ def parse_inventory_description(
         )
 
         inventory_items = []
-        unextracted_items = item_numbers.copy()
+        unextracted_id = item_numbers.copy()
+        unextracted_descriptions = descriptions.copy()
 
         for item in response.items:
             if item.product_id is None:
@@ -132,14 +134,16 @@ def parse_inventory_description(
                 needs_manual_review=needs_review,
             )
             inventory_items.append(inventory_item)
-            unextracted_items.remove(item.product_id)
+            unextracted_id.remove(item.product_id)
+            unextracted_descriptions.remove(item.exact_product_text)
 
+        unextracted_items = (unextracted_id, unextracted_descriptions)
         return inventory_items, unextracted_items
 
     except Exception as e:
         # Error during extraction - flag for review
         print(f"Error parsing inventory descriptions: {e}")
-        return [], item_numbers
+        return [], (item_numbers, descriptions)
 
 
 def parse_inventory_batch(
@@ -161,7 +165,7 @@ def parse_inventory_batch(
     stored_missed_items = []
 
     # Process in parallel batches
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=50) as executor:
         item_batches = []
         descriptions_batches = []
         for n in range(0, len(inventory_items_processing), batch_size):
@@ -183,6 +187,10 @@ def parse_inventory_batch(
                 parsed_items.extend(batch_parsed_items)
             except Exception as e:
                 print(f"Error parsing batch: {e}")
+
+    return batch_parsed_items
+
+    # NOTE haven't actually fixed the issues with missed_items, doesn't seem to happen too often now anyway
 
     # Process missed items individually
     while len(stored_missed_items) > 0:
