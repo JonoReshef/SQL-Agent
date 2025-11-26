@@ -76,9 +76,7 @@ def get_hierarchy_for_category(category: str) -> Optional[PropertyHierarchy]:
                 sorted_properties = sorted(
                     properties, key=lambda p: p.get("priority", float("inf"))
                 )
-                property_order = [
-                    prop["name"] for prop in sorted_properties if "name" in prop
-                ]
+                property_order = [prop["name"] for prop in sorted_properties if "name" in prop]
 
                 if property_order:
                     return PropertyHierarchy(
@@ -100,9 +98,7 @@ def get_all_hierarchies() -> dict[str, PropertyHierarchy]:
     Returns:
         Dictionary mapping category name to PropertyHierarchy
     """
-    config_path = (
-        Path(__file__).parent.parent.parent / "config" / "products_config.yaml"
-    )
+    config_path = Path(__file__).parent.parent.parent / "config" / "products_config.yaml"
 
     hierarchies = {}
 

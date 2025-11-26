@@ -17,7 +17,7 @@ def filter_inventory_by_hierarchical_properties(
     session: Session,
     product: ProductMention,
     hierarchy: PropertyHierarchy,
-    fuzzy_threshold: float = 0.8,
+    fuzzy_threshold: float = 0.7,
     continue_threshold: int = 10,
 ) -> Tuple[List[InventoryItem], int]:
     """
@@ -55,9 +55,7 @@ def filter_inventory_by_hierarchical_properties(
     category: str = product.product_category
 
     # Step 1: Filter by category
-    query = session.query(DBInventoryItem).filter(
-        DBInventoryItem.product_category == category
-    )
+    query = session.query(DBInventoryItem).filter(DBInventoryItem.product_category == category)
 
     last_valid_results = query.all()
     filter_depth = 0
@@ -95,39 +93,41 @@ def filter_inventory_by_hierarchical_properties(
             item_has_matching_property = False
 
             for inv_prop in db_item.properties:
-                if inv_prop.get("name", "").lower() == property_name_lower:
-                    # Found the property, now check if value matches
-                    inv_prop_obj = ProductProperty.model_validate(inv_prop)
+                if inv_prop.get("name", "").lower() != property_name_lower:
+                    continue
 
-                    normalized_inv_value = normalize_property_value(
-                        inv_prop_obj,
-                        fuzzy_threshold=int(fuzzy_threshold * 100),
+                # Found the property, now check if value matches
+                inv_prop_obj = ProductProperty.model_validate(inv_prop)
+
+                normalized_inv_value = normalize_property_value(
+                    inv_prop_obj,
+                    fuzzy_threshold=int(fuzzy_threshold * 100),
+                )
+
+                # Exact match on normalized values
+                if normalized_product_value.lower() == normalized_inv_value.lower():
+                    item_has_matching_property = True
+                    break
+
+                # Skip measurement types for fuzzy matching. If it is a measurement, we only do exact match
+                if (
+                    inv_prop_obj.value_type == "measurement"
+                    or product_prop.value_type == "measurement"
+                ):
+                    continue
+
+                # Fuzzy string matching on normalized values
+                similarity = (
+                    fuzz.ratio(
+                        normalized_product_value.lower(),
+                        normalized_inv_value.lower(),
                     )
+                    / 100.0
+                )
 
-                    # Exact match on normalized values
-                    if normalized_product_value.lower() == normalized_inv_value.lower():
-                        item_has_matching_property = True
-                        break
-
-                    # Skip measurement types for fuzzy matching. If it is a measurement, we only do exact match
-                    if (
-                        inv_prop_obj.value_type == "measurement"
-                        or product_prop.value_type == "measurement"
-                    ):
-                        continue
-
-                    # Fuzzy string matching on normalized values
-                    similarity = (
-                        fuzz.ratio(
-                            normalized_product_value.lower(),
-                            normalized_inv_value.lower(),
-                        )
-                        / 100.0
-                    )
-
-                    if similarity >= fuzzy_threshold:
-                        item_has_matching_property = True
-                        break
+                if similarity >= fuzzy_threshold:
+                    item_has_matching_property = True
+                    break
 
             if item_has_matching_property:
                 candidates.append(db_item)

@@ -19,9 +19,9 @@ from tqdm import tqdm
 
 from src.database.connection import get_db_session, test_connection
 from src.database.models import InventoryItem as DBInventoryItem
-from src.database.operations import compute_content_hash
 from src.inventory.loader import get_inventory_stats, load_inventory_excel
 from src.inventory.parser import parse_inventory_batch
+from src.utils.compute_content_hash import compute_content_hash
 
 
 def import_inventory(
@@ -40,52 +40,70 @@ def import_inventory(
     """
     excel_path = Path(excel_path)
 
+    """
+    Casing Spacers
+    Fasteners
+    Gaskets
+    Nuts
+    Seal Kits
+    Stud Kits
+    Threaded Rod
+    Unknown
+    Washers
+    """
+
     # Validate database connection
-    print("🔌 Testing database connection...")
+    print("Testing database connection...")
     if not test_connection():
-        print("❌ Database connection failed")
+        print("Database connection failed")
         return {"success": False, "error": "Database connection failed"}
 
     # Load Excel file
-    print(f"\n📂 Loading inventory from {excel_path}...")
+    print(f"\nLoading inventory from {excel_path}...")
     try:
         raw_items = load_inventory_excel(excel_path)
     except Exception as e:
-        print(f"❌ Failed to load Excel: {e}")
+        print(f"Failed to load Excel: {e}")
         return {"success": False, "error": str(e)}
 
-    print(f"✅ Loaded {len(raw_items)} items from Excel")
+    gaskets = [item for item in raw_items if "gasket" in item.get("raw_description", "").lower()]
+    nut_items = [item for item in raw_items if "nut" in item.get("raw_description", "").lower()]
+    washers = [item for item in raw_items if "washer" in item.get("raw_description", "").lower()]
+
+    selected_items = [item for lists in zip(*[gaskets, nut_items, washers]) for item in lists]
+
+    print(f"Loaded {len(raw_items)} items from Excel")
 
     # Limit items if max_items is specified
     if max_items is not None:
-        raw_items = raw_items[:max_items]
-        print(f"🔢 Limited to first {len(raw_items)} items for import")
+        selected_items = selected_items[:max_items]
+        print(f"Limited to first {len(selected_items)} items for import")
 
     # Show statistics
-    stats = get_inventory_stats(raw_items)
-    print("\n📊 Inventory Statistics:")
+    stats = get_inventory_stats(selected_items)
+    print("\nInventory Statistics:")
     print(f"   Total Items: {stats['total_items']}")
-    print(f"   Avg Description Length: {stats['avg_description_length']}")
+    print(f"   Avg Description Length (characters): {stats['avg_description_length']}")
 
     # Parse descriptions using LLM
-    print("\n🤖 Parsing descriptions with LLM...")
-    print(f"   Note: This may take several minutes for {len(raw_items)} items")
+    print("\nParsing descriptions with LLM...")
+    print(f"   Note: This may take several minutes for {len(selected_items)} items")
     try:
-        if os.path.exists("items.pckl"):
+        if False and os.path.exists("items.pckl"):
             with open("items.pckl", "rb") as f:
                 parsed_items = pickle.load(f)
         else:
-            parsed_items = parse_inventory_batch(raw_items)
+            parsed_items = parse_inventory_batch(selected_items)
             with open("items.pckl", "wb") as f:
                 pickle.dump(parsed_items, f)
     except Exception as e:
-        print(f"❌ Failed to parse descriptions: {e}")
+        print(f"Failed to parse descriptions: {e}")
         return {"success": False, "error": f"Parsing failed: {e}"}
 
-    print(f"✅ Parsed {len(parsed_items)} items")
+    print(f"Parsed {len(parsed_items)} items")
 
     # Upsert to database
-    print(f"\n💾 Upserting to database...")
+    print("\nUpserting to database...")
     inserted_count = 0
     updated_count = 0
     error_count = 0
@@ -105,6 +123,7 @@ def import_inventory(
                     # Compute content hash for comparison
                     # Compute content hash for new item
                     properties_json = [prop.model_dump() for prop in item.properties]
+
                     content_hash = compute_content_hash(item)
 
                     # Insert new item
@@ -142,7 +161,7 @@ def import_inventory(
         try:
             session.commit()
         except Exception as e:
-            print(f"❌ Failed to commit final batch: {e}")
+            print(f"Failed to commit final batch: {e}")
             session.rollback()
             return {
                 "success": False,
@@ -153,13 +172,13 @@ def import_inventory(
             }
 
     # Print summary
-    print(f"\n✅ Import completed!")
+    print("\nImport completed!")
     print(f"   Inserted: {inserted_count}")
     print(f"   Updated: {updated_count}")
     print(f"   Errors: {error_count}")
 
     if errors:
-        print(f"\n⚠️  Errors encountered:")
+        print("\nErrors encountered:")
         for error in errors[:10]:  # Show first 10 errors
             print(f"   - {error}")
         if len(errors) > 10:
@@ -178,9 +197,7 @@ def import_inventory(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Import inventory from Excel to database"
-    )
+    parser = argparse.ArgumentParser(description="Import inventory from Excel to database")
     parser.add_argument(
         "--file",
         "-f",
@@ -191,7 +208,7 @@ if __name__ == "__main__":
         "--max-items",
         "-n",
         type=int,
-        default=None,
+        default=500,
         help="Maximum number of items to import (default: None = import all)",
     )
 

@@ -10,10 +10,10 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
-from src.database.operations import compute_content_hash
 from src.models.email import Email
 from src.models.inventory import InventoryMatch, ReviewFlag
 from src.models.product import ProductAnalytics, ProductMention
+from src.utils.compute_content_hash import compute_content_hash
 
 
 def generate_excel_report(
@@ -58,14 +58,12 @@ def generate_excel_report(
 
     # Create email summary
     ws_summary = wb.create_sheet("Email Summary")
-    create_email_summary_sheet(ws_summary, emails)
+    create_email_summary_sheet(ws_summary, emails, all_products)
 
     # Create inventory matches sheet if matches provided
     if product_matches:
         ws_matches = wb.create_sheet("Inventory Matches")
-        _create_inventory_matches_sheet(
-            ws_matches, unique_property_products, product_matches
-        )
+        _create_inventory_matches_sheet(ws_matches, unique_property_products, product_matches)
 
     # Create review flags sheet if flags provided
     if review_flags:
@@ -79,9 +77,7 @@ def generate_excel_report(
     return output_path, analytics
 
 
-def create_product_mentions_sheet(
-    ws: Worksheet, products: List[ProductMention]
-) -> None:
+def create_product_mentions_sheet(ws: Worksheet, products: List[ProductMention]) -> None:
     """
     Create Product Mentions sheet with all product details.
 
@@ -108,9 +104,7 @@ def create_product_mentions_sheet(
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(
-            start_color="CCE5FF", end_color="CCE5FF", fill_type="solid"
-        )
+        cell.fill = PatternFill(start_color="CCE5FF", end_color="CCE5FF", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data
@@ -118,23 +112,17 @@ def create_product_mentions_sheet(
         # Format properties as string
         props_str = ", ".join([f"{p.name}={p.value}" for p in product.properties])
 
-        ws.cell(
-            row=row_idx, column=1, value=_sanitize_for_excel(product.exact_product_text)
-        )
-        ws.cell(
-            row=row_idx, column=2, value=_sanitize_for_excel(product.product_category)
-        )
+        ws.cell(row=row_idx, column=1, value=_sanitize_for_excel(product.exact_product_text))
+        ws.cell(row=row_idx, column=2, value=_sanitize_for_excel(product.product_category))
 
         ws.cell(row=row_idx, column=3, value=_sanitize_for_excel(props_str))
         ws.cell(row=row_idx, column=4, value=_sanitize_for_excel(product.requestor))
         ws.cell(row=row_idx, column=5, value=product.quantity)
         ws.cell(row=row_idx, column=6, value=_sanitize_for_excel(product.unit))
         ws.cell(row=row_idx, column=7, value=_sanitize_for_excel(product.context))
-        ws.cell(
-            row=row_idx, column=8, value=_sanitize_for_excel(product.date_requested)
-        )
+        ws.cell(row=row_idx, column=8, value=_sanitize_for_excel(product.date_requested))
         ws.cell(row=row_idx, column=9, value=_sanitize_for_excel(product.email_subject))
-        ws.cell(row=row_idx, column=10, value=_sanitize_for_excel(product.email_sender))
+        ws.cell(row=row_idx, column=10, value=_sanitize_for_excel(product.requestor))
         ws.cell(row=row_idx, column=12, value=_sanitize_for_excel(product.email_file))
     # Auto-fit columns
     for col_idx, col in enumerate(ws.columns, start=1):
@@ -179,32 +167,23 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(
-            start_color="FFE5CC", end_color="FFE5CC", fill_type="solid"
-        )
+        cell.fill = PatternFill(start_color="FFE5CC", end_color="FFE5CC", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data
     for row_idx, analytic in enumerate(analytics, start=2):
         # Format property variations
         props_str = "; ".join(
-            [
-                f"{key}: {', '.join(values)}"
-                for key, values in analytic.properties_summary.items()
-            ]
+            [f"{key}: {', '.join(values)}" for key, values in analytic.properties_summary.items()]
         )
 
         # Format contexts
         contexts_str = ", ".join(analytic.contexts)
 
         ws.cell(row=row_idx, column=1, value=_sanitize_for_excel(analytic.product_name))
-        ws.cell(
-            row=row_idx, column=2, value=_sanitize_for_excel(analytic.product_category)
-        )
+        ws.cell(row=row_idx, column=2, value=_sanitize_for_excel(analytic.product_category))
         ws.cell(row=row_idx, column=3, value=analytic.total_mentions)
-        ws.cell(
-            row=row_idx, column=4, value=_sanitize_for_excel(analytic.first_mention)
-        )
+        ws.cell(row=row_idx, column=4, value=_sanitize_for_excel(analytic.first_mention))
         ws.cell(row=row_idx, column=5, value=_sanitize_for_excel(analytic.last_mention))
         ws.cell(row=row_idx, column=6, value=analytic.total_quantity)
         ws.cell(row=row_idx, column=7, value=_sanitize_for_excel(props_str))
@@ -229,7 +208,9 @@ def create_analytics_sheet(ws: Worksheet, analytics: List[ProductAnalytics]) -> 
     ws.freeze_panes = "A2"
 
 
-def create_email_summary_sheet(ws: Worksheet, emails: List[Email]) -> None:
+def create_email_summary_sheet(
+    ws: Worksheet, emails: List[Email], products: List[ProductMention]
+) -> None:
     """
     Create Email Summary sheet.
 
@@ -244,34 +225,38 @@ def create_email_summary_sheet(ws: Worksheet, emails: List[Email]) -> None:
         "Sender",
         "Recipients",
         "Date",
+        "Number of Products Mentioned",
         "Has Attachments",
-        "Body Length",
+        "Body Length (words)",
     ]
+
+    # Map email thread_hash to number of products mentioned
+    email_product_count = {email.thread_hash: 0 for email in emails}
+    for product in products:
+        if product.thread_hash in email_product_count:
+            email_product_count[product.thread_hash] += 1
 
     # Write headers
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(
-            start_color="E5FFCC", end_color="E5FFCC", fill_type="solid"
-        )
+        cell.fill = PatternFill(start_color="E5FFCC", end_color="E5FFCC", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data
     for row_idx, email in enumerate(emails, start=2):
         recipients_str = ", ".join(email.metadata.recipients)
         has_attachments = "Yes" if email.attachments else "No"
-        body_length = len(email.cleaned_body) if email.cleaned_body else len(email.body)
+        body_length = len(email.cleaned_body.split()) if email.cleaned_body else "Unknown"
 
         ws.cell(row=row_idx, column=1, value=_sanitize_for_excel(email.file_path))
-        ws.cell(
-            row=row_idx, column=2, value=_sanitize_for_excel(email.metadata.subject)
-        )
+        ws.cell(row=row_idx, column=2, value=_sanitize_for_excel(email.metadata.subject))
         ws.cell(row=row_idx, column=3, value=_sanitize_for_excel(email.metadata.sender))
         ws.cell(row=row_idx, column=4, value=_sanitize_for_excel(recipients_str))
         ws.cell(row=row_idx, column=5, value=_sanitize_for_excel(email.metadata.date))
-        ws.cell(row=row_idx, column=6, value=has_attachments)
-        ws.cell(row=row_idx, column=7, value=body_length)
+        ws.cell(row=row_idx, column=6, value=email_product_count.get(email.thread_hash, 0))
+        ws.cell(row=row_idx, column=7, value=has_attachments)
+        ws.cell(row=row_idx, column=8, value=body_length)
 
     # Auto-fit columns
     for col_idx, col in enumerate(ws.columns, start=1):
@@ -355,6 +340,52 @@ def _calculate_analytics(products: List[ProductMention]) -> List[ProductAnalytic
     return analytics
 
 
+def _write_product_info(row_idx: int, ws: Worksheet, product: ProductMention) -> int:
+    """
+    Helper function which writes the product info to the current row
+    """
+    col_idx = 1
+    ws.cell(  # Product Text
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(product.exact_product_text),
+    )
+    col_idx += 1
+    ws.cell(  # Product Name
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(product.product_name),
+    )
+    col_idx += 1
+    ws.cell(  # Category
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(product.product_category),
+    )
+    col_idx += 1
+    ws.cell(  # Product Properties
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(
+            "; ".join([f"{value.name}: {value.value}" for value in product.properties])
+        ),
+    )
+    col_idx += 1
+    ws.cell(  # Email Subject
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(product.email_subject),
+    )
+    col_idx += 1
+    ws.cell(  # Email Sender
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(product.email_sender),
+    )
+    col_idx += 1
+    return col_idx
+
+
 def _create_inventory_matches_sheet(
     ws: Worksheet,
     products: List[ProductMention],
@@ -378,6 +409,7 @@ def _create_inventory_matches_sheet(
         "Sender",
         "Inventory Item #",
         "Inventory Description",
+        "Number of matched properties",
         "Inventory Properties",
         "Match Score",
         "Rank",
@@ -385,14 +417,11 @@ def _create_inventory_matches_sheet(
         "Missing Properties",
         "Match Reasoning",
     ]
-
     # Write headers
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(
-            start_color="D0F0C0", end_color="D0F0C0", fill_type="solid"
-        )
+        cell.fill = PatternFill(start_color="D0F0C0", end_color="D0F0C0", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data
@@ -400,30 +429,16 @@ def _create_inventory_matches_sheet(
     for product in products:
         matches = product_matches.get(compute_content_hash(product), [])
 
+        # Show product with no matches
         if not matches:
-            # Show product with no matches
-            ws.cell(
+            col_idx = _write_product_info(row_idx, ws, product)
+            ws.cell(  # No Matches
                 row=row_idx,
-                column=1,
-                value=_sanitize_for_excel(product.exact_product_text),
+                column=col_idx,
+                value="NO MATCHES",
             )
-            ws.cell(
-                row=row_idx, column=2, value=_sanitize_for_excel(product.product_name)
-            )
-            ws.cell(
-                row=row_idx,
-                column=3,
-                value=_sanitize_for_excel(product.product_category),
-            )
-            ws.cell(
-                row=row_idx, column=4, value=_sanitize_for_excel(product.email_subject)
-            )
-            ws.cell(
-                row=row_idx, column=5, value=_sanitize_for_excel(product.email_sender)
-            )
-            ws.cell(row=row_idx, column=6, value="NO MATCHES")
             # Highlight no match rows in light red
-            for col in range(1, 13):
+            for col in range(1, 16):
                 ws.cell(row=row_idx, column=col).fill = PatternFill(
                     start_color="FFD7D7", end_color="FFD7D7", fill_type="solid"
                 )
@@ -431,85 +446,42 @@ def _create_inventory_matches_sheet(
         else:
             # Show each match as a separate row
             for match in matches:
-                ws.cell(
+                col_idx = _write_product_info(row_idx, ws, product)
+                ws.cell(  # Inventory Item #
                     row=row_idx,
-                    column=1,
-                    value=_sanitize_for_excel(product.exact_product_text),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=2,
-                    value=_sanitize_for_excel(product.product_name),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=3,
-                    value=_sanitize_for_excel(product.product_category),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=4,
-                    value=_sanitize_for_excel(
-                        "; ".join(
-                            [
-                                f"{value.name}: {value.value}"
-                                for value in product.properties
-                            ]
-                        )
-                    ),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=5,
-                    value=_sanitize_for_excel(product.email_subject),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=6,
-                    value=_sanitize_for_excel(product.email_sender),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=7,
+                    column=col_idx,
                     value=_sanitize_for_excel(match.inventory_item_number),
                 )
-                ws.cell(
+                col_idx += 1
+                ws.cell(  # Inventory Description
                     row=row_idx,
-                    column=8,
+                    column=col_idx,
                     value=_sanitize_for_excel(match.inventory_description),
                 )
-                ws.cell(
+                col_idx += 1
+                ws.cell(  # Number of matched properties
                     row=row_idx,
-                    column=9,
+                    column=col_idx,
+                    value=len(match.matched_properties),
+                )
+                col_idx += 1
+                ws.cell(  # Inventory Properties
+                    row=row_idx,
+                    column=col_idx,
                     value=_sanitize_for_excel(
                         "; ".join(
-                            [
-                                f"{prop.name}: {prop.value}"
-                                for prop in match.inventory_properties
-                            ]
+                            [f"{prop.name}: {prop.value}" for prop in match.inventory_properties]
                         )
                     ),
                 )
-                ws.cell(row=row_idx, column=10, value=match.match_score)
-                ws.cell(row=row_idx, column=11, value=match.rank)
-                ws.cell(
+                col_idx += 1
+                ws.cell(  # Match Score
                     row=row_idx,
-                    column=12,
-                    value=_sanitize_for_excel(", ".join(match.matched_properties)),
+                    column=col_idx,
+                    value=match.match_score,
                 )
-                ws.cell(
-                    row=row_idx,
-                    column=13,
-                    value=_sanitize_for_excel(", ".join(match.missing_properties)),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=14,
-                    value=_sanitize_for_excel(match.match_reasoning),
-                )
-
                 # Color code based on match score
-                score_cell = ws.cell(row=row_idx, column=10)
+                score_cell = ws.cell(row=row_idx, column=col_idx)
                 if match.match_score >= 0.8:
                     # High confidence - green
                     score_cell.fill = PatternFill(
@@ -525,6 +497,33 @@ def _create_inventory_matches_sheet(
                     score_cell.fill = PatternFill(
                         start_color="FFC7CE", end_color="FFC7CE", fill_type="solid"
                     )
+
+                col_idx += 1
+                ws.cell(  # Rank
+                    row=row_idx,
+                    column=col_idx,
+                    value=match.rank
+                    if len(matches) > 1
+                    else "",  # If there are multiple matches, show rank
+                )
+                col_idx += 1
+                ws.cell(  # Matched Properties
+                    row=row_idx,
+                    column=col_idx,
+                    value=_sanitize_for_excel(", ".join(match.matched_properties)),
+                )
+                col_idx += 1
+                ws.cell(  # Missing Properties
+                    row=row_idx,
+                    column=col_idx,
+                    value=_sanitize_for_excel(", ".join(match.missing_properties)),
+                )
+                col_idx += 1
+                ws.cell(  # Match Reasoning
+                    row=row_idx,
+                    column=col_idx,
+                    value=_sanitize_for_excel(match.match_reasoning),
+                )
 
                 row_idx += 1
 
@@ -570,9 +569,7 @@ def _create_review_flags_sheet(ws: Worksheet, review_flags: List[ReviewFlag]) ->
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(
-            start_color="FFD966", end_color="FFD966", fill_type="solid"
-        )
+        cell.fill = PatternFill(start_color="FFD966", end_color="FFD966", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Write data

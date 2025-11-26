@@ -3,10 +3,9 @@
 from pathlib import Path
 from typing import List
 
-from src.analysis_workflow.utils import clean_signature, read_msg_files_from_directory
-from src.database.operations import compute_content_hash
+from src.analysis_workflow.utils import read_msg_files_from_directory_batch
+from src.models.analysis_workflow import WorkflowState
 from src.models.email import Email
-from src.models.workflow import WorkflowState
 
 
 def ingest_emails(state: WorkflowState) -> WorkflowState:
@@ -23,12 +22,7 @@ def ingest_emails(state: WorkflowState) -> WorkflowState:
         input_dir = Path(state.input_directory)
 
         # Read all .msg files from directory
-        emails: List[Email] = read_msg_files_from_directory(input_dir, recursive=True)
-
-        # Clean signatures from email bodies and compute content hash
-        for email in emails:
-            email.cleaned_body = clean_signature(email.body)
-            email.thread_hash = compute_content_hash(email)
+        emails: List[Email] = read_msg_files_from_directory_batch(input_dir, recursive=True)
 
         state.emails = emails
 

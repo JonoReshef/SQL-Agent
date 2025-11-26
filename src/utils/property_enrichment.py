@@ -2,6 +2,7 @@
 
 from typing import List
 
+from src.analysis_workflow.nodes.matching.utils.hierarchy import get_hierarchy_for_category
 from src.config.config_loader import load_config
 from src.models.configs import ProductConfig
 from src.models.product import ProductProperty
@@ -26,7 +27,7 @@ def enrich_properties_with_metadata(
         config: Optional ProductConfig (loaded if not provided)
 
     Returns:
-        List of enriched ProductProperty objects with correct value_type and priority
+        List of enriched ProductProperty objects with correct value_type, priority and the properties are sorted based on hierarchy order.
 
     Example:
         >>> props = [
@@ -41,6 +42,13 @@ def enrich_properties_with_metadata(
         config = CONFIG
 
     enriched_properties = []
+
+    hierarchy = get_hierarchy_for_category(category)  # Validate category exists
+
+    if hierarchy is not None:
+        # Sort properties based on hierarchy order
+        property_order = {prop_name: idx for idx, prop_name in enumerate(hierarchy.property_order)}
+        properties.sort(key=lambda p: property_order.get(p.name, len(property_order)))
 
     for prop in properties:
         # Get metadata from config

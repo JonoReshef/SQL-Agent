@@ -1,15 +1,17 @@
 """Unit tests for LLM-based product extraction"""
 
-import pytest
+import json
 from datetime import datetime
-from src.llm.extractors import (
-    extract_products_from_email,
+from unittest.mock import Mock, patch
+
+import pytest
+
+from analysis_workflow.nodes.extraction.extractors import (
     deduplicate_ai_product_mentions,
+    extract_products_from_email,
 )
 from src.models.email import Email, EmailMetadata
 from src.models.product import ProductMention, ProductProperty
-import json
-from unittest.mock import Mock, patch
 
 
 class TestProductExtraction:
@@ -379,12 +381,8 @@ class TestDeduplication:
                     ProductProperty(name="material", value="Viton", confidence=1.0),
                     ProductProperty(name="color", value="orange", confidence=1.0),
                     ProductProperty(name="size", value='1"', confidence=1.0),
-                    ProductProperty(
-                        name="pressure_rating", value="150LB", confidence=1.0
-                    ),
-                    ProductProperty(
-                        name="standard", value="ASME B16.21", confidence=1.0
-                    ),
+                    ProductProperty(name="pressure_rating", value="150LB", confidence=1.0),
+                    ProductProperty(name="standard", value="ASME B16.21", confidence=1.0),
                 ],
                 quantity=50,
                 unit="pcs",
@@ -403,12 +401,8 @@ class TestDeduplication:
                     ProductProperty(name="material", value="Viton", confidence=1.0),
                     ProductProperty(name="color", value="orange", confidence=1.0),
                     ProductProperty(name="size", value='1"', confidence=1.0),
-                    ProductProperty(
-                        name="pressure_rating", value="150LB", confidence=1.0
-                    ),
-                    ProductProperty(
-                        name="standard", value="ASME B16.21", confidence=1.0
-                    ),
+                    ProductProperty(name="pressure_rating", value="150LB", confidence=1.0),
+                    ProductProperty(name="standard", value="ASME B16.21", confidence=1.0),
                 ],
                 quantity=50,
                 unit="pcs",

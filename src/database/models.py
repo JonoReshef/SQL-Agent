@@ -131,12 +131,8 @@ class InventoryMatch(Base):
     __tablename__ = "inventory_matches"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    product_mention_id = Column(
-        Integer, ForeignKey("product_mentions.id"), nullable=False
-    )
-    inventory_item_id = Column(
-        Integer, ForeignKey("inventory_items.id"), nullable=False
-    )
+    product_mention_id = Column(Integer, ForeignKey("product_mentions.id"), nullable=False)
+    inventory_item_id = Column(Integer, ForeignKey("inventory_items.id"), nullable=False)
 
     # Match scoring
     match_score = Column(Float, nullable=False)  # 0.0 to 1.0
@@ -144,12 +140,8 @@ class InventoryMatch(Base):
     content_hash = Column(String(64), nullable=False)  # SHA256 of match content
 
     # Match details
-    matched_properties = Column(
-        JSON, default=list
-    )  # List of property names that matched
-    missing_properties = Column(
-        JSON, default=list
-    )  # Properties in email but not inventory
+    matched_properties = Column(JSON, default=list)  # List of property names that matched
+    missing_properties = Column(JSON, default=list)  # Properties in email but not inventory
     match_reasoning = Column(Text)  # Human-readable explanation
 
     # Metadata
@@ -174,9 +166,7 @@ class MatchReviewFlag(Base):
     __tablename__ = "match_review_flags"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    product_mention_id = Column(
-        Integer, ForeignKey("product_mentions.id"), nullable=False
-    )
+    product_mention_id = Column(Integer, ForeignKey("product_mentions.id"), nullable=False)
 
     # Flag details
     issue_type = Column(

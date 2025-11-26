@@ -5,14 +5,14 @@ from datetime import datetime
 import pytest
 from openpyxl import load_workbook
 
-from src.models.email import Email, EmailMetadata
-from src.models.product import ProductAnalytics, ProductMention, ProductProperty
-from workflow.nodes.reporting.excel_generator import (
+from analysis_workflow.nodes.reporting.excel_generator import (
     create_analytics_sheet,
     create_email_summary_sheet,
     create_product_mentions_sheet,
     generate_excel_report,
 )
+from src.models.email import Email, EmailMetadata
+from src.models.product import ProductAnalytics, ProductMention, ProductProperty
 
 
 class TestExcelReportGeneration:
@@ -85,9 +85,7 @@ class TestExcelReportGeneration:
                 exact_product_text='50 ft of 1/2" Threaded Rod',
                 product_name="Threaded Rod",
                 product_category="Threaded Rod",
-                properties=[
-                    ProductProperty(name="diameter", value='1/2"', confidence=1.0)
-                ],
+                properties=[ProductProperty(name="diameter", value='1/2"', confidence=1.0)],
                 quantity=50,
                 unit="ft",
                 context="order",

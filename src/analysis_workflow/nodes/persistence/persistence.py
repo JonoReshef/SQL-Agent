@@ -1,12 +1,12 @@
 """Workflow node for database persistence"""
 
-from src.models.workflow import WorkflowState
 from src.database.operations import (
     store_emails,
-    store_product_mentions,
     store_inventory_matches,
+    store_product_mentions,
     store_review_flags,
 )
+from src.models.analysis_workflow import WorkflowState
 
 
 def persist_to_database(state: WorkflowState) -> WorkflowState:
@@ -30,9 +30,7 @@ def persist_to_database(state: WorkflowState) -> WorkflowState:
     if state.emails:
         try:
             result = store_emails(state.emails)
-            print(
-                f"   Emails: {result['inserted']} inserted, {result['updated']} updated"
-            )
+            print(f"   Emails: {result['inserted']} inserted, {result['updated']} updated")
             if result["errors"]:
                 print(f"   ⚠️  {result['errors']} email errors")
                 state.errors.extend(result["error_details"])
@@ -45,9 +43,7 @@ def persist_to_database(state: WorkflowState) -> WorkflowState:
     if state.extracted_products:
         try:
             result = store_product_mentions(state.extracted_products, state.emails)
-            print(
-                f"   Products: {result['inserted']} inserted, {result['updated']} updated"
-            )
+            print(f"   Products: {result['inserted']} inserted, {result['updated']} updated")
             if result["errors"]:
                 print(f"   ⚠️  {result['errors']} product errors")
                 state.errors.extend(result["error_details"])
@@ -61,7 +57,7 @@ def persist_to_database(state: WorkflowState) -> WorkflowState:
         try:
             result = store_inventory_matches(state.product_matches, state.extracted_products)
             print(
-                f"   Matches: {result['inserted']} inserted, {result['updated']} updated"
+                f"   Matches: {result['inserted']} inserted, {result['updated']} updated, {result['skipped']} skipped"
             )
             if result["errors"]:
                 print(f"   ⚠️  {result['errors']} match errors")
@@ -75,9 +71,7 @@ def persist_to_database(state: WorkflowState) -> WorkflowState:
     if state.matching_enabled and state.review_flags:
         try:
             result = store_review_flags(state.review_flags, state.extracted_products)
-            print(
-                f"   Flags: {result['inserted']} inserted, {result['updated']} updated"
-            )
+            print(f"   Flags: {result['inserted']} inserted, {result['updated']} updated")
             if result["errors"]:
                 print(f"   ⚠️  {result['errors']} flag errors")
                 state.errors.extend(result["error_details"])

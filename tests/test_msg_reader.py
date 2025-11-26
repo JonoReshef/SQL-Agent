@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from src.analysis_workflow.utils import read_msg_file, read_msg_files_from_directory
 from src.models.email import Email, EmailMetadata
-from src.workflow.utils import read_msg_file, read_msg_files_from_directory
 
 
 class TestMsgReader:
@@ -16,9 +16,7 @@ class TestMsgReader:
     def test_read_msg_file_basic_fields(self):
         """Test that basic email fields are extracted correctly"""
         # Test with actual .msg file from the data directory
-        msg_path = Path(
-            "data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg"
-        )
+        msg_path = Path("data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg")
 
         if not msg_path.exists():
             pytest.skip(f"Test file not found: {msg_path}")
@@ -40,9 +38,7 @@ class TestMsgReader:
     @pytest.mark.unit
     def test_read_msg_file_metadata_fields(self):
         """Test that metadata fields are extracted with correct types"""
-        msg_path = Path(
-            "data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg"
-        )
+        msg_path = Path("data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg")
 
         if not msg_path.exists():
             pytest.skip(f"Test file not found: {msg_path}")
@@ -65,9 +61,7 @@ class TestMsgReader:
     @pytest.mark.unit
     def test_read_msg_file_body_extraction(self):
         """Test that email body is extracted and non-empty"""
-        msg_path = Path(
-            "data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg"
-        )
+        msg_path = Path("data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg")
 
         if not msg_path.exists():
             pytest.skip(f"Test file not found: {msg_path}")
@@ -85,9 +79,7 @@ class TestMsgReader:
     @pytest.mark.unit
     def test_read_msg_file_attachments(self):
         """Test that attachments list is present (empty or populated)"""
-        msg_path = Path(
-            "data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg"
-        )
+        msg_path = Path("data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg")
 
         if not msg_path.exists():
             pytest.skip(f"Test file not found: {msg_path}")
@@ -179,9 +171,7 @@ class TestMsgReader:
     @pytest.mark.unit
     def test_email_pydantic_validation(self):
         """Test that parsed emails validate against Pydantic models"""
-        msg_path = Path(
-            "data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg"
-        )
+        msg_path = Path("data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg")
 
         if not msg_path.exists():
             pytest.skip(f"Test file not found: {msg_path}")
@@ -206,21 +196,13 @@ class TestMsgReader:
         fw_path = Path("data/sales@westbrand.ca/Recoverable-Items/Deletions/FW RFQ.msg")
         if fw_path.exists():
             email = read_msg_file(fw_path)
-            assert (
-                "FW" in email.metadata.subject.upper()
-                or "RE" in email.metadata.subject.upper()
-            )
+            assert "FW" in email.metadata.subject.upper() or "RE" in email.metadata.subject.upper()
 
         # Test RE: prefix
-        re_path = Path(
-            "data/sales@westbrand.ca/Recoverable-Items/Deletions/RE Pricing.msg"
-        )
+        re_path = Path("data/sales@westbrand.ca/Recoverable-Items/Deletions/RE Pricing.msg")
         if re_path.exists():
             email = read_msg_file(re_path)
-            assert (
-                "RE" in email.metadata.subject.upper()
-                or "FW" in email.metadata.subject.upper()
-            )
+            assert "RE" in email.metadata.subject.upper() or "FW" in email.metadata.subject.upper()
 
 
 class TestMsgReaderErrorHandling:

@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.workflow.utils import clean_signature, strip_html_tags
+from src.analysis_workflow.utils import clean_signature, strip_html_tags
 
 
 class TestSignatureCleaner:

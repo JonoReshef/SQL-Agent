@@ -16,8 +16,6 @@ from src.models.product import (
 )
 from src.utils.property_enrichment import enrich_properties_with_metadata
 
-logging.getLogger("httpx").setLevel(logging.WARNING)
-
 structured_llm = get_llm_client(output_structure=ProductExtractionResult)
 
 
@@ -45,11 +43,29 @@ def build_extraction_prompt(email: Email) -> str:
         0. A comprehensive free text snippet from the email that identified the product. Include any surrounding context that that helps identify the product. Focus on the extracting product details accurately. This should only contain the details of a single product with a single combination of properties, quantity, and unit.
         1. The category of product (using the supplied definitions) extracted from the free text snippet. If it is not clear, use "Unknown".
         2. The name of the product extracted from the free text snippet. If it is not clear, use "Unknown".
-        3. A list of properties with name, value, and confidence score. Set the value_type to "<unknown>" as this will be added automatically from the config.
+        3. A list of properties with name, value, and confidence score. Set the value_type to "<unknown>" as this will be added automatically from the config. If no properties are mentioned, return an empty list. If there are multiple values for a property, combine them into a single value separated by "/".
         4. Quantity if mentioned extracted from the free text snippet.
         5. Unit of measurement if mentioned extracted from the free text snippet.
         6. Context explaining the intent of the message from the overall email (quote_request, order, inquiry, pricing_request, etc.).
         7. Identify who is requesting the product in the 'requestor' attribute. This should be identifiable from the email content where the email address of the person is labelled "From" or similar above the content. Use the email sender's address if present and ONLY use the email. If this is not available then use other relevant information available in the email that indicates the requestor.
+
+        Examples of requestor identification:
+        Example 1:
+        From: Scott Patrick <scottp@nutsupply.com>
+        Sent: Monday, November 3, 2025 2:31 PM
+        To: Dan Manspan <sales@eastbrand.ca>
+        Subject: Price and availability
+
+        Requestor = scottp@nutsupply.com
+
+        Example 2:
+        From: Dan Manspan </O=EXCHANGELABS/OU=EXCHANGE ADMINISTRATIVE GROUP (FYIBOHF23SPDT)/CN=RECIPIENTS/CN=893ED34062DB489F89D236F6EA0D88C4-BB00E497-2E>
+        To: Scott Patrick <scottp@nutsupply.com>
+
+        Requestor = Dan Manspan
+
+        However if Example 1 and 2 are in the same email chain, and the requestor is identified as "Dan Manspan", reason that the email address for "From" in a previous email connected "Dan Manspan" to the email address "sales@eastbrand.ca" and use that as the requestor.
+
         8. The date the product was requested if mentioned in the free text snippet. This is identifiable from the email metadata which often includes a datetime stamp of when the email was sent.
 
         Follow the below output structure:
@@ -146,17 +162,7 @@ def extract_products_from_email(email: Email) -> List[ProductMention]:
         # Deduplicate AI-generated product mentions
         deduplicated_products = deduplicate_ai_product_mentions(products)
 
-        # Log deduplication statistics
-        if len(products) > len(deduplicated_products):
-            removed_count = len(products) - len(deduplicated_products)
-            print(
-                f"\nDeduplication: Removed {removed_count} duplicate product mention(s)"
-            )
-            print(
-                f"Total: {len(products)} → {len(deduplicated_products)} unique mentions"
-            )
-
-        return products
+        return deduplicated_products
 
     except Exception as e:
         print(f"Error extracting products from email {email.file_path}: {e}")
@@ -237,11 +243,9 @@ def extract_products_batch(emails: List[Email]) -> List[ProductMention]:
         all_products.extend(products)
     """
 
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=50) as executor:
         # Submit all tasks
-        future_to_task = {
-            executor.submit(extract_products_from_email, email) for email in emails
-        }
+        future_to_task = {executor.submit(extract_products_from_email, email) for email in emails}
 
         for future in tqdm(future_to_task, desc="Processing parameters"):
             result = future.result()
