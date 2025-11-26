@@ -17,7 +17,8 @@ A modern, responsive chat interface for the WestBrand SQL Chat Agent built with 
 ### Prerequisites
 
 - Node.js 18+ or Bun
-- Backend server running at `http://localhost:8000` (or configured URL)
+- Backend server running at `http://localhost:8000` (or configured URL via environment variable)
+- Docker Compose (recommended for full-stack deployment)
 
 ### Installation
 
@@ -49,6 +50,23 @@ npm run sync-types
 ```
 
 The application will be available at [http://localhost:3000](http://localhost:3000)
+
+### Docker Deployment (Recommended)
+
+```bash
+# Start all services (PostgreSQL + Redis + Backend + Frontend)
+cd ..
+docker-compose up -d
+
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000
+
+# View logs
+docker-compose logs -f frontend
+
+# Stop all services
+docker-compose down
+```
 
 ### Building for Production
 
@@ -162,15 +180,19 @@ All components use functional React patterns with hooks - no class components.
 
 ### Local Storage for Persistence
 
-Conversations are stored locally in the browser for quick access. Future versions may add server-side storage.
+Conversations are stored locally in the browser for quick access and offline support. Backend provides thread-based conversation history via PostgreSQL checkpointer.
 
 ### Streaming First
 
-The application prioritizes streaming responses for better UX, with non-streaming as a fallback.
+The application prioritizes streaming responses (Server-Sent Events) for better UX, with non-streaming as a fallback.
 
 ### Component Separation
 
 Helper components are organized in `helpers/` directories alongside their parent components for better maintainability.
+
+### Type Safety
+
+All types are auto-generated from backend OpenAPI schema to ensure frontend/backend type consistency.
 
 ## Browser Support
 
