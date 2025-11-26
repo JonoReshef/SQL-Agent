@@ -2,37 +2,46 @@
 
 ## Overview
 
-A **production-ready** Python-based system for analyzing emails (`.msg` files) to extract product mentions, match them against inventory using **database-driven hierarchical filtering**, persist all data to **PostgreSQL**, and generate comprehensive **5-sheet Excel reports**. The system uses **Azure OpenAI (GPT-5)** orchestrated through **LangGraph** workflows with **fuzzy matching** for inventory reconciliation.
+A **production-ready, full-stack** system for analyzing emails (`.msg` files) to extract product mentions, match them against inventory using **database-driven hierarchical filtering**, persist all data to **PostgreSQL**, and generate comprehensive **5-sheet Excel reports**. The system also includes a **natural language SQL chat interface** for querying the database. The system includes:
+
+- **Email Analysis Backend**: Python-based analysis engine using **Azure OpenAI (gpt-5 with low reasoning effort)** orchestrated through **LangGraph** workflows with **fuzzy matching** for inventory reconciliation
+- **SQL Chat Backend**: LangGraph-based natural language to SQL translation using **Azure OpenAI (gpt-4.1)** with conversation persistence and query transparency
+- **REST API**: FastAPI server with Server-Sent Events (SSE) streaming for real-time chat responses
+- **Frontend**: Modern Next.js 14 web interface with TypeScript and Tailwind CSS for interactive SQL chat
+- **Infrastructure**: Docker Compose orchestration for PostgreSQL, Redis, backend, and frontend services
 
 ## Updated Architecture (November 2025)
 
 ### Key Design Decisions
 
 1. **No Thread Reconstruction**: Each `.msg` file is analyzed as a single entity. No email threading or conversation reconstruction is performed.
-2. **Synchronous Processing**: All operations are synchronous (no async/await) for simplicity. LLM calls use `.invoke()` not `.ainvoke()`.
-3. **Test-Driven Development**: Comprehensive unit and integration tests using `pytest`. Currently 133/134 tests passing (99.3%).
+2. **Synchronous Processing**: All email analysis operations are synchronous (no async/await) for simplicity. LLM calls use `.invoke()` not `.ainvoke()`. FastAPI server uses async for HTTP handling.
+3. **Test-Driven Development**: Comprehensive unit and integration tests using `pytest`. Test suite includes 24 test files covering all major components.
 4. **Database-First Architecture**: PostgreSQL 17 with content hashing and thread_hash as primary key for deduplication.
 5. **Hierarchical Matching**: Database-driven property-based filtering (10-100x faster than linear scan) with fuzzy matching.
 6. **Natural Language Database Interface**: SQL chat workflow enables querying the database with plain English questions.
 
 ### Technology Stack
 
-| Component              | Technology             | License    | Purpose                             |
-| ---------------------- | ---------------------- | ---------- | ----------------------------------- |
-| **Database**           | PostgreSQL 17          | PostgreSQL | Data persistence with pgvector      |
-| **ORM**                | SQLAlchemy 2.0         | MIT        | Database operations and models      |
-| **Email Parsing**      | extract-msg            | MIT        | Parse Outlook .msg files            |
-| **HTML Processing**    | BeautifulSoup4         | MIT        | Strip HTML from email bodies        |
-| **AI Orchestration**   | LangGraph              | MIT        | State machine workflow              |
-| **LLM**                | AzureChatOpenAI        | MIT        | Product extraction via Azure OpenAI |
-| **Fuzzy Matching**     | rapidfuzz              | MIT        | Hierarchical inventory matching     |
-| **Data Models**        | Pydantic v2            | MIT        | Type-safe data structures           |
-| **Configuration**      | PyYAML                 | MIT        | Product config management           |
-| **Excel Output**       | openpyxl               | MIT        | Generate Excel reports              |
-| **Caching**            | Redis                  | BSD        | LLM response caching                |
-| **API Server**         | FastAPI                | MIT        | REST API with streaming support     |
-| **Conversation State** | LangGraph Checkpointer | MIT        | Persistent conversation history     |
-| **Testing**            | pytest                 | MIT        | Unit & integration tests            |
+| Component              | Technology             | License    | Purpose                                                          |
+| ---------------------- | ---------------------- | ---------- | ---------------------------------------------------------------- |
+| **Database**           | PostgreSQL 17          | PostgreSQL | Data persistence with pgvector                                   |
+| **ORM**                | SQLAlchemy 2.0         | MIT        | Database operations and models                                   |
+| **Email Parsing**      | extract-msg            | MIT        | Parse Outlook .msg files                                         |
+| **HTML Processing**    | BeautifulSoup4         | MIT        | Strip HTML from email bodies                                     |
+| **AI Orchestration**   | LangGraph              | MIT        | State machine workflow                                           |
+| **LLM**                | AzureChatOpenAI        | MIT        | Product extraction (gpt-5) & SQL chat (gpt-4.1) via Azure OpenAI |
+| **Fuzzy Matching**     | rapidfuzz              | MIT        | Hierarchical inventory matching                                  |
+| **Data Models**        | Pydantic v2            | MIT        | Type-safe data structures                                        |
+| **Configuration**      | PyYAML                 | MIT        | Product config management                                        |
+| **Excel Output**       | openpyxl               | MIT        | Generate Excel reports                                           |
+| **Caching**            | Redis                  | BSD        | LLM response caching                                             |
+| **API Server**         | FastAPI                | MIT        | REST API with streaming support                                  |
+| **Conversation State** | LangGraph Checkpointer | MIT        | Persistent conversation history                                  |
+| **Frontend**           | Next.js 14             | MIT        | React-based web UI with TypeScript                               |
+| **UI Components**      | Tailwind CSS           | MIT        | Responsive design system                                         |
+| **Streaming UI**       | Server-Sent Events     | W3C        | Real-time response streaming                                     |
+| **Testing**            | pytest                 | MIT        | Unit & integration tests                                         |
 
 ## Project Structure
 
@@ -40,6 +49,30 @@ A **production-ready** Python-based system for analyzing emails (`.msg` files) t
 WestBrand/
 ├── config/
 │   └── products_config.yaml        # Product definitions & hierarchies
+├── frontend/                        # Next.js web interface
+│   ├── app/                        # Next.js app router
+│   │   ├── chat/                   # Chat page
+│   │   ├── layout.tsx              # Root layout
+│   │   └── page.tsx                # Home page
+│   ├── components/                 # React components
+│   │   ├── ChatInterface.tsx       # Main chat container
+│   │   ├── ChatSidebar.tsx         # Thread management
+│   │   ├── ChatMessages.tsx        # Message display
+│   │   ├── ChatInput.tsx           # Input field
+│   │   └── helpers/                # Helper components
+│   ├── hooks/                      # Custom React hooks
+│   │   ├── useChatStream.ts        # SSE streaming logic
+│   │   ├── useChatThreads.ts       # Thread management
+│   │   └── useLocalStorage.ts      # Local storage wrapper
+│   ├── lib/                        # Utilities
+│   │   ├── api.ts                  # API client
+│   │   └── utils.ts                # Helper functions
+│   ├── types/                      # TypeScript types
+│   │   ├── interfaces.ts           # Shared interfaces
+│   │   └── server/                 # Auto-generated from API
+│   ├── Dockerfile                  # Frontend container
+│   ├── package.json                # npm dependencies
+│   └── README.md                   # Frontend documentation
 ├── src/
 │   ├── models/
 │   │   ├── email.py                # Email & EmailMetadata models
@@ -64,8 +97,9 @@ WestBrand/
 │   │       │       └── normalizer.py   # Property normalization
 │   │       ├── persistence/        # Store to database
 │   │       └── reporting/          # Generate 5-sheet Excel
+│   ├── server/
+│   │   └── server.py               # FastAPI REST API (unified endpoint)
 │   ├── chat_workflow/
-│   │   ├── api.py                  # FastAPI REST server with streaming
 │   │   ├── cli.py                  # CLI interface for testing
 │   │   ├── graph.py                # LangGraph SQL chat workflow (4 nodes)
 │   │   ├── prompts.py              # System prompts for SQL generation
@@ -86,7 +120,10 @@ WestBrand/
 │   │   └── extractors.py          # Product extraction logic
 │   ├── config/
 │   │   └── config_loader.py       # Load YAML configuration
-│   └── main.py                    # CLI entry point
+│   ├── models/
+│   │   ├── server.py              # FastAPI request/response models
+│   │   └── ...                     # Other models
+│   └── main.py                    # CLI entry point for email analysis
 ├── scripts/
 │   ├── import_inventory.py        # Import inventory to database
 │   └── setup_database.py          # Initialize database schema
@@ -105,7 +142,8 @@ WestBrand/
 │       └── test_db_wrapper.py     # Database wrapper tests
 ├── data/                          # Email .msg files
 ├── output/                        # Generated Excel reports
-├── docker-compose.yml             # PostgreSQL + Redis containers
+├── docker-compose.yml             # Full stack: PostgreSQL + Redis + Backend + Frontend
+├── Dockerfile                     # Backend container
 ├── .env                           # Azure + Database credentials
 ├── requirements.txt               # Python dependencies
 ├── pyproject.toml                 # Project metadata & pytest config
@@ -170,7 +208,7 @@ WestBrand/
 
 - ✅ 4-node LangGraph workflow: enrich_question → generate_query ↔ execute_query → generate_explanations
 - ✅ Question enrichment to expand user queries for better intent understanding
-- ✅ Natural language to SQL translation using Azure OpenAI GPT-5
+- ✅ Natural language to SQL translation using Azure OpenAI gpt-4.1
 - ✅ PostgreSQL checkpointer for conversation persistence (thread-based)
 - ✅ Redis caching for LLM responses (reduces redundant API calls)
 - ✅ Query transparency: all SQL displayed with AI-generated explanations
@@ -178,7 +216,43 @@ WestBrand/
 - ✅ CLI interface for interactive testing
 - ✅ Read-only query validation (SELECT only)
 - ✅ Domain-specific system prompts for WestBrand database
-- 🔄 FastAPI REST API (may need updates for current workflow)
+- ✅ **anticipate_complexity** parameter for thorough vs. direct analysis
+
+### 8. FastAPI REST API (`src/server/server.py`)
+
+- ✅ Unified REST API endpoint combining email analysis and SQL chat
+- ✅ Server-Sent Events (SSE) streaming for real-time responses
+- ✅ Non-streaming fallback endpoint for compatibility
+- ✅ CORS middleware for frontend integration
+- ✅ Conversation history endpoint (`/history/{thread_id}`)
+- ✅ Health check endpoint for monitoring
+- ✅ Pydantic models for request/response validation
+- ✅ Status updates during query processing
+- ✅ Query transparency with AI-generated explanations
+
+### 9. Next.js Frontend (`frontend/`)
+
+- ✅ Modern React 18 with TypeScript and Next.js 14
+- ✅ Real-time streaming chat interface using Server-Sent Events
+- ✅ Multi-thread conversation management
+- ✅ SQL query display with syntax highlighting
+- ✅ Responsive mobile-first design with Tailwind CSS
+- ✅ Local storage for conversation persistence
+- ✅ Auto-generated TypeScript types from OpenAPI schema
+- ✅ Copy-to-clipboard for SQL queries
+- ✅ Delete thread confirmation dialogs
+- ✅ Streaming status indicators
+
+### 10. Docker Compose Deployment
+
+- ✅ 4-service architecture: PostgreSQL, Redis, Backend, Frontend
+- ✅ Health checks for all services
+- ✅ Automatic dependency management
+- ✅ Volume persistence for database and cache
+- ✅ Network isolation with bridge networking
+- ✅ Environment variable configuration
+- ✅ Frontend served on port 3000
+- ✅ Backend API on port 8000
 
 ## Workflow Design
 
@@ -240,7 +314,7 @@ import os
 llm = AzureChatOpenAI(
     api_key=os.getenv("AZURE_LLM_API_KEY"),
     azure_endpoint=os.getenv("AZURE_LLM_ENDPOINT"),
-    azure_deployment="gpt-5",  # Updated to GPT-5
+    azure_deployment="gpt-4.1",  # Using gpt-4.1 deployment
     api_version="2024-08-01-preview",
     verbose=False,
     temperature=0,  # Deterministic for extraction
@@ -377,7 +451,52 @@ pytest tests/ -m unit
 
 ## Usage
 
-### Prerequisites
+### Full-Stack Deployment (Recommended)
+
+The complete system (PostgreSQL + Redis + Backend + Frontend) can be deployed with Docker Compose:
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Check service status
+docker-compose ps
+
+# Stop all services
+docker-compose down
+```
+
+**Services:**
+
+- **Frontend**: http://localhost:3000 (Next.js web interface)
+- **Backend API**: http://localhost:8000 (FastAPI REST API)
+- **PostgreSQL**: localhost:5432 (database)
+- **Redis**: localhost:6379 (cache)
+
+### Frontend Web Interface
+
+Access the chat interface at http://localhost:3000:
+
+**Features:**
+
+- Real-time streaming responses
+- Multiple conversation threads
+- SQL query transparency with syntax highlighting
+- Mobile-responsive design
+- Local storage for conversation history
+- Copy SQL queries to clipboard
+
+**Configuration:**
+
+- Set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` (default: http://localhost:8000)
+- Backend must be running for frontend to function
+
+See `frontend/README.md` for detailed frontend documentation.
+
+### Prerequisites (Development)
 
 ```bash
 # Start Docker containers (PostgreSQL + Redis)
@@ -414,16 +533,22 @@ python -m src.main --match
 
 ### SQL Chat Interface
 
+#### Web Interface (Recommended)
+
+Access the chat interface at http://localhost:3000 after starting Docker Compose.
+
+#### CLI Interface (Development/Testing)
+
 Query the WestBrand database using natural language with automatic question enrichment and query transparency:
 
 ```bash
-# Start the CLI interface (recommended)
+# Start the CLI interface
 python -m src.chat_workflow.cli
-
-# Or start the REST API server (may need updates)
-python -m src.chat_workflow.api
-# Server available at http://localhost:8000
 ```
+
+#### REST API Endpoints
+
+The backend API (`src/server/server.py`) provides:
 
 **Example Chat Session:**
 
@@ -451,15 +576,117 @@ Retrieved the total count of emails by querying the emails_processed table.
 ```
 
 **Key Features:**
+
 - **Question Enrichment**: Automatically expands queries for better understanding
 - **Query Transparency**: All SQL displayed with AI explanations
 - **Conversation Persistence**: Thread-based history stored in PostgreSQL
 - **Redis Caching**: LLM responses cached to reduce costs
 - **Read-only Safety**: Only SELECT queries allowed
+- **Anticipate Complexity**: Set `anticipate_complexity: true` for thorough analysis (default: false)
+
+#### REST API Endpoints
+
+The backend API (`src/server/server.py`) provides:
+
+**Base URL**: http://localhost:8000
+
+1. **POST /chat/stream** - Streaming chat with Server-Sent Events (SSE)
+   - Real-time token streaming
+   - Status updates during processing
+   - Query transparency with explanations
+   - Overall summary at completion
+
+```bash
+curl -X POST http://localhost:8000/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "How many emails have been processed?",
+    "thread_id": "user-123",
+    "anticipate_complexity": false
+  }'
+```
+
+2. **POST /chat** - Non-streaming chat (JSON response)
+   - Complete response in single payload
+   - All executed queries with explanations
+   - Thread-based conversation continuity
+
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Show me the top 5 most requested products",
+    "thread_id": "user-123",
+    "anticipate_complexity": false
+  }'
+```
+
+3. **GET /history/{thread_id}** - Retrieve conversation history
+   - All checkpoints and messages for a thread
+   - Metadata and timestamps
+
+```bash
+curl http://localhost:8000/history/user-123
+```
+
+4. **GET /health** - Health check endpoint
+
+```bash
+curl http://localhost:8000/health
+```
+
+**Request Parameters:**
+
+- `message` (string, required): User's question
+- `thread_id` (string, required): Unique thread identifier for conversation continuity
+- `anticipate_complexity` (boolean, optional, default: false):
+  - `false`: Direct answers with minimal queries (faster)
+  - `true`: Thorough exploratory analysis with more comprehensive queries
+
+**Response Format (Streaming):**
+
+Server-Sent Events with multiple event types:
+
+```javascript
+// Status update
+data: {"type": "status", "content": "Executing query..."}
+
+// Message chunk
+data: {"type": "message", "content": "The database contains 156 emails."}
+
+// Queries with transparency
+data: {"type": "queries", "queries": [{"query": "SELECT COUNT(*) FROM emails_processed", "explanation": "Counts total emails", "result_summary": "Found 156 records"}]}
+
+// Overall summary
+data: {"type": "summary", "content": "Retrieved email count from database"}
+
+// End of stream
+data: {"type": "end"}
+
+// Error (if any)
+data: {"type": "error", "content": "Error message"}
+```
+
+**Response Format (Non-Streaming):**
+
+```json
+{
+  "response": "The database contains 156 emails.",
+  "thread_id": "user-123",
+  "executed_queries": [
+    {
+      "query": "SELECT COUNT(*) FROM emails_processed",
+      "explanation": "Counts the total number of processed email records",
+      "result_summary": "Found 156 records"
+    }
+  ]
+}
+```
 
 You: Show me the top 5 most requested products
 
 🤖 Agent: The top 5 most requested products are:
+
 1. Grade 8 Hex Bolts (42 mentions)
 2. Threaded Rod (38 mentions)
 3. Washers (31 mentions)
@@ -471,26 +698,21 @@ You: Show me the top 5 most requested products
 ======================================================================
 
 Query 1:
-  💡 Gets the top 5 products by mention count with their categories
-  📈 Result: Found 5 records
+💡 Gets the top 5 products by mention count with their categories
+📈 Result: Found 5 records
 
-  SQL:
-    SELECT product_name, product_category, COUNT(*) as mentions
-    FROM product_mentions
-    GROUP BY product_name, product_category
-    ORDER BY mentions DESC
-    LIMIT 5;
+SQL:
+SELECT product_name, product_category, COUNT(\*) as mentions
+FROM product_mentions
+GROUP BY product_name, product_category
+ORDER BY mentions DESC
+LIMIT 5;
 
 ======================================================================
+
 ```
 
-**API Endpoints:**
-
-- **POST /chat** - Non-streaming chat (JSON response)
-- **POST /chat/stream** - Streaming chat (Server-Sent Events)
-- **GET /health** - Health check endpoint
-
-See `src/chat_workflow/README.md` for complete API documentation.
+See `src/chat_workflow/README.md` and `frontend/README.md` for complete documentation.
 
 ## Development Workflow
 
@@ -508,7 +730,7 @@ See `src/chat_workflow/README.md` for complete API documentation.
 ### Completed Features ✅
 
 - ✅ Email parsing and cleaning (extract-msg + BeautifulSoup)
-- ✅ LLM-based product extraction (Azure OpenAI GPT-5)
+- ✅ LLM-based product extraction (Azure OpenAI gpt-5 with low reasoning effort)
 - ✅ Database persistence (PostgreSQL with thread_hash + content_hash)
 - ✅ Database-driven hierarchical matching (10-100x faster)
 - ✅ Fuzzy property matching (rapidfuzz)
@@ -517,41 +739,49 @@ See `src/chat_workflow/README.md` for complete API documentation.
 - ✅ LangGraph workflow orchestration
 - ✅ Redis caching for LLM responses
 - ✅ Docker Compose deployment
-- ✅ Comprehensive test suite (133/134 tests passing - 99.3%)
-- ✅ **SQL Chat Workflow** - Natural language database queries
+- ✅ Comprehensive test suite (24 test files covering all components)
+- ✅ **SQL Chat Workflow** - Natural language database queries with question enrichment
 - ✅ **FastAPI REST API** - Streaming and non-streaming endpoints
 - ✅ **Conversation Persistence** - Thread-based chat history in PostgreSQL
 - ✅ **Query Transparency** - AI-generated SQL explanations and summaries
+- ✅ **Next.js Frontend** - Modern web UI with TypeScript and Tailwind CSS
+- ✅ **Server-Sent Events** - Real-time streaming responses
+- ✅ **Docker Compose** - Full-stack deployment with 4 services
+- ✅ **Anticipate Complexity** - Toggle between direct and thorough analysis modes
 
 ### Known Issues
 
-- ⚠️ 4 chat_workflow tests need updates for new explanation generation node
-- ⚠️ Full inventory import pending (11,197 items)
+- None currently - all core features operational
 
 ### Future Enhancements
 
 - 🔄 Email linking in reports for source grounding
-- 🔄 Web dashboard for reviewing matches interactively
+- 🔄 Web dashboard for reviewing matches interactively (in progress - frontend built)
 - 🔄 Semantic search with pgvector
 - 🔄 Automated scheduled email scanning
-- 🔄 Chat workflow web UI (currently CLI/API only)
 - 🔄 Query result caching in chat workflow
 - 🔄 Multi-database support in chat interface
+- 🔄 User authentication and authorization for frontend
+- 🔄 Export chat history to PDF/markdown
+- 🔄 Dark mode for frontend
 - ❌ Email thread reconstruction (explicitly out of scope)
 - ❌ Async processing (not needed at current scale)
 
 ---
 
-**Status**: Production Ready  
-**Version**: 2.1  
-**Last Updated**: November 20, 2025
+**Status**: Production Ready (Full-Stack)
+**Version**: 3.1
+**Last Updated**: November 26, 2025
 
 ## Additional Documentation
 
+- `frontend/README.md` - Next.js frontend documentation and development guide
 - `src/chat_workflow/README.md` - SQL Chat Workflow detailed documentation
+- `src/server/server.py` - FastAPI REST API implementation with streaming
 - `ENHANCED_SQL_TRANSPARENCY.md` - SQL transparency feature implementation
 - `SQL_TRANSPARENCY_FEATURE.md` - Original transparency feature design
 - `ARCHITECTURE.md` - Detailed system architecture
 - `DATABASE_FILTERING_IMPLEMENTATION.md` - Hierarchical matching implementation
 - `HIERARCHICAL_MATCHING_IMPLEMENTATION.md` - Matching system design
 - `CONTENT_HASH_IMPLEMENTATION.md` - Database change detection
+```

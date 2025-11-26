@@ -4,16 +4,16 @@ A natural language interface to the WestBrand database using LangGraph and FastA
 
 ## Overview
 
-The SQL Chat Agent allows users to query the WestBrand PostgreSQL database using natural language. It uses Azure OpenAI GPT-5 to convert questions into SQL queries, execute them safely (read-only), and return formatted results.
+The SQL Chat Agent allows users to query the WestBrand PostgreSQL database using natural language. It uses Azure OpenAI gpt-4.1 to convert questions into SQL queries, execute them safely (read-only), and return formatted results with comprehensive transparency features including query explanations and overall summaries.
 
 ## Architecture
 
 ### Technology Stack
 
 - **LangGraph**: State management and workflow orchestration
-- **FastAPI**: REST API with streaming support
-- **Azure OpenAI GPT-5**: Natural language to SQL conversion
-- **PostgreSQL**: Database backend with conversation persistence
+- **FastAPI**: REST API with streaming support (Server-Sent Events)
+- **Azure OpenAI gpt-4.1**: Natural language to SQL conversion
+- **PostgreSQL**: Database backend with conversation persistence (checkpointer)
 - **Pydantic v2**: Type-safe state models
 - **Redis**: LLM response caching
 
@@ -45,8 +45,9 @@ The SQL Chat Agent uses a 4-node LangGraph workflow:
 ### Prerequisites
 
 - Python 3.13+
-- PostgreSQL database running (Docker)
-- Azure OpenAI API access
+- PostgreSQL 17 database running (Docker Compose recommended)
+- Redis running (Docker Compose recommended)
+- Azure OpenAI API access (gpt-4.1 deployment)
 
 ### Install Dependencies
 
@@ -75,18 +76,70 @@ AZURE_LLM_ENDPOINT=<your-azure-endpoint>
 ### Starting the Server
 
 ```bash
-# Method 1: Direct execution
-python -m src.chat_workflow.api
+# Method 1: Via Docker Compose (recommended for production)
+docker-compose up -d
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000
 
-# Method 2: Using uvicorn
-uvicorn src.chat_workflow.api:app --reload --host 0.0.0.0 --port 8000
+# Method 2: Direct execution (development)
+python -m uvicorn src.server.server:app --reload --host 0.0.0.0 --port 8000
+
+# Method 3: Python module execution
+python -m src.server.server
 ```
 
 Server will be available at `http://localhost:8000`
 
+### Web Interface (Recommended)
+
+Access the chat interface at **http://localhost:3000** after starting Docker Compose.
+
+Features:
+
+- Real-time streaming chat
+- Multiple conversation threads
+- SQL query display with syntax highlighting
+- Mobile-responsive design
+- Local storage for conversation history
+
+See `frontend/README.md` for frontend documentation.
+
 ### API Endpoints
 
-#### 1. Non-Streaming Chat
+#### 1. Streaming Chat (Primary - Server-Sent Events)
+
+**POST** `/chat/stream`
+
+```bash
+curl -X POST http://localhost:8000/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "How many emails have been processed?",
+    "thread_id": "user-123",
+    "anticipate_complexity": false
+  }'
+```
+
+**Response** (Server-Sent Events):
+
+```
+data: {"type": "status", "content": "Executing query..."}
+data: {"type": "message", "content": "There are 147 emails in the database."}
+data: {"type": "queries", "queries": [{"query": "SELECT COUNT(*) FROM emails_processed", "explanation": "Counts the total number of processed email records", "result_summary": "Found 147 records"}]}
+data: {"type": "summary", "content": "Retrieved the total count of emails by querying the emails_processed table"}
+data: {"type": "end"}
+```
+
+**Event Types:**
+
+- `status`: Processing status updates
+- `message`: AI response content
+- `queries`: SQL queries with explanations and summaries
+- `summary`: Overall workflow summary
+- `end`: Stream completion
+- `error`: Error messages
+
+#### 2. Non-Streaming Chat (Fallback)
 
 **POST** `/chat`
 
@@ -95,7 +148,8 @@ curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
   -d '{
     "message": "How many emails have been processed?",
-    "thread_id": "user-123"
+    "thread_id": "user-123",
+    "anticipate_complexity": false
   }'
 ```
 
@@ -107,30 +161,92 @@ curl -X POST http://localhost:8000/chat \
   "thread_id": "user-123",
   "executed_queries": [
     {
-      "query": "SELECT COUNT(*) FROM emails_processed;",
-      "query_explanation": {
-        "description": "Counts the total number of processed email records",
-        "result_summary": "Found 147 records"
-      },
-      "raw_result": "[(147,)]"
+      "query": "SELECT COUNT(*) FROM emails_processed",
+      "explanation": "Counts the total number of processed email records",
+      "result_summary": "Found 147 records"
     }
-  ],
-  "overall_summary": "Retrieved the total count of emails by querying the emails_processed table."
+  ]
 }
 ```
 
-#### 2. Streaming Chat (SSE)
+#### 3. Conversation History
 
-**POST** `/chat/stream`
+**GET** `/history/{thread_id}`
 
 ```bash
-curl -X POST http://localhost:8000/chat/stream \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What are the top 5 most mentioned products?",
-    "thread_id": "user-123"
-  }'
+curl http://localhost:8000/history/user-123
 ```
+
+**Response:**
+
+```json
+{
+  "thread_id": "user-123",
+  "history": [
+    {
+      "checkpoint_id": "abc123",
+      "messages": [
+        { "type": "HumanMessage", "content": "How many emails?" },
+        { "type": "AIMessage", "content": "147 emails" }
+      ],
+      "timestamp": "2025-11-21T10:30:00",
+      "metadata": {}
+    }
+  ]
+}
+```
+
+#### 4. Health Check
+
+**GET** `/health`
+
+```bash
+curl http://localhost:8000/health
+```
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "service": "westbrand-sql-chat-agent"
+}
+```
+
+### Request Parameters
+
+**ChatRequest Model:**
+
+- `message` (string, required): User's question
+- `thread_id` (string, required): Unique thread identifier for conversation continuity
+- `anticipate_complexity` (boolean, optional, default: false):
+  - `false`: Direct answers with minimal queries (faster, 10 max iterations)
+  - `true`: Thorough exploratory analysis (comprehensive, 30 max iterations)
+
+### Anticipate Complexity Feature
+
+The `anticipate_complexity` parameter controls analysis depth:
+
+**Direct Mode (`false`, default)**:
+
+- Skips question enrichment step
+- Maximum 10 query iterations
+- Faster execution
+- Best for straightforward questions
+- Example: "How many emails?" → Direct COUNT query
+
+**Thorough Mode (`true`)**:
+
+- Performs question enrichment with 1-3 sub-questions
+- Maximum 30 query iterations
+- Comprehensive analysis
+- Best for complex, ambiguous questions requiring deep analysis
+- Example: "Analyze product trends" → Multiple queries with joins and aggregations
+
+**Implementation:**
+
+- `enrich_question.py`: Skips enrichment if `anticipate_complexity == False`
+- `generate_query.py`: Adjusts max query iterations based on setting
 
 **Streamed Response:**
 
@@ -392,7 +508,7 @@ The agent has built-in knowledge of:
 
 Uses existing `get_llm_client()` from `src/llm/client.py`:
 
-- Model: Azure OpenAI GPT-5
+- Model: Azure OpenAI gpt-4.1
 - Temperature: 0 (deterministic)
 - Reasoning effort: low
 - Cached singleton pattern
