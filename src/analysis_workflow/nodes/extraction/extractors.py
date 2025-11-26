@@ -162,13 +162,7 @@ def extract_products_from_email(email: Email) -> List[ProductMention]:
         # Deduplicate AI-generated product mentions
         deduplicated_products = deduplicate_ai_product_mentions(products)
 
-        # Log deduplication statistics
-        if len(products) > len(deduplicated_products):
-            removed_count = len(products) - len(deduplicated_products)
-            print(f"\nDeduplication: Removed {removed_count} duplicate product mention(s)")
-            print(f"Total: {len(products)} → {len(deduplicated_products)} unique mentions")
-
-        return products
+        return deduplicated_products
 
     except Exception as e:
         print(f"Error extracting products from email {email.file_path}: {e}")
@@ -249,7 +243,7 @@ def extract_products_batch(emails: List[Email]) -> List[ProductMention]:
         all_products.extend(products)
     """
 
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=50) as executor:
         # Submit all tasks
         future_to_task = {executor.submit(extract_products_from_email, email) for email in emails}
 
