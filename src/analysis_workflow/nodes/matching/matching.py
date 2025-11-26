@@ -1,8 +1,10 @@
 """Workflow node for inventory matching"""
 
+from multiprocessing import Pool, cpu_count
 from typing import List
 
 from sqlalchemy import select
+from tqdm import tqdm
 
 from src.database.connection import get_db_session
 from src.database.models import InventoryItem as DBInventoryItem
@@ -55,6 +57,32 @@ def load_inventory_from_db() -> List[PydanticInventoryItem]:
     return inventory_items
 
 
+def process_product_match(product):
+    """
+    Process a single product match.
+
+    Args:
+        product: Product to match
+
+    Returns:
+        Tuple of (product_hash, matches, flags, error_msg)
+    """
+    try:
+        matches, flags = match_product_to_inventory(
+            product=product,
+            max_matches=3,
+            min_score=0.5,
+            review_threshold=0.7,
+        )
+
+        product_hash = compute_content_hash(product) if matches else None
+        return (product_hash, matches, flags, None)
+
+    except Exception as e:
+        error_msg = f"Error matching product '{product.exact_product_text}': {e}"
+        return (None, [], [], error_msg)
+
+
 def match_products(state: WorkflowState) -> WorkflowState:
     """
     Match extracted products against inventory items.
@@ -87,31 +115,33 @@ def match_products(state: WorkflowState) -> WorkflowState:
     match_count = 0
     flag_count = 0
 
-    for product in state.unique_property_products:
-        try:
-            # Perform matching
-            matches, flags = match_product_to_inventory(
-                product=product,
-                max_matches=3,
-                min_score=0.5,
-                review_threshold=0.7,
+    # Prepare for parallel processing
+
+    # Use multiprocessing Pool
+    num_workers = min(cpu_count() - 2, len(state.unique_property_products))
+
+    with Pool(processes=num_workers) as pool:
+        results = list(
+            tqdm(
+                pool.imap(process_product_match, state.unique_property_products),
+                total=len(state.unique_property_products),
+                desc="Matching products",
             )
+        )
 
-            # Store matches
-            if matches:
-                product_hash = compute_content_hash(product)
-                product_matches[product_hash] = matches
-                match_count += len(matches)
-
-            # Collect flags
-            all_flags.extend(flags)
-            flag_count += len(flags)
-
-        except Exception as e:
-            error_msg = f"Error matching product '{product.exact_product_text}': {e}"
+    # Collect results
+    for product_hash, matches, flags, error_msg in results:
+        if error_msg:
             print(f"   ⚠️  {error_msg}")
             state.errors.append(error_msg)
             continue
+
+        if matches and product_hash:
+            product_matches[product_hash] = matches
+            match_count += len(matches)
+
+        all_flags.extend(flags)
+        flag_count += len(flags)
 
     # Update state
     state.product_matches = product_matches

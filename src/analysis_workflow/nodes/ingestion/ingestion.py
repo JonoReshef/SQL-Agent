@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import List
 
-from src.analysis_workflow.utils import read_msg_files_from_directory
+from src.analysis_workflow.utils import read_msg_files_from_directory_batch
 from src.models.analysis_workflow import WorkflowState
 from src.models.email import Email
 
@@ -22,7 +22,7 @@ def ingest_emails(state: WorkflowState) -> WorkflowState:
         input_dir = Path(state.input_directory)
 
         # Read all .msg files from directory
-        emails: List[Email] = read_msg_files_from_directory(input_dir, recursive=True)
+        emails: List[Email] = read_msg_files_from_directory_batch(input_dir, recursive=True)
 
         state.emails = emails
 
