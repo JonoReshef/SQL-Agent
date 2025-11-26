@@ -5,6 +5,7 @@ import re
 from copy import deepcopy
 from datetime import datetime
 from email.utils import parsedate_to_datetime
+from multiprocessing import Pool, cpu_count
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -102,7 +103,7 @@ def read_msg_file(file_path: Path) -> Email:
     )
 
 
-def read_msg_files_from_directory(directory: Path, recursive: bool = False) -> List[Email]:
+def _read_msg_files_from_directory(msg_file: Path) -> Email | None:
     """
     Read all .msg files from a directory.
 
@@ -110,6 +111,26 @@ def read_msg_files_from_directory(directory: Path, recursive: bool = False) -> L
         directory: Path to directory containing .msg files
         recursive: If True, search subdirectories recursively
 
+    Returns:
+        List of Email objects
+    """
+    try:
+        email = read_msg_file(msg_file)
+        email.cleaned_body = clean_signature(email.body)
+        email.thread_hash = compute_content_hash(email)
+    except Exception as e:
+        print(f"Warning: Failed to read {msg_file}: {e}")
+        return None
+    return email
+
+
+def read_msg_files_from_directory_batch(directory: Path, recursive: bool = False) -> List[Email]:
+    """
+    Read all .msg files from a directory in parallel.
+
+    Args:
+        directory: Path to directory containing .msg files
+        recursive: If True, search subdirectories recursively
     Returns:
         List of Email objects
     """
@@ -121,27 +142,36 @@ def read_msg_files_from_directory(directory: Path, recursive: bool = False) -> L
     else:
         msg_files = list(directory.glob("*.msg"))
 
-    for msg_file in tqdm(
-        msg_files,
-        desc="Reading .msg files",
-    ):
-        try:
-            email = read_msg_file(msg_file)
-            email.cleaned_body = clean_signature(email.body)
-            email.thread_hash = compute_content_hash(email)
+    try:
+        # Use multiprocessing instead of threading
+        num_workers = min(cpu_count() - 2, len(msg_files))
+
+        with Pool(processes=num_workers) as pool:
+            results = list(
+                tqdm(
+                    pool.imap(_read_msg_files_from_directory, msg_files),
+                    total=len(msg_files),
+                    desc="Processing emails",
+                )
+            )
+
+        for email in results:
+            if email is None:
+                continue
+
             key = str(email.metadata.subject).lower().strip()
+
             # Avoid duplicates based on subject. Store the largest cleaned body.
             if emails.get(key) is None:
-                email.thread_hash = compute_content_hash(email)
                 emails[key] = email
             else:
                 # Store the email with the longest body for duplicate subjects
                 if len(email.cleaned_body or "") > len(emails[key].cleaned_body or ""):
                     emails[key] = email
-        except Exception as e:
-            # Log error but continue processing other files
-            print(f"Warning: Failed to parse {msg_file}: {e}")
-            continue
+
+    except Exception as e:
+        # Log error but continue processing other files
+        print(f"Warning: Failed: {e}")
 
     return list(emails.values())
 
