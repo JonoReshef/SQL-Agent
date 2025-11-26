@@ -340,6 +340,52 @@ def _calculate_analytics(products: List[ProductMention]) -> List[ProductAnalytic
     return analytics
 
 
+def _write_product_info(row_idx: int, ws: Worksheet, product: ProductMention) -> int:
+    """
+    Helper function which writes the product info to the current row
+    """
+    col_idx = 1
+    ws.cell(  # Product Text
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(product.exact_product_text),
+    )
+    col_idx += 1
+    ws.cell(  # Product Name
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(product.product_name),
+    )
+    col_idx += 1
+    ws.cell(  # Category
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(product.product_category),
+    )
+    col_idx += 1
+    ws.cell(  # Product Properties
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(
+            "; ".join([f"{value.name}: {value.value}" for value in product.properties])
+        ),
+    )
+    col_idx += 1
+    ws.cell(  # Email Subject
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(product.email_subject),
+    )
+    col_idx += 1
+    ws.cell(  # Email Sender
+        row=row_idx,
+        column=col_idx,
+        value=_sanitize_for_excel(product.email_sender),
+    )
+    col_idx += 1
+    return col_idx
+
+
 def _create_inventory_matches_sheet(
     ws: Worksheet,
     products: List[ProductMention],
@@ -363,6 +409,7 @@ def _create_inventory_matches_sheet(
         "Sender",
         "Inventory Item #",
         "Inventory Description",
+        "Number of matched properties",
         "Inventory Properties",
         "Match Score",
         "Rank",
@@ -370,7 +417,6 @@ def _create_inventory_matches_sheet(
         "Missing Properties",
         "Match Reasoning",
     ]
-
     # Write headers
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
@@ -383,37 +429,16 @@ def _create_inventory_matches_sheet(
     for product in products:
         matches = product_matches.get(compute_content_hash(product), [])
 
-        def _write_product_info():
-            """
-            Helper function which writes the product info to the current row
-            """
-            ws.cell(
-                row=row_idx,
-                column=1,
-                value=_sanitize_for_excel(product.exact_product_text),
-            )
-            ws.cell(row=row_idx, column=2, value=_sanitize_for_excel(product.product_name))
-            ws.cell(
-                row=row_idx,
-                column=3,
-                value=_sanitize_for_excel(product.product_category),
-            )
-            ws.cell(
-                row=row_idx,
-                column=4,
-                value=_sanitize_for_excel(
-                    "; ".join([f"{value.name}: {value.value}" for value in product.properties])
-                ),
-            )
-            ws.cell(row=row_idx, column=5, value=_sanitize_for_excel(product.email_subject))
-            ws.cell(row=row_idx, column=6, value=_sanitize_for_excel(product.email_sender))
-
         # Show product with no matches
         if not matches:
-            _write_product_info()
-            ws.cell(row=row_idx, column=7, value="NO MATCHES")
+            col_idx = _write_product_info(row_idx, ws, product)
+            ws.cell(  # No Matches
+                row=row_idx,
+                column=col_idx,
+                value="NO MATCHES",
+            )
             # Highlight no match rows in light red
-            for col in range(1, 13):
+            for col in range(1, 16):
                 ws.cell(row=row_idx, column=col).fill = PatternFill(
                     start_color="FFD7D7", end_color="FFD7D7", fill_type="solid"
                 )
@@ -421,46 +446,42 @@ def _create_inventory_matches_sheet(
         else:
             # Show each match as a separate row
             for match in matches:
-                _write_product_info()
-                ws.cell(
+                col_idx = _write_product_info(row_idx, ws, product)
+                ws.cell(  # Inventory Item #
                     row=row_idx,
-                    column=7,
+                    column=col_idx,
                     value=_sanitize_for_excel(match.inventory_item_number),
                 )
-                ws.cell(
+                col_idx += 1
+                ws.cell(  # Inventory Description
                     row=row_idx,
-                    column=8,
+                    column=col_idx,
                     value=_sanitize_for_excel(match.inventory_description),
                 )
-                ws.cell(
+                col_idx += 1
+                ws.cell(  # Number of matched properties
                     row=row_idx,
-                    column=9,
+                    column=col_idx,
+                    value=len(match.matched_properties),
+                )
+                col_idx += 1
+                ws.cell(  # Inventory Properties
+                    row=row_idx,
+                    column=col_idx,
                     value=_sanitize_for_excel(
                         "; ".join(
                             [f"{prop.name}: {prop.value}" for prop in match.inventory_properties]
                         )
                     ),
                 )
-                ws.cell(row=row_idx, column=10, value=match.match_score)
-                ws.cell(row=row_idx, column=11, value=match.rank)
-                ws.cell(
+                col_idx += 1
+                ws.cell(  # Match Score
                     row=row_idx,
-                    column=12,
-                    value=_sanitize_for_excel(", ".join(match.matched_properties)),
+                    column=col_idx,
+                    value=match.match_score,
                 )
-                ws.cell(
-                    row=row_idx,
-                    column=13,
-                    value=_sanitize_for_excel(", ".join(match.missing_properties)),
-                )
-                ws.cell(
-                    row=row_idx,
-                    column=14,
-                    value=_sanitize_for_excel(match.match_reasoning),
-                )
-
                 # Color code based on match score
-                score_cell = ws.cell(row=row_idx, column=10)
+                score_cell = ws.cell(row=row_idx, column=col_idx)
                 if match.match_score >= 0.8:
                     # High confidence - green
                     score_cell.fill = PatternFill(
@@ -476,6 +497,33 @@ def _create_inventory_matches_sheet(
                     score_cell.fill = PatternFill(
                         start_color="FFC7CE", end_color="FFC7CE", fill_type="solid"
                     )
+
+                col_idx += 1
+                ws.cell(  # Rank
+                    row=row_idx,
+                    column=col_idx,
+                    value=match.rank
+                    if len(matches) > 1
+                    else "",  # If there are multiple matches, show rank
+                )
+                col_idx += 1
+                ws.cell(  # Matched Properties
+                    row=row_idx,
+                    column=col_idx,
+                    value=_sanitize_for_excel(", ".join(match.matched_properties)),
+                )
+                col_idx += 1
+                ws.cell(  # Missing Properties
+                    row=row_idx,
+                    column=col_idx,
+                    value=_sanitize_for_excel(", ".join(match.missing_properties)),
+                )
+                col_idx += 1
+                ws.cell(  # Match Reasoning
+                    row=row_idx,
+                    column=col_idx,
+                    value=_sanitize_for_excel(match.match_reasoning),
+                )
 
                 row_idx += 1
 
