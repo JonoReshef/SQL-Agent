@@ -20,7 +20,7 @@ export interface UseChatThreadsReturn {
   clearAllThreads: () => void;
   updateThreadTitle: (threadId: string, title: string) => void;
   addMessage: (message: ChatMessage) => void;
-  updateLastMessage: (message: ChatMessage) => void;
+  updateMessageById: (id: string, updates: Partial<ChatMessage>) => void;
   isLoading: boolean;
   error: string | null;
 }
@@ -207,70 +207,75 @@ export function useChatThreads(): UseChatThreadsReturn {
     [setThreads]
   );
 
-  // Add new message to current thread
+  // Add new message to current thread using functional update
   const addMessage = useCallback(
     (message: ChatMessage) => {
       if (!currentThreadId) return;
 
-      const updatedMessages = [...currentMessages, message];
-      setCurrentMessages(updatedMessages);
-      saveMessages(currentThreadId, updatedMessages);
+      setCurrentMessages((prev) => {
+        const updatedMessages = [...prev, message];
+        saveMessages(currentThreadId, updatedMessages);
 
-      // Update thread metadata
-      setThreads((prev) =>
-        prev.map((thread) => {
-          if (thread.id === currentThreadId) {
-            // If this is the first user message, update title
-            const newTitle =
-              thread.title === 'New Chat' && message.role === 'user'
-                ? extractTitle(message.content)
-                : thread.title;
+        // Update thread metadata
+        setThreads((threads) =>
+          threads.map((thread) => {
+            if (thread.id === currentThreadId) {
+              // If this is the first user message, update title
+              const newTitle =
+                thread.title === 'New Chat' && message.role === 'user'
+                  ? extractTitle(message.content)
+                  : thread.title;
 
-            return {
-              ...thread,
-              title: newTitle,
-              lastMessage: message.content,
-              timestamp: message.timestamp,
-              messageCount: updatedMessages.length,
-            };
-          }
-          return thread;
-        })
-      );
-    },
-    [currentThreadId, currentMessages, saveMessages, setThreads]
-  );
-
-  // Update last message (for streaming)
-  const updateLastMessage = useCallback(
-    (message: ChatMessage) => {
-      if (!currentThreadId) return;
-
-      const updatedMessages = [...currentMessages];
-      if (updatedMessages.length > 0) {
-        updatedMessages[updatedMessages.length - 1] = message;
-      } else {
-        updatedMessages.push(message);
-      }
-
-      setCurrentMessages(updatedMessages);
-      saveMessages(currentThreadId, updatedMessages);
-
-      // Update thread metadata
-      setThreads((prev) =>
-        prev.map((thread) =>
-          thread.id === currentThreadId
-            ? {
+              return {
                 ...thread,
+                title: newTitle,
                 lastMessage: message.content,
                 timestamp: message.timestamp,
                 messageCount: updatedMessages.length,
-              }
-            : thread
-        )
-      );
+              };
+            }
+            return thread;
+          })
+        );
+
+        return updatedMessages;
+      });
     },
-    [currentThreadId, currentMessages, saveMessages, setThreads]
+    [currentThreadId, saveMessages, setThreads]
+  );
+
+  // Update message by ID (for streaming updates)
+  const updateMessageById = useCallback(
+    (id: string, updates: Partial<ChatMessage>) => {
+      if (!currentThreadId) return;
+
+      setCurrentMessages((prev) => {
+        const updatedMessages = prev.map((msg) =>
+          msg.id === id ? { ...msg, ...updates } : msg
+        );
+        saveMessages(currentThreadId, updatedMessages);
+
+        // Update thread metadata with the updated message
+        const updatedMessage = updatedMessages.find((msg) => msg.id === id);
+        if (updatedMessage) {
+          setThreads((threads) =>
+            threads.map((thread) =>
+              thread.id === currentThreadId
+                ? {
+                    ...thread,
+                    lastMessage: updatedMessage.content,
+                    timestamp: updatedMessage.timestamp,
+                    messageCount: updatedMessages.length,
+                  }
+                : thread
+            )
+          );
+        }
+
+        return updatedMessages;
+      });
+    },
+    [currentThreadId, saveMessages, setThreads]
   );
 
   return {
@@ -283,7 +288,7 @@ export function useChatThreads(): UseChatThreadsReturn {
     clearAllThreads,
     updateThreadTitle,
     addMessage,
-    updateLastMessage,
+    updateMessageById,
     isLoading,
     error,
   };

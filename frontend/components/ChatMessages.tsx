@@ -21,8 +21,9 @@ export function ChatMessages({
 
   // Auto-scroll to bottom when new messages arrive or when streaming content updates
   useEffect(() => {
+    messages;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isStreaming]);
+  }, [messages.length]);
 
   return (
     <div className='flex-1 overflow-y-auto px-4 py-6 bg-gray-50'>
@@ -56,7 +57,7 @@ export function ChatMessages({
             timestamp={message.timestamp}
             queries={message.queries}
             overallSummary={message.overallSummary}
-            isStreaming={message.id === 'streaming-temp' && isStreaming}
+            isStreaming={message.status === 'streaming'}
           />
         </div>
       ))}

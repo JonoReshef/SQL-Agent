@@ -12,8 +12,8 @@ import type { ChatMessage } from '@/types/interfaces';
 export function ChatInterface() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const messageAddedRef = useRef(false);
   const [anticipateComplexity, setAnticipateComplexity] = useState(false);
+  const streamingMessageIdRef = useRef<string | null>(null);
 
   // Prevent hydration errors by only rendering client-specific code after mount
   useEffect(() => {
@@ -30,7 +30,7 @@ export function ChatInterface() {
     clearAllThreads,
     updateThreadTitle,
     addMessage,
-    updateLastMessage,
+    updateMessageById,
     isLoading,
   } = useChatThreads();
 
@@ -64,73 +64,68 @@ export function ChatInterface() {
     message: string,
     threadId: string
   ) => {
-    // Reset the flag for new message
-    messageAddedRef.current = false;
-
-    // Add user message
+    // 1. Add user message
     const userMessage: ChatMessage = {
       id: generateUUID(),
       role: 'user',
       content: message,
       timestamp: new Date(),
+      status: 'complete',
     };
     addMessage(userMessage);
 
-    // Create placeholder for assistant message
-    const assistantMessageId = generateUUID();
+    // 2. Add assistant placeholder with streaming status
+    const assistantId = generateUUID();
+    streamingMessageIdRef.current = assistantId;
+    const assistantMessage: ChatMessage = {
+      id: assistantId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      status: 'streaming',
+    };
+    addMessage(assistantMessage);
 
     try {
-      // Send message and stream response with complexity setting
+      // 3. Start streaming
       await sendMessage(message, threadId, anticipateComplexity);
-
-      // Note: The streaming is handled by useChatStream hook
-      // We need to watch currentResponse and queries to update the message
     } catch (err) {
       console.error('Error sending message:', err);
       const errorMessage: ChatMessage = {
-        id: assistantMessageId,
+        id: generateUUID(),
         role: 'system',
         content: `Error: ${error || 'Failed to send message'}`,
         timestamp: new Date(),
+        status: 'complete',
       };
       addMessage(errorMessage);
     }
   };
 
-  // Update assistant message as streaming progresses
+  // Update streaming message by ID as content arrives
   useEffect(() => {
-    if (!isStreaming && currentResponse && !messageAddedRef.current) {
-      // Streaming complete, add the final assistant message (only once)
-      const assistantMessage: ChatMessage = {
-        id: generateUUID(),
-        role: 'assistant',
+    const messageId = streamingMessageIdRef.current;
+    if (messageId && currentResponse) {
+      updateMessageById(messageId, {
         content: currentResponse,
-        timestamp: new Date(),
-        queries: queries.length > 0 ? queries : undefined,
-        overallSummary: overallSummary || undefined,
-      };
+        status: isStreaming ? 'streaming' : 'complete',
+        queries: !isStreaming && queries.length > 0 ? queries : undefined,
+        overallSummary:
+          !isStreaming && overallSummary ? overallSummary : undefined,
+      });
 
-      // Always add as a new message (don't update)
-      addMessage(assistantMessage);
-      messageAddedRef.current = true;
+      // Clear ref when streaming completes
+      if (!isStreaming) {
+        streamingMessageIdRef.current = null;
+      }
     }
-  }, [isStreaming, currentResponse, queries, overallSummary, addMessage]);
-
-  // Create a temporary streaming message to display while streaming
-  const streamingMessage: ChatMessage | null =
-    isStreaming && currentResponse
-      ? {
-          id: 'streaming-temp',
-          role: 'assistant',
-          content: currentResponse,
-          timestamp: new Date(),
-        }
-      : null;
-
-  // Combine permanent messages with temporary streaming message
-  const displayMessages = streamingMessage
-    ? [...currentMessages, streamingMessage]
-    : currentMessages;
+  }, [
+    currentResponse,
+    isStreaming,
+    queries,
+    overallSummary,
+    updateMessageById,
+  ]);
 
   // Display errors
   useEffect(() => {
@@ -140,6 +135,7 @@ export function ChatInterface() {
         role: 'system',
         content: `Error: ${error}`,
         timestamp: new Date(),
+        status: 'complete',
       };
       addMessage(errorMessage);
       clearError();
@@ -238,7 +234,7 @@ export function ChatInterface() {
 
         {/* Messages */}
         <ChatMessages
-          messages={displayMessages}
+          messages={currentMessages}
           isStreaming={isStreaming}
           streamingStatus={currentStatus}
         />

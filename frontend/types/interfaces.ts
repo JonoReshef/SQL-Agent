@@ -53,12 +53,14 @@ export interface Thread {
 // ============================================================================
 
 export type MessageRole = 'user' | 'assistant' | 'system';
+export type MessageStatus = 'streaming' | 'complete';
 
 export interface ChatMessage {
   id: string;
   role: MessageRole;
   content: string;
   timestamp: Date | string; // Date object or ISO string from localStorage
+  status?: MessageStatus; // Indicates if message is still being streamed
   queries?: QueryExecution[]; // For assistant messages with SQL transparency
   overallSummary?: string; // High-level summary of the entire query process
 }
