@@ -212,34 +212,34 @@ export function useChatThreads(): UseChatThreadsReturn {
     (message: ChatMessage) => {
       if (!currentThreadId) return;
 
+      // Update messages
       setCurrentMessages((prev) => {
         const updatedMessages = [...prev, message];
         saveMessages(currentThreadId, updatedMessages);
-
-        // Update thread metadata
-        setThreads((threads) =>
-          threads.map((thread) => {
-            if (thread.id === currentThreadId) {
-              // If this is the first user message, update title
-              const newTitle =
-                thread.title === 'New Chat' && message.role === 'user'
-                  ? extractTitle(message.content)
-                  : thread.title;
-
-              return {
-                ...thread,
-                title: newTitle,
-                lastMessage: message.content,
-                timestamp: message.timestamp,
-                messageCount: updatedMessages.length,
-              };
-            }
-            return thread;
-          })
-        );
-
         return updatedMessages;
       });
+
+      // Update thread metadata separately to avoid nested state update conflicts
+      setThreads((prevThreads) =>
+        prevThreads.map((thread) => {
+          if (thread.id === currentThreadId) {
+            // If this is the first user message, update title
+            const newTitle =
+              thread.title === 'New Chat' && message.role === 'user'
+                ? extractTitle(message.content)
+                : thread.title;
+
+            return {
+              ...thread,
+              title: newTitle,
+              lastMessage: message.content,
+              timestamp: message.timestamp,
+              messageCount: thread.messageCount + 1,
+            };
+          }
+          return thread;
+        })
+      );
     },
     [currentThreadId, saveMessages, setThreads]
   );
@@ -249,31 +249,32 @@ export function useChatThreads(): UseChatThreadsReturn {
     (id: string, updates: Partial<ChatMessage>) => {
       if (!currentThreadId) return;
 
+      let updatedMessage: ChatMessage | undefined;
+
+      // Update messages
       setCurrentMessages((prev) => {
         const updatedMessages = prev.map((msg) =>
           msg.id === id ? { ...msg, ...updates } : msg
         );
         saveMessages(currentThreadId, updatedMessages);
-
-        // Update thread metadata with the updated message
-        const updatedMessage = updatedMessages.find((msg) => msg.id === id);
-        if (updatedMessage) {
-          setThreads((threads) =>
-            threads.map((thread) =>
-              thread.id === currentThreadId
-                ? {
-                    ...thread,
-                    lastMessage: updatedMessage.content,
-                    timestamp: updatedMessage.timestamp,
-                    messageCount: updatedMessages.length,
-                  }
-                : thread
-            )
-          );
-        }
-
+        updatedMessage = updatedMessages.find((msg) => msg.id === id);
         return updatedMessages;
       });
+
+      // Update thread metadata separately to avoid nested state update conflicts
+      if (updatedMessage) {
+        setThreads((threads) =>
+          threads.map((thread) =>
+            thread.id === currentThreadId
+              ? {
+                  ...thread,
+                  lastMessage: updatedMessage!.content,
+                  timestamp: updatedMessage!.timestamp,
+                }
+              : thread
+          )
+        );
+      }
     },
     [currentThreadId, saveMessages, setThreads]
   );
