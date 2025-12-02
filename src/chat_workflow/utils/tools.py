@@ -1,8 +1,12 @@
 from functools import lru_cache
 
+import tiktoken
 from langchain_core.tools import tool
 
 from src.chat_workflow.utils.db_wrapper import get_sql_database, validate_query_is_select
+
+ENCODER = tiktoken.get_encoding("cl100k_base")
+MAX_TOKENS = 50000
 
 
 @tool
@@ -29,6 +33,10 @@ def run_query_tool(query: str) -> str:
 
         if not result or result.strip() == "":  # type: ignore
             return "Query executed successfully but returned no results."
+
+        total_tokens = ENCODER.encode(str(result))
+        if len(total_tokens) > MAX_TOKENS:
+            return f"Query executed successfully however the result returned {len(total_tokens)} tokens which is larger than the maximum allowed {MAX_TOKENS} tokens."
 
         return result  # type: ignore
 
