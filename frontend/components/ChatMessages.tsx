@@ -21,8 +21,9 @@ export function ChatMessages({
 
   // Auto-scroll to bottom when new messages arrive or when streaming content updates
   useEffect(() => {
-    messages;
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 10); // Slight delay to ensure the StreamingIndicator has rendered
   }, [messages.length]);
 
   return (
