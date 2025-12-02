@@ -13,7 +13,7 @@ load_dotenv()
 
 
 def get_llm_client(
-    type: Literal["gpt5-low", "gpt4.1-mini", "gpt4.1"] = "gpt5-low",
+    type: Literal["gpt5.1-low", "gpt4.1-mini", "gpt4.1"] = "gpt5.1-low",
     output_structure: type[BaseModel] | None = None,
 ) -> Union[AzureChatOpenAI, Runnable]:
     """
@@ -33,12 +33,12 @@ def get_llm_client(
     if not endpoint:
         raise ValueError("AZURE_LLM_ENDPOINT environment variable not set")
 
-    if type == "gpt5-low":
+    if type == "gpt5.1-low":
         llm = AzureChatOpenAI(
             api_key=api_key,  # type: ignore
             azure_endpoint=endpoint,  # type: ignore
-            azure_deployment="gpt-5",  # type: ignore
-            api_version="2024-08-01-preview",  # type: ignore
+            azure_deployment="gpt-5.1",  # type: ignore
+            api_version="",  # type: ignore
             verbose=False,
             reasoning_effort="low",
         )
