@@ -13,6 +13,7 @@ interface MessageProps {
   timestamp: Date | string;
   queries?: QueryExecution[];
   overallSummary?: string;
+  isStreaming?: boolean;
 }
 
 export function Message({
@@ -21,6 +22,7 @@ export function Message({
   timestamp,
   queries,
   overallSummary,
+  isStreaming = false,
 }: MessageProps) {
   const [showDetails, setShowDetails] = useState(false);
   const isUser = role === 'user';
@@ -29,7 +31,7 @@ export function Message({
 
   return (
     <div
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 group`}
+      className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 group message-enter`}
     >
       <div className='max-w-[80%]'>
         <div
@@ -41,7 +43,11 @@ export function Message({
                 : 'bg-gray-100 text-gray-900'
           }`}
         >
-          <div className='prose prose-sm max-w-none break-words'>
+          <div
+            className={`prose prose-sm max-w-none break-words ${
+              isStreaming ? 'streaming-text streaming-cursor' : ''
+            }`}
+          >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </div>
           <div

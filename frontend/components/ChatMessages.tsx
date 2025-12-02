@@ -56,6 +56,7 @@ export function ChatMessages({
             timestamp={message.timestamp}
             queries={message.queries}
             overallSummary={message.overallSummary}
+            isStreaming={message.id === 'streaming-temp' && isStreaming}
           />
         </div>
       ))}
