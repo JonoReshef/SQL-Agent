@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessageChunk, HumanMessage
 
 from src.chat_workflow.graph import create_chat_graph
+from src.models.chat_models import ChatState
 from src.models.server import (
     ChatRequest,
     ChatResponse,
@@ -167,6 +168,9 @@ async def chat_stream(request: ChatRequest):
             last_event = None
             full_response = ""  # Fallback accumulator
 
+            # Initial status event
+            yield f"data: {json.dumps({'type': 'status', 'content': 'Initiating workflow'})}\n\n"
+
             for stream_mode, event in graph.stream(
                 {
                     "user_question": request.message,
@@ -175,18 +179,22 @@ async def chat_stream(request: ChatRequest):
                 config,  # type: ignore
                 stream_mode=["values", "messages"],
             ):
+                # Handle complete state updates
                 if stream_mode == "values":
-                    # Handle complete state updates
-                    last_event = event
+                    # When we have a values update we are returned the full state
+                    event_update = ChatState.model_validate(event)
+
+                    # Store last event for final summary
+                    last_event = event_update
 
                     # Send status updates to frontend
-                    if "status_update" in event and event["status_update"]:
-                        yield f"data: {json.dumps({'type': 'status', 'content': event['status_update']})}\n\n"
+                    if "status_update" in event and event_update.status_update:
+                        yield f"data: {json.dumps({'type': 'status', 'content': event_update.status_update})}\n\n"
 
                 elif stream_mode == "messages":
                     # Handle token-by-token streaming
                     # Event is a tuple: (message_chunk, metadata)
-                    message_chunk: AIMessageChunk = event[0] if isinstance(event, tuple) else event
+                    message_chunk: AIMessageChunk = event[0] if isinstance(event, tuple) else event  # type: ignore
                     metadata = event[1] if isinstance(event, tuple) and len(event) > 1 else {}
 
                     # Only stream tokens from generate_query node
@@ -202,13 +210,10 @@ async def chat_stream(request: ChatRequest):
             # After stream completes, send queries and summary from last event
             if last_event:
                 # Send executed queries before end event for transparency
-                if (
-                    "executed_queries_enriched" in last_event
-                    and last_event["executed_queries_enriched"]
-                ):
+                if last_event.executed_queries_enriched:
                     # Store only the last executed queries for final transparency
                     executed_queries = []
-                    for qe in last_event["executed_queries_enriched"]:
+                    for qe in last_event.executed_queries_enriched:
                         executed_queries.append(
                             {
                                 "query": qe.query,
@@ -228,12 +233,12 @@ async def chat_stream(request: ChatRequest):
                     yield f"data: {json.dumps({'type': 'queries', 'queries': executed_queries})}\n\n"
 
                 # Send overall summary if available
-                if "overall_summary" in last_event and last_event["overall_summary"]:
-                    yield f"data: {json.dumps({'type': 'summary', 'content': last_event['overall_summary']})}\n\n"
+                if last_event.overall_summary:
+                    yield f"data: {json.dumps({'type': 'summary', 'content': last_event.overall_summary})}\n\n"
 
                 # Fallback: If no tokens were streamed but there's a final message, send it
-                if not full_response and "messages" in last_event and last_event["messages"]:
-                    last_message = last_event["messages"][-1]
+                if not full_response and last_event.messages:
+                    last_message = last_event.messages[-1]
                     if (
                         hasattr(last_message, "content")
                         and last_message.content
