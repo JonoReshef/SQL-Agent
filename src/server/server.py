@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessageChunk, HumanMessage
 
 from src.chat_workflow.graph import create_chat_graph
 from src.models.server import (
@@ -160,60 +160,86 @@ async def chat_stream(request: ChatRequest):
 
             config = {"configurable": {"thread_id": request.thread_id}}
 
-            # Use synchronous stream since PostgresSaver doesn't support async
+            # Use synchronous stream with multiple modes:
+            # - "values": Complete state updates (status, queries, summary)
+            # - "messages": Token-by-token streaming from LLM
             print("Starting stream...", flush=True)
-            last_ai_message = None
-            for event in graph.stream(
+            last_event = None
+            full_response = ""  # Fallback accumulator
+
+            for stream_mode, event in graph.stream(
                 {
                     "user_question": request.message,
                     "anticipate_complexity": request.anticipate_complexity,
                 },
                 config,  # type: ignore
-                stream_mode="values",
+                stream_mode=["values", "messages"],
             ):
-                # Send status updates to frontend
-                if "status_update" in event and event["status_update"]:
-                    yield f"data: {json.dumps({'type': 'status', 'content': event['status_update']})}\n\n"
+                if stream_mode == "values":
+                    # Handle complete state updates
+                    last_event = event
 
-            # Send executed queries before end event for transparency
-            if "executed_queries_enriched" in event and event["executed_queries_enriched"]:
-                # Store only the last executed queries for final transparency
-                executed_queries = []
-                for qe in event["executed_queries_enriched"]:
-                    executed_queries.append(
-                        {
-                            "query": qe.query,
-                            "explanation": (
-                                qe.query_explanation.description
-                                if qe.query_explanation
-                                else "No explanation available"
-                            ),
-                            "result_summary": (
-                                qe.query_explanation.result_summary
-                                if qe.query_explanation
-                                else "No result summary available"
-                            ),
-                        }
-                    )
+                    # Send status updates to frontend
+                    if "status_update" in event and event["status_update"]:
+                        yield f"data: {json.dumps({'type': 'status', 'content': event['status_update']})}\n\n"
 
-                yield f"data: {json.dumps({'type': 'queries', 'queries': executed_queries})}\n\n"
+                elif stream_mode == "messages":
+                    # Handle token-by-token streaming
+                    # Event is a tuple: (message_chunk, metadata)
+                    message_chunk: AIMessageChunk = event[0] if isinstance(event, tuple) else event
+                    metadata = event[1] if isinstance(event, tuple) and len(event) > 1 else {}
 
-            # Send overall summary if available
-            if "overall_summary" in event and event["overall_summary"]:
-                yield f"data: {json.dumps({'type': 'summary', 'content': event['overall_summary']})}\n\n"
+                    # Only stream tokens from generate_query node
+                    node_name = metadata.get("langgraph_node", "")
+                    if node_name == "generate_query":
+                        # Check for content attribute (text tokens)
+                        if hasattr(message_chunk, "content") and message_chunk.content:
+                            token = str(message_chunk.content)
+                            if token:
+                                full_response += token
+                                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
-            # At end of stream, send final data
-            if "messages" in event and event["messages"]:
-                last_message = event["messages"][-1]
-                # Only stream AIMessage responses (not HumanMessage or enrichments)
+            # After stream completes, send queries and summary from last event
+            if last_event:
+                # Send executed queries before end event for transparency
                 if (
-                    hasattr(last_message, "content")
-                    and last_message.content
-                    and last_message.__class__.__name__ == "AIMessage"
+                    "executed_queries_enriched" in last_event
+                    and last_event["executed_queries_enriched"]
                 ):
-                    # Keep track of last AI message to send only once at the end
-                    last_ai_message = last_message.content
-                    yield f"data: {json.dumps({'type': 'token', 'content': last_ai_message})}\n\n"
+                    # Store only the last executed queries for final transparency
+                    executed_queries = []
+                    for qe in last_event["executed_queries_enriched"]:
+                        executed_queries.append(
+                            {
+                                "query": qe.query,
+                                "explanation": (
+                                    qe.query_explanation.description
+                                    if qe.query_explanation
+                                    else "No explanation available"
+                                ),
+                                "result_summary": (
+                                    qe.query_explanation.result_summary
+                                    if qe.query_explanation
+                                    else "No result summary available"
+                                ),
+                            }
+                        )
+
+                    yield f"data: {json.dumps({'type': 'queries', 'queries': executed_queries})}\n\n"
+
+                # Send overall summary if available
+                if "overall_summary" in last_event and last_event["overall_summary"]:
+                    yield f"data: {json.dumps({'type': 'summary', 'content': last_event['overall_summary']})}\n\n"
+
+                # Fallback: If no tokens were streamed but there's a final message, send it
+                if not full_response and "messages" in last_event and last_event["messages"]:
+                    last_message = last_event["messages"][-1]
+                    if (
+                        hasattr(last_message, "content")
+                        and last_message.content
+                        and last_message.__class__.__name__ == "AIMessage"
+                    ):
+                        yield f"data: {json.dumps({'type': 'message', 'content': last_message.content})}\n\n"
 
             # Send end event
             yield f"data: {json.dumps({'type': 'end'})}\n\n"

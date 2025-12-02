@@ -19,10 +19,10 @@ export function ChatMessages({
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive or when streaming content updates
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isStreaming]);
 
   return (
     <div className='flex-1 overflow-y-auto px-4 py-6 bg-gray-50'>
@@ -60,8 +60,8 @@ export function ChatMessages({
         </div>
       ))}
 
-      {/* Streaming indicator */}
-      {isStreaming && (
+      {/* Streaming status indicator (only show if there's a status and not actively displaying streamed content) */}
+      {isStreaming && streamingStatus && (
         <div className='mb-4'>
           <StreamingIndicator status={streamingStatus} />
         </div>

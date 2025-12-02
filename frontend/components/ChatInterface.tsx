@@ -116,6 +116,22 @@ export function ChatInterface() {
     }
   }, [isStreaming, currentResponse, queries, overallSummary, addMessage]);
 
+  // Create a temporary streaming message to display while streaming
+  const streamingMessage: ChatMessage | null =
+    isStreaming && currentResponse
+      ? {
+          id: 'streaming-temp',
+          role: 'assistant',
+          content: currentResponse,
+          timestamp: new Date(),
+        }
+      : null;
+
+  // Combine permanent messages with temporary streaming message
+  const displayMessages = streamingMessage
+    ? [...currentMessages, streamingMessage]
+    : currentMessages;
+
   // Display errors
   useEffect(() => {
     if (error) {
@@ -222,7 +238,7 @@ export function ChatInterface() {
 
         {/* Messages */}
         <ChatMessages
-          messages={currentMessages}
+          messages={displayMessages}
           isStreaming={isStreaming}
           streamingStatus={currentStatus}
         />
