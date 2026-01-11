@@ -741,11 +741,13 @@ See `src/chat_workflow/README.md` and `frontend/README.md` for complete document
 - ✅ Docker Compose deployment
 - ✅ Comprehensive test suite (24 test files covering all components)
 - ✅ **SQL Chat Workflow** - Natural language database queries with question enrichment
-- ✅ **FastAPI REST API** - Streaming and non-streaming endpoints
+- ✅ **FastAPI REST API** - Streaming and non-streaming endpoints with SSE
+- ✅ **Token-by-token streaming** - LangGraph dual-stream mode with smooth display
+- ✅ **Client-side buffering** - requestAnimationFrame loop for consistent 300 chars/sec rendering
 - ✅ **Conversation Persistence** - Thread-based chat history in PostgreSQL
 - ✅ **Query Transparency** - AI-generated SQL explanations and summaries
 - ✅ **Next.js Frontend** - Modern web UI with TypeScript and Tailwind CSS
-- ✅ **Server-Sent Events** - Real-time streaming responses
+- ✅ **Server-Sent Events** - Real-time streaming responses with smooth typewriter effect
 - ✅ **Docker Compose** - Full-stack deployment with 4 services
 - ✅ **Anticipate Complexity** - Toggle between direct and thorough analysis modes
 
@@ -775,6 +777,11 @@ See `src/chat_workflow/README.md` and `frontend/README.md` for complete document
 
 ## Additional Documentation
 
+- `STREAMING_ARCHITECTURE.md` - **Token-by-token streaming with client-side buffering architecture**
+- `docs/` - **Documentation directory with quick references and visual guides**
+  - `docs/README.md` - Documentation index and reading guide
+  - `docs/STREAMING_QUICK_REFERENCE.md` - Quick reference for streaming
+  - `docs/STREAMING_VISUAL_GUIDE.md` - Visual diagrams and timing charts
 - `frontend/README.md` - Next.js frontend documentation and development guide
 - `src/chat_workflow/README.md` - SQL Chat Workflow detailed documentation
 - `src/server/server.py` - FastAPI REST API implementation with streaming

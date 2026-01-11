@@ -5,12 +5,14 @@ A modern, responsive chat interface for the WestBrand SQL Chat Agent built with 
 ## Features
 
 - ✅ Real-time streaming responses using Server-Sent Events (SSE)
+- ✅ **Client-side token buffering** for smooth typewriter effect (300 chars/sec)
 - ✅ Multiple chat thread management
 - ✅ SQL query transparency with syntax highlighting
 - ✅ Local storage persistence
 - ✅ Responsive design (mobile & desktop)
 - ✅ Fully typed with TypeScript
 - ✅ Auto-generated types from OpenAPI schema
+- ✅ Smooth rendering with requestAnimationFrame loop
 
 ## Getting Started
 
@@ -112,14 +114,19 @@ frontend/
 
 ## Key Features
 
-### 1. Streaming Chat
+### 1. Streaming Chat with Client-Side Buffering
 
-The application uses Server-Sent Events (SSE) to stream responses in real-time from the backend. The `useChatStream` hook handles:
+The application uses Server-Sent Events (SSE) to stream responses in real-time from the backend. The `useChatStream` hook implements a **sophisticated buffering mechanism** for smooth token display:
 
-- Token-by-token streaming
+- **Token-by-token streaming** from backend via SSE
+- **Client-side buffer** accumulates tokens as they arrive
+- **requestAnimationFrame loop** displays tokens at consistent 300 chars/sec rate
+- **Smooth typewriter effect** regardless of network conditions
 - Query result transparency
-- Error handling
-- Connection management
+- Error handling and automatic cleanup
+- Connection management with graceful degradation
+
+See `STREAMING_ARCHITECTURE.md` for detailed technical documentation.
 
 ### 2. Thread Management
 
@@ -173,6 +180,29 @@ This ensures frontend and backend types stay in sync.
 5. Build for production: `npm run build`
 
 ## Architecture Decisions
+
+### Token Streaming with Client-Side Buffering
+
+The application implements a sophisticated streaming architecture for smooth, responsive chat:
+
+**Backend (LangGraph Dual-Stream)**:
+
+- `stream_mode=["values", "messages"]` provides both complete state updates and token-by-token streaming
+- Tokens filtered to only `generate_query` node to avoid intermediate LLM outputs
+- Server-Sent Events (SSE) for real-time push to client
+
+**Frontend (requestAnimationFrame Buffer)**:
+
+- Tokens accumulate in buffer as they arrive (bursts absorbed)
+- Separate display loop runs at 60 FPS using requestAnimationFrame
+- Characters displayed at consistent 300/sec rate for smooth typewriter effect
+- Prevents UI flashing and jerky updates from network timing
+
+**Key Files**:
+
+- `hooks/useChatStream.ts` - Buffer implementation with RAF loop
+- `lib/api.ts` - SSE connection and event parsing
+- See `../STREAMING_ARCHITECTURE.md` for complete technical details
 
 ### Functional Components Only
 
