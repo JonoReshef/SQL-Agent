@@ -5,6 +5,11 @@
  *
  * This script can be run automatically in your development workflow
  * to keep frontend types in sync with backend changes.
+ * Run this script in `package.json` scripts section:
+ *
+ * "scripts": {
+ *   "sync-types": "node scripts/generate-types.cjs && prettier --write types/server/server-types.ts"
+ * }
  */
 
 const { execSync } = require('child_process');
@@ -19,7 +24,7 @@ console.log('Generating TypeScript types from FastAPI OpenAPI schema...');
 
 try {
   // Check if the API is available
-  console.log(`📡 Checking API availability at ${API_URL}...`);
+  console.log(`Checking API availability at ${API_URL}...`);
 
   try {
     execSync(`curl -s --max-time 30 ${API_URL}/openapi.json > /dev/null`, {
@@ -29,14 +34,14 @@ try {
   } catch (error) {
     if (FORCE_MODE) {
       console.error(
-        'API is not available. Please make sure the FastAPI server is running.'
+        'API is not available. Please make sure the FastAPI server is running.',
       );
       console.error(`   Try: cd .. && python -m src.server.server`);
       process.exit(1);
     } else {
       console.warn('API is not available. Skipping type generation for now.');
       console.warn(
-        `   The API will be checked again when you run: npm run sync-types`
+        `   The API will be checked again when you run: npm run sync-types`,
       );
       console.warn(`   To start the API: cd .. && python -m src.server.server`);
       process.exit(0); // Exit successfully without generating types
@@ -49,7 +54,7 @@ try {
     `npx openapi-typescript ${API_URL}/openapi.json --output ${OUTPUT_FILE}`,
     {
       stdio: 'inherit',
-    }
+    },
   );
 
   // Verify the generated file
