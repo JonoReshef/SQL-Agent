@@ -9,23 +9,6 @@
   ],
   "configurations": [
     {
-      "name": "Python: FastAPI",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "uvicorn",
-      "cwd": "${workspaceFolder}",
-      "args": [
-        "src.server.server:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000",
-        "--reload"
-      ],
-      "jinja": true,
-      "justMyCode": true
-    },
-    {
       "name": "Frontend: NextJS",
       "type": "chrome",
       "request": "launch",
@@ -46,6 +29,26 @@
       "program": "${file}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    },
+    {
+      "name": "Python: FastAPI",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "backend_agent.server.server:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload"
+      ],
+      "jinja": true,
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       }
