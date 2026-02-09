@@ -1,0 +1,329 @@
+# Product archetypes for mock data generation
+# Each category defines item prefixes, product names, and property value ranges
+
+categories:
+  fasteners:
+    item_prefixes:
+      [
+        "B-0050-",
+        "B-0051-",
+        "B-0052-",
+        "B-0100-",
+        "B-0190-",
+        "B-1390-",
+        "B-2228-",
+        "B-2240-",
+      ]
+    product_names:
+      ["Hex Cap Screw", "Hex Bolt", "Stud", "Machine Screw", "Set Screw"]
+    description_template: "{size} X {length} {grade_prefix}{grade} {product_name} {finish}"
+    properties:
+      grade:
+        values:
+          [
+            "2",
+            "5",
+            "8",
+            "A320",
+            "A325",
+            "A490",
+            "B7",
+            "L7",
+            "L7M",
+            "L9",
+            "18-8",
+          ]
+        value_type: "measurement"
+        priority: 1
+      size:
+        values:
+          [
+            '1/4"-20',
+            '5/16"-18',
+            '3/8"-16',
+            '1/2"-13',
+            '5/8"-11',
+            '3/4"-10',
+            '7/8"-9',
+            '1"-8',
+            '1-1/8"-7',
+            '1-1/4"-7',
+            '1-1/2"-6',
+          ]
+        value_type: "measurement"
+        priority: 2
+      length:
+        values:
+          [
+            '1"',
+            '1-1/2"',
+            '2"',
+            '2-1/2"',
+            '3"',
+            '3-1/4"',
+            '4"',
+            '4-1/2"',
+            '6"',
+            '8"',
+            '10"',
+            '12"',
+          ]
+        value_type: "measurement"
+        priority: 3
+      finish:
+        values:
+          ["BARE", "ZINC PLATED", "YELLOW ZINC PLATED", "GALVANIZED", "PLAIN"]
+        value_type: "description"
+        priority: 5
+      thread_standard:
+        values: ["NC", "NF", "UNC", "UNF"]
+        value_type: "description"
+        priority: 4
+
+  gaskets:
+    item_prefixes:
+      ["SWG316-", "SWG304-", "DRI316-", "DRI304-", "GASKET-RF", "NEOGASKET-RF-"]
+    product_names:
+      ["Spiral Wound Gasket", "Ring Gasket", "RF Gasket", "Neoprene Gasket"]
+    description_template: "{material} {product_name} {size} {pressure_rating}"
+    properties:
+      size:
+        values:
+          [
+            '1"',
+            '1-1/2"',
+            '2"',
+            '3"',
+            '4"',
+            '6"',
+            '8"',
+            '10"',
+            '12"',
+            '14"',
+            '16"',
+            '18"',
+            '20"',
+            '24"',
+          ]
+        value_type: "measurement"
+        priority: 1
+      pressure_rating:
+        values:
+          [
+            "150 LB",
+            "150#",
+            "300 LB",
+            "300#",
+            "600 LB",
+            "900 LB",
+            "1500 LB",
+            "2500 LB",
+          ]
+        value_type: "measurement"
+        priority: 2
+      material:
+        values:
+          ["316/GRAPH", "304/GRAPH", "316 S/S", "Viton", "PTFE", "Neoprene"]
+        value_type: "description"
+        priority: 3
+      standard:
+        values: ["ASME B16.21", "ASME B16.20", "API 6A"]
+        value_type: "description"
+        priority: 4
+
+  nuts:
+    item_prefixes:
+      ["B-0310-", "B-0440-", "B-1710-", "B-2100-", "NTA-", "NTG-", "NTJ-"]
+    product_names:
+      [
+        "Hex Nut",
+        "Heavy Hex Nut",
+        "Jam Nut",
+        "Lock Nut",
+        "Finished Hex Nut",
+        "Acme Nut",
+      ]
+    description_template: "{size} {grade} {product_name} {finish}"
+    properties:
+      grade:
+        values:
+          [
+            "2",
+            "5",
+            "8",
+            "2H",
+            "2HM",
+            "A194",
+            "F594",
+            "L9",
+            "18-8",
+            "304SS",
+            "316SS",
+          ]
+        value_type: "measurement"
+        priority: 1
+      size:
+        values:
+          [
+            '1/4"-20',
+            '5/16"-18',
+            '3/8"-16',
+            '1/2"-13',
+            '5/8"-11',
+            '3/4"-10',
+            '7/8"-9',
+            '1"-8',
+            '1-1/8"-7',
+            '1-1/4"-7',
+            '1-1/2"-6',
+            '1-1/2"-8',
+            '1-1/2"-12',
+          ]
+        value_type: "measurement"
+        priority: 2
+      finish:
+        values:
+          ["BARE", "ZINC PLATED", "YELLOW ZINC PLATED", "GALVANIZED", "PLAIN"]
+        value_type: "description"
+        priority: 3
+
+  washers:
+    item_prefixes:
+      ["B-0580-", "B-0601-", "B-0610-", "B-0660-", "B-0670-", "B-4210-", "WAB"]
+    product_names:
+      [
+        "Flat Washer",
+        "Lock Washer",
+        "Belleville Washer",
+        "Fender Washer",
+        "Hi-Collar Lock Washer",
+      ]
+    description_template: "{size} {standard} {product_name} {type}"
+    properties:
+      size:
+        values:
+          [
+            '3/16"',
+            '1/4"',
+            '5/16"',
+            '3/8"',
+            '1/2"',
+            '5/8"',
+            '3/4"',
+            '7/8"',
+            '1"',
+            '1-1/8"',
+            '1-1/4"',
+            '1-1/2"',
+            '2"',
+            '2-1/4"',
+            '2-1/2"',
+            '2-3/4"',
+          ]
+        value_type: "measurement"
+        priority: 1
+      standard:
+        values: ["USS", "SAE", "F436", "ASTM F436", "DIN 125A"]
+        value_type: "description"
+        priority: 2
+      type:
+        values: ["plain", "USS", "SAE", "split lock", "Hi-Collar"]
+        value_type: "description"
+        priority: 3
+
+  threaded_rod:
+    item_prefixes: ["B-1150-", "B-1177-", "B-1275-", "B-1300-", "RDAC"]
+    product_names: ["Threaded Rod", "Acme Rod", "All-Thread"]
+    description_template: "{size} {grade} THREADED ROD - {length} LENGTH"
+    properties:
+      size:
+        values:
+          [
+            '3/8"-16',
+            '1/2"-13',
+            '5/8"-11',
+            '3/4"-10',
+            '7/8"-9',
+            '1"-8',
+            '1-1/8"-7',
+            '1-1/4"-7',
+            '1-1/2"-6',
+          ]
+        value_type: "measurement"
+        priority: 1
+      grade:
+        values:
+          [
+            "B7",
+            "B7M",
+            "L7",
+            "L7M",
+            "B7/L7",
+            "B7M/L7M",
+            "A193 B8",
+            "A354BD",
+            "GR8",
+          ]
+        value_type: "measurement"
+        priority: 2
+      length:
+        values: ['36"', "3'", "6'", "10'", "12'"]
+        value_type: "measurement"
+        priority: 3
+      thread_type:
+        values: ["Right Hand", "Left Hand", "Left/Right"]
+        value_type: "description"
+        priority: 4
+
+  stud_kits:
+    item_prefixes: ["B-BUK", "B-BUKW-", "ISCOBUK", "WOLY", "INRT-"]
+    product_names: ["Stud Kit", "Bolt Up Kit", "Insulation Kit"]
+    description_template: "{size} {pressure_rating} {grade} STUD KIT {connection_type}"
+    properties:
+      size:
+        values:
+          [
+            '1"',
+            '2"',
+            '3"',
+            '4"',
+            '6"',
+            '8"',
+            '10"',
+            '12"',
+            '14"',
+            '16"',
+            '18"',
+            '20"',
+            '24"',
+          ]
+        value_type: "measurement"
+        priority: 1
+      pressure_rating:
+        values:
+          ["150#", "150LB", "300#", "300LB", "600#", "900#", "1500#", "2500#"]
+        value_type: "measurement"
+        priority: 2
+      grade:
+        values: ["B7", "B7/2H", "B8", "B8/GR8"]
+        value_type: "measurement"
+        priority: 3
+      connection_type:
+        values: ["ST/ST", "ST/WW", "Steel x Steel"]
+        value_type: "description"
+        priority: 4
+
+  casing_spacers:
+    item_prefixes: ["CS-MSBO-", "CS-RG", "B-SPA"]
+    product_names: ["Steel Casing Spacer", "Runner", "Aluminum Spacer"]
+    description_template: "{size} {type} {product_name}"
+    properties:
+      size:
+        values:
+          ['4"', '6"', '8"', '10"', '12"', '14"', '16"', '18"', '20"', '24"']
+        value_type: "measurement"
+        priority: 1
+      type:
+        values: ["IPS", "SDR", "SDR35", "C900"]
+        value_type: "description"
+        priority: 2

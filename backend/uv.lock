@@ -143,6 +143,7 @@ dependencies = [
     { name = "langgraph-checkpoint-postgres" },
     { name = "langsmith" },
     { name = "markupsafe" },
+    { name = "mimesis" },
     { name = "ml-dtypes" },
     { name = "numpy" },
     { name = "openai" },
@@ -211,6 +212,7 @@ requires-dist = [
     { name = "langgraph-checkpoint-postgres", specifier = ">=3.0.4" },
     { name = "langsmith", specifier = "==0.6.9" },
     { name = "markupsafe", specifier = "==3.0.3" },
+    { name = "mimesis", specifier = ">=19.1.0" },
     { name = "ml-dtypes", specifier = "==0.5.4" },
     { name = "numpy", specifier = "==2.4.2" },
     { name = "openai", specifier = "==2.17.0" },
@@ -876,6 +878,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/55/79/de6c16cc902f4fc372236926b0ce2ab7845268dcc30fb2fbb7f71b418631/marshmallow-3.26.2.tar.gz", hash = "sha256:bbe2adb5a03e6e3571b573f42527c6fe926e17467833660bebd11593ab8dfd57", size = 222095, upload-time = "2025-12-22T06:53:53.309Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/be/2f/5108cb3ee4ba6501748c4908b908e55f42a5b66245b4cfe0c99326e1ef6e/marshmallow-3.26.2-py3-none-any.whl", hash = "sha256:013fa8a3c4c276c24d26d84ce934dc964e2aa794345a0f8c7e5a7191482c8a73", size = 50964, upload-time = "2025-12-22T06:53:51.801Z" },
+]
+
+[[package]]
+name = "mimesis"
+version = "19.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/12/bf/1612e48b9eea7fa39e27600e94b9b267b37da749fcdf019e5e6a892ba2ec/mimesis-19.1.0.tar.gz", hash = "sha256:af4f14852a97657c5dbfad860be90c0efe97bf3758809e034b6581a45b13814b", size = 18252875, upload-time = "2026-01-11T09:14:58.969Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/f2/39da33ad3c10956d9ee7cdea3c3ee92e98c529b2994ed7c36a208b497603/mimesis-19.1.0-py3-none-any.whl", hash = "sha256:cf2ea4674819eaf386a2b8d28ded450968f1770fcb23f6c6ef884f61727bb4e6", size = 4464087, upload-time = "2026-01-11T09:14:55.738Z" },
 ]
 
 [[package]]

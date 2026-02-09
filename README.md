@@ -14,6 +14,44 @@ Set the keys in `.env`
 docker-compose up --build
 ```
 
+### Seed Mock Data
+
+Populate the database with realistic mock data for local development:
+
+```bash
+# Using docker-compose (recommended)
+# First, ensure a clean state:
+docker-compose down --remove-orphans
+
+# Run the seed profile (starts db dependency automatically)
+docker-compose --profile seed up seed --build
+
+# After seeding completes, bring down the seed profile
+docker-compose --profile seed down --remove-orphans
+```
+
+**Troubleshooting**: If you see "network not found" errors, run:
+
+```bash
+docker-compose down --volumes --remove-orphans && docker system prune -f
+```
+
+```bash
+# Or manually with uv (requires local PostgreSQL)
+cd backend
+uv run python -m workflow.database.seed.seed_database --count 1000 --reset
+```
+
+Options:
+
+- `--count N`: Number of inventory items to create (default: 1000)
+- `--reset`: Drop and recreate tables before seeding
+- `--dry-run`: Preview what would be created without writing
+- `--seed N`: Random seed for reproducible data
+- `--categories`: Comma-separated list (e.g., `fasteners,gaskets`)
+
+See [backend/workflow/database/seed/README.md](backend/workflow/database/seed/README.md) for details.
+
 ### Debug/Develop
 
 ```bash

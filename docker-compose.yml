@@ -75,6 +75,41 @@ services:
       - westbrand-network
     restart: unless-stopped
 
+  seed:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    # Omit container_name to allow Docker to auto-generate unique names
+    # This prevents "container name already in use" conflicts
+    environment:
+      PGHOST: pgdb
+      PGPORT: 5432
+      PGDATABASE: ${PGDATABASE}
+      PGUSER: ${PGUSER}
+      PGPASSWORD: ${PGPASSWORD}
+    depends_on:
+      pgdb:
+        condition: service_healthy
+    networks:
+      - westbrand-network
+    profiles:
+      - seed
+    # One-shot service: never restart, exit after completion
+    restart: "no"
+    command:
+      [
+        "uv",
+        "run",
+        "python",
+        "-m",
+        "workflow.database.seed.seed_database",
+        "--count",
+        "1000",
+        "--reset",
+      ]
+    volumes:
+      - ./backend/workflow:/app/workflow
+
 volumes:
   redis_data:
   pgdata:

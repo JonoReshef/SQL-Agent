@@ -25,6 +25,7 @@ RUN uv sync
 
 # Copy source code
 COPY backend/agent/ ./agent/
+COPY backend/workflow/ ./workflow/
 COPY config/ ./config/
 
 # Create output directory
