@@ -37,10 +37,10 @@ Natural language SQL chat agent that allows users to query the WestBrand databas
 
 ```bash
 # Start server
-uvicorn backend_agent.server.server:app --host 0.0.0.0 --port 8000 --reload
+uvicorn backend.agent.server.server:app --host 0.0.0.0 --port 8000 --reload
 
 # Run tests
-pytest backend_agent/tests/ -v
+pytest backend.agent/tests/ -v
 ```
 
 ## Environment Variables
