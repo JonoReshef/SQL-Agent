@@ -235,6 +235,119 @@ export async function getChatHistory(
 }
 
 // ============================================================================
+// Thread CRUD
+// ============================================================================
+
+export interface ThreadData {
+  id: string;
+  title: string;
+  last_message: string;
+  timestamp: string;
+  message_count: number;
+}
+
+export interface MessageData {
+  id: string;
+  role: string;
+  content: string;
+  timestamp: string;
+  status?: string | null;
+  queries?: QueryExecution[] | null;
+  overall_summary?: string | null;
+}
+
+export async function fetchThreads(): Promise<ThreadData[]> {
+  const response = await fetch(`${API_BASE_URL}/threads`);
+  if (!response.ok) throw new Error(`Failed to fetch threads: ${response.statusText}`);
+  const data = await response.json();
+  return data.threads;
+}
+
+export async function createThreadApi(id: string, title: string = 'New Chat'): Promise<ThreadData> {
+  const response = await fetch(`${API_BASE_URL}/threads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, title }),
+  });
+  if (!response.ok) throw new Error(`Failed to create thread: ${response.statusText}`);
+  return response.json();
+}
+
+export async function updateThreadApi(
+  threadId: string,
+  updates: { title?: string; last_message?: string; message_count?: number }
+): Promise<ThreadData> {
+  const response = await fetch(`${API_BASE_URL}/threads/${threadId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) throw new Error(`Failed to update thread: ${response.statusText}`);
+  return response.json();
+}
+
+export async function deleteThreadApi(threadId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/threads/${threadId}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(`Failed to delete thread: ${response.statusText}`);
+}
+
+export async function deleteAllThreadsApi(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/threads`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(`Failed to delete all threads: ${response.statusText}`);
+}
+
+// ============================================================================
+// Message CRUD
+// ============================================================================
+
+export async function fetchMessages(threadId: string): Promise<MessageData[]> {
+  const response = await fetch(`${API_BASE_URL}/threads/${threadId}/messages`);
+  if (!response.ok) throw new Error(`Failed to fetch messages: ${response.statusText}`);
+  return response.json();
+}
+
+export async function saveMessageApi(threadId: string, message: MessageData): Promise<MessageData> {
+  const response = await fetch(`${API_BASE_URL}/threads/${threadId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(message),
+  });
+  if (!response.ok) throw new Error(`Failed to save message: ${response.statusText}`);
+  return response.json();
+}
+
+export async function updateMessageApi(
+  threadId: string,
+  messageId: string,
+  updates: { content?: string; status?: string; queries?: QueryExecution[]; overall_summary?: string }
+): Promise<MessageData> {
+  const response = await fetch(`${API_BASE_URL}/threads/${threadId}/messages/${messageId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) throw new Error(`Failed to update message: ${response.statusText}`);
+  return response.json();
+}
+
+// ============================================================================
+// Bulk Import (localStorage migration)
+// ============================================================================
+
+export async function bulkImportApi(
+  threads: { id: string; title: string }[],
+  messages: Record<string, MessageData[]>
+): Promise<{ imported_threads: number; imported_messages: number }> {
+  const response = await fetch(`${API_BASE_URL}/threads/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ threads, messages }),
+  });
+  if (!response.ok) throw new Error(`Failed to import data: ${response.statusText}`);
+  return response.json();
+}
+
+// ============================================================================
 // Health Check
 // ============================================================================
 

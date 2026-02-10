@@ -196,6 +196,54 @@ class MatchReviewFlag(Base):
     )
 
 
+class ChatThread(Base):
+    """Chat threads for the frontend UI"""
+
+    __tablename__ = "chat_threads"
+
+    id = Column(String(36), primary_key=True)  # UUID from frontend
+    title = Column(String(500), nullable=False, default="New Chat")
+    last_message = Column(Text, default="")
+    message_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    messages = relationship(
+        "ChatMessageRecord",
+        back_populates="thread",
+        cascade="all, delete-orphan",
+        order_by="ChatMessageRecord.created_at",
+    )
+
+    __table_args__ = (Index("idx_chat_thread_updated", "updated_at"),)
+
+
+class ChatMessageRecord(Base):
+    """Individual chat messages within a thread"""
+
+    __tablename__ = "chat_messages"
+
+    id = Column(String(36), primary_key=True)  # UUID from frontend
+    thread_id = Column(
+        String(36), ForeignKey("chat_threads.id", ondelete="CASCADE"), nullable=False
+    )
+    role = Column(String(20), nullable=False)  # 'user', 'assistant', 'system'
+    content = Column(Text, nullable=False, default="")
+    status = Column(String(20))  # 'streaming', 'complete'
+    queries = Column(JSON)  # SQL query transparency data
+    overall_summary = Column(Text)  # High-level summary
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    # Relationships
+    thread = relationship("ChatThread", back_populates="messages")
+
+    __table_args__ = (
+        Index("idx_chat_msg_thread", "thread_id"),
+        Index("idx_chat_msg_created", "created_at"),
+    )
+
+
 def create_all_tables(engine):
     """
     Create all database tables.

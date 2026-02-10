@@ -3,6 +3,8 @@
 from agent.database.connection import get_db_session, get_engine, test_connection
 from agent.database.models import (
     Base,
+    ChatMessageRecord,
+    ChatThread,
     EmailProcessed,
     InventoryItem,
     InventoryMatch,
@@ -22,6 +24,8 @@ __all__ = [
     "InventoryItem",
     "InventoryMatch",
     "MatchReviewFlag",
+    "ChatThread",
+    "ChatMessageRecord",
     "create_all_tables",
     "drop_all_tables",
 ]

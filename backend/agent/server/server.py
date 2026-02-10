@@ -1,7 +1,8 @@
 """FastAPI server for SQL chat agent"""
 
 import json
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,14 +10,24 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessageChunk, HumanMessage
 
 from agent.chat_workflow.graph import create_chat_graph
+from agent.database.connection import get_db_session, get_engine
+from agent.database.models import ChatMessageRecord, ChatThread, create_all_tables
 from agent.models.chat_models import ChatState
 from agent.models.server import (
+    BulkImportRequest,
+    ChatMessageModel,
     ChatRequest,
     ChatResponse,
     CheckpointData,
+    CreateThreadRequest,
     HistoryResponse,
     MessageHistory,
     QueryExecutionResponse,
+    SaveMessageRequest,
+    ThreadListResponse,
+    ThreadResponse,
+    UpdateMessageRequest,
+    UpdateThreadRequest,
 )
 
 # Initialize FastAPI app
@@ -58,6 +69,9 @@ async def root():
             "chat": "/chat",
             "chat_stream": "/chat/stream",
             "history": "/history/{thread_id}",
+            "threads": "/threads",
+            "thread_messages": "/threads/{thread_id}/messages",
+            "threads_import": "/threads/import",
         },
     }
 
@@ -357,6 +371,283 @@ async def get_history(thread_id: str) -> HistoryResponse:
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "westbrand-sql-chat-agent"}
+
+
+# ============================================================================
+# Startup: ensure chat tables exist
+# ============================================================================
+
+
+@app.on_event("startup")
+async def startup_create_chat_tables():
+    """Create chat_threads and chat_messages tables if they don't exist"""
+    engine = get_engine()
+    create_all_tables(engine)
+
+
+# ============================================================================
+# Thread CRUD Endpoints
+# ============================================================================
+
+
+def _thread_to_response(thread: ChatThread) -> ThreadResponse:
+    """Convert a ChatThread ORM object to a ThreadResponse"""
+    thread_id = cast(str, thread.id)
+    title = cast(str, thread.title)
+    last_message = cast("str | None", thread.last_message) or ""
+    updated_at = cast("datetime | None", thread.updated_at)
+    created_at = cast(datetime, thread.created_at)
+    message_count = cast("int | None", thread.message_count) or 0
+    ts = updated_at.isoformat() if updated_at else created_at.isoformat()
+    return ThreadResponse(
+        id=thread_id,
+        title=title,
+        last_message=last_message,
+        timestamp=ts,
+        message_count=message_count,
+    )
+
+
+@app.get("/threads", response_model=ThreadListResponse)
+async def list_threads():
+    """List all chat threads, most recent first"""
+    with get_db_session() as session:
+        threads = (
+            session.query(ChatThread)
+            .order_by(ChatThread.updated_at.desc())
+            .all()
+        )
+        return ThreadListResponse(
+            threads=[_thread_to_response(t) for t in threads]
+        )
+
+
+@app.post("/threads", response_model=ThreadResponse, status_code=201)
+async def create_thread(request: CreateThreadRequest):
+    """Create a new chat thread"""
+    with get_db_session() as session:
+        existing = session.get(ChatThread, request.id)
+        if existing:
+            return _thread_to_response(existing)
+
+        thread = ChatThread(
+            id=request.id,
+            title=request.title,
+        )
+        session.add(thread)
+        session.flush()
+        return _thread_to_response(thread)
+
+
+@app.patch("/threads/{thread_id}", response_model=ThreadResponse)
+async def update_thread(thread_id: str, request: UpdateThreadRequest):
+    """Update a chat thread's metadata"""
+    with get_db_session() as session:
+        thread = session.get(ChatThread, thread_id)
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        if request.title is not None:
+            thread.title = request.title  # type: ignore[assignment]
+        if request.last_message is not None:
+            thread.last_message = request.last_message  # type: ignore[assignment]
+        if request.message_count is not None:
+            thread.message_count = request.message_count  # type: ignore[assignment]
+
+        session.flush()
+        return _thread_to_response(thread)
+
+
+@app.delete("/threads/{thread_id}", status_code=204)
+async def delete_thread(thread_id: str):
+    """Delete a chat thread and all its messages"""
+    with get_db_session() as session:
+        thread = session.get(ChatThread, thread_id)
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+        session.delete(thread)
+
+
+@app.delete("/threads", status_code=204)
+async def delete_all_threads():
+    """Delete all chat threads and messages"""
+    with get_db_session() as session:
+        session.query(ChatMessageRecord).delete()
+        session.query(ChatThread).delete()
+
+
+# ============================================================================
+# Message CRUD Endpoints
+# ============================================================================
+
+
+def _message_to_model(msg: ChatMessageRecord) -> ChatMessageModel:
+    """Convert a ChatMessageRecord ORM object to a ChatMessageModel"""
+    msg_id = cast(str, msg.id)
+    role = cast(str, msg.role)
+    content = cast("str | None", msg.content) or ""
+    created_at = cast("datetime | None", msg.created_at)
+    ts = created_at.isoformat() if created_at else datetime.now(timezone.utc).isoformat()
+    status = cast("str | None", msg.status)
+    queries = cast("list[dict[str, Any]] | None", msg.queries)
+    overall_summary = cast("str | None", msg.overall_summary)
+    return ChatMessageModel(
+        id=msg_id,
+        role=role,
+        content=content,
+        timestamp=ts,
+        status=status,
+        queries=queries,
+        overall_summary=overall_summary,
+    )
+
+
+@app.get("/threads/{thread_id}/messages", response_model=list[ChatMessageModel])
+async def list_messages(thread_id: str):
+    """List all messages for a thread, ordered by creation time"""
+    with get_db_session() as session:
+        thread = session.get(ChatThread, thread_id)
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        messages = (
+            session.query(ChatMessageRecord)
+            .filter(ChatMessageRecord.thread_id == thread_id)
+            .order_by(ChatMessageRecord.created_at)
+            .all()
+        )
+        return [_message_to_model(m) for m in messages]
+
+
+@app.post("/threads/{thread_id}/messages", response_model=ChatMessageModel, status_code=201)
+async def save_message(thread_id: str, request: SaveMessageRequest):
+    """Save a new message to a thread"""
+    with get_db_session() as session:
+        thread = session.get(ChatThread, thread_id)
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        # Check if message already exists (idempotent)
+        existing = session.get(ChatMessageRecord, request.id)
+        if existing:
+            return _message_to_model(existing)
+
+        created_at = datetime.fromisoformat(request.timestamp) if request.timestamp else datetime.now(timezone.utc)
+        msg = ChatMessageRecord(
+            id=request.id,
+            thread_id=thread_id,
+            role=request.role,
+            content=request.content,
+            status=request.status,
+            queries=request.queries,
+            overall_summary=request.overall_summary,
+            created_at=created_at,
+        )
+        session.add(msg)
+
+        # Update thread metadata
+        thread.last_message = request.content  # type: ignore[assignment]
+        thread.message_count = (cast("int | None", thread.message_count) or 0) + 1  # type: ignore[assignment]
+
+        session.flush()
+        return _message_to_model(msg)
+
+
+@app.patch("/threads/{thread_id}/messages/{message_id}", response_model=ChatMessageModel)
+async def update_message(thread_id: str, message_id: str, request: UpdateMessageRequest):
+    """Update an existing message (e.g., after streaming completes)"""
+    with get_db_session() as session:
+        msg = session.get(ChatMessageRecord, message_id)
+        if not msg or cast(str, msg.thread_id) != thread_id:
+            raise HTTPException(status_code=404, detail="Message not found")
+
+        if request.content is not None:
+            msg.content = request.content  # type: ignore[assignment]
+        if request.status is not None:
+            msg.status = request.status  # type: ignore[assignment]
+        if request.queries is not None:
+            msg.queries = request.queries  # type: ignore[assignment]
+        if request.overall_summary is not None:
+            msg.overall_summary = request.overall_summary  # type: ignore[assignment]
+
+        # Update thread's last_message if content changed
+        if request.content is not None:
+            thread = session.get(ChatThread, thread_id)
+            if thread:
+                thread.last_message = request.content  # type: ignore[assignment]
+
+        session.flush()
+        return _message_to_model(msg)
+
+
+# ============================================================================
+# Bulk Import (for localStorage migration)
+# ============================================================================
+
+
+@app.post("/threads/import", status_code=201)
+async def bulk_import(request: BulkImportRequest):
+    """Import threads and messages from localStorage in bulk"""
+    imported_threads = 0
+    imported_messages = 0
+
+    with get_db_session() as session:
+        for thread_req in request.threads:
+            existing = session.get(ChatThread, thread_req.id)
+            if not existing:
+                thread = ChatThread(
+                    id=thread_req.id,
+                    title=thread_req.title,
+                )
+                session.add(thread)
+                imported_threads += 1
+
+        session.flush()
+
+        for thread_id, msgs in request.messages.items():
+            thread = session.get(ChatThread, thread_id)
+            if not thread:
+                continue
+
+            for msg_req in msgs:
+                existing_msg = session.get(ChatMessageRecord, msg_req.id)
+                if existing_msg:
+                    continue
+
+                created_at = datetime.fromisoformat(msg_req.timestamp) if msg_req.timestamp else datetime.now(timezone.utc)
+                msg = ChatMessageRecord(
+                    id=msg_req.id,
+                    thread_id=thread_id,
+                    role=msg_req.role,
+                    content=msg_req.content,
+                    status=msg_req.status,
+                    queries=msg_req.queries,
+                    overall_summary=msg_req.overall_summary,
+                    created_at=created_at,
+                )
+                session.add(msg)
+                imported_messages += 1
+
+            # Update thread metadata
+            if thread:
+                thread.message_count = (  # type: ignore[assignment]
+                    session.query(ChatMessageRecord)
+                    .filter(ChatMessageRecord.thread_id == thread_id)
+                    .count()
+                )
+                last_msg = (
+                    session.query(ChatMessageRecord)
+                    .filter(ChatMessageRecord.thread_id == thread_id)
+                    .order_by(ChatMessageRecord.created_at.desc())
+                    .first()
+                )
+                if last_msg:
+                    thread.last_message = cast(str, last_msg.content)  # type: ignore[assignment]
+
+    return {
+        "imported_threads": imported_threads,
+        "imported_messages": imported_messages,
+    }
 
 
 if __name__ == "__main__":

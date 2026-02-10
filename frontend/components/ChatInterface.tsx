@@ -32,6 +32,7 @@ export function ChatInterface() {
     addMessage,
     updateMessageById,
     isLoading,
+    isInitialised,
   } = useChatThreads();
 
   const {
@@ -45,12 +46,12 @@ export function ChatInterface() {
     clearError,
   } = useChatStream();
 
-  // Create initial thread if none exists
+  // Create initial thread if none exists (only after init completes)
   useEffect(() => {
-    if (threads.length === 0 && !currentThreadId) {
+    if (isInitialised && threads.length === 0 && !currentThreadId) {
       createThread();
     }
-  }, [threads.length, currentThreadId, createThread]);
+  }, [isInitialised, threads.length, currentThreadId, createThread]);
 
   const handleSendMessage = async (message: string) => {
     if (!currentThreadId) {
