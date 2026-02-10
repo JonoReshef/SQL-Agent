@@ -36,6 +36,54 @@ export type ChatResponse = components['schemas']['ChatResponse'];
  */
 export type HistoryResponse = components['schemas']['HistoryResponse'];
 
+/**
+ * Thread response from API
+ * Maps to server's ThreadResponse
+ */
+export type ThreadResponse = components['schemas']['ThreadResponse'];
+
+/**
+ * Thread list response from API
+ * Maps to server's ThreadListResponse
+ */
+export type ThreadListResponse = components['schemas']['ThreadListResponse'];
+
+/**
+ * Chat message as returned by the API
+ * Maps to server's ChatMessageModel
+ */
+export type ChatMessageModel = components['schemas']['ChatMessageModel'];
+
+/**
+ * Request to save a message
+ * Maps to server's SaveMessageRequest
+ */
+export type SaveMessageRequest = components['schemas']['SaveMessageRequest'];
+
+/**
+ * Request to update a message
+ * Maps to server's UpdateMessageRequest
+ */
+export type UpdateMessageRequest = components['schemas']['UpdateMessageRequest'];
+
+/**
+ * Request to create a thread
+ * Maps to server's CreateThreadRequest
+ */
+export type CreateThreadRequest = components['schemas']['CreateThreadRequest'];
+
+/**
+ * Request to update a thread
+ * Maps to server's UpdateThreadRequest
+ */
+export type UpdateThreadRequest = components['schemas']['UpdateThreadRequest'];
+
+/**
+ * Request to bulk import threads and messages
+ * Maps to server's BulkImportRequest
+ */
+export type BulkImportRequest = components['schemas']['BulkImportRequest'];
+
 // ============================================================================
 // Thread Management (Frontend-only)
 // ============================================================================

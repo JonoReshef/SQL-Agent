@@ -12,9 +12,8 @@ import {
   updateMessageApi,
   bulkImportApi,
 } from '@/lib/api';
-import type { MessageData } from '@/lib/api';
 import { generateUUID, extractTitle } from '@/lib/utils';
-import type { Thread, ChatMessage } from '@/types/interfaces';
+import type { Thread, ChatMessage, ChatMessageModel, ThreadResponse } from '@/types/interfaces';
 
 // localStorage keys used by the old implementation (for migration)
 const THREADS_KEY = 'westbrand_threads';
@@ -38,7 +37,7 @@ export interface UseChatThreadsReturn {
   error: string | null;
 }
 
-function chatMessageToApi(msg: ChatMessage): MessageData {
+function chatMessageToApi(msg: ChatMessage): ChatMessageModel {
   return {
     id: msg.id,
     role: msg.role,
@@ -53,7 +52,7 @@ function chatMessageToApi(msg: ChatMessage): MessageData {
   };
 }
 
-function apiToThread(t: { id: string; title: string; last_message: string; timestamp: string; message_count: number }): Thread {
+function apiToThread(t: ThreadResponse): Thread {
   return {
     id: t.id,
     title: t.title,
@@ -63,14 +62,14 @@ function apiToThread(t: { id: string; title: string; last_message: string; times
   };
 }
 
-function apiToChatMessage(m: MessageData): ChatMessage {
+function apiToChatMessage(m: ChatMessageModel): ChatMessage {
   return {
     id: m.id,
     role: m.role as ChatMessage['role'],
     content: m.content,
     timestamp: new Date(m.timestamp),
     status: m.status as ChatMessage['status'],
-    queries: m.queries ?? undefined,
+    queries: m.queries as ChatMessage['queries'],
     overallSummary: m.overall_summary ?? undefined,
   };
 }
@@ -160,7 +159,7 @@ export function useChatThreads(): UseChatThreadsReturn {
         title: t.title,
       }));
 
-      const messagesPayload: Record<string, MessageData[]> = {};
+      const messagesPayload: Record<string, ChatMessageModel[]> = {};
       for (const t of parsedThreads) {
         const raw = localStorage.getItem(`${MESSAGES_KEY_PREFIX}${t.id}`);
         if (raw) {

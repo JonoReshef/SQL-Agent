@@ -3,6 +3,7 @@
  * Do not make direct changes to the file.
  */
 
+
 export interface paths {
   "/": {
     /**
@@ -69,12 +70,104 @@ export interface paths {
      */
     get: operations["health_check_health_get"];
   };
+  "/threads": {
+    /**
+     * List Threads
+     * @description List all chat threads, most recent first
+     */
+    get: operations["list_threads_threads_get"];
+    /**
+     * Create Thread
+     * @description Create a new chat thread
+     */
+    post: operations["create_thread_threads_post"];
+    /**
+     * Delete All Threads
+     * @description Delete all chat threads and messages
+     */
+    delete: operations["delete_all_threads_threads_delete"];
+  };
+  "/threads/{thread_id}": {
+    /**
+     * Delete Thread
+     * @description Delete a chat thread and all its messages
+     */
+    delete: operations["delete_thread_threads__thread_id__delete"];
+    /**
+     * Update Thread
+     * @description Update a chat thread's metadata
+     */
+    patch: operations["update_thread_threads__thread_id__patch"];
+  };
+  "/threads/{thread_id}/messages": {
+    /**
+     * List Messages
+     * @description List all messages for a thread, ordered by creation time
+     */
+    get: operations["list_messages_threads__thread_id__messages_get"];
+    /**
+     * Save Message
+     * @description Save a new message to a thread
+     */
+    post: operations["save_message_threads__thread_id__messages_post"];
+  };
+  "/threads/{thread_id}/messages/{message_id}": {
+    /**
+     * Update Message
+     * @description Update an existing message (e.g., after streaming completes)
+     */
+    patch: operations["update_message_threads__thread_id__messages__message_id__patch"];
+  };
+  "/threads/import": {
+    /**
+     * Bulk Import
+     * @description Import threads and messages from localStorage in bulk
+     */
+    post: operations["bulk_import_threads_import_post"];
+  };
 }
 
 export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    /**
+     * BulkImportRequest
+     * @description Request model for importing threads and messages from localStorage
+     */
+    BulkImportRequest: {
+      /** Threads */
+      threads: components["schemas"]["CreateThreadRequest"][];
+      /**
+       * Messages
+       * @description Map of thread_id to list of messages
+       */
+      messages?: {
+        [key: string]: components["schemas"]["SaveMessageRequest"][];
+      };
+    };
+    /**
+     * ChatMessageModel
+     * @description A single chat message
+     */
+    ChatMessageModel: {
+      /** Id */
+      id: string;
+      /** Role */
+      role: string;
+      /** Content */
+      content: string;
+      /** Timestamp */
+      timestamp: string;
+      /** Status */
+      status?: string | null;
+      /** Queries */
+      queries?: {
+          [key: string]: unknown;
+        }[] | null;
+      /** Overall Summary */
+      overall_summary?: string | null;
+    };
     /**
      * ChatRequest
      * @description Request model for chat endpoints
@@ -146,6 +239,23 @@ export interface components {
         [key: string]: unknown;
       };
     };
+    /**
+     * CreateThreadRequest
+     * @description Request model for creating a thread
+     */
+    CreateThreadRequest: {
+      /**
+       * Id
+       * @description UUID for the new thread
+       */
+      id: string;
+      /**
+       * Title
+       * @description Thread title
+       * @default New Chat
+       */
+      title?: string;
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
@@ -204,6 +314,80 @@ export interface components {
        */
       result_summary: string;
     };
+    /**
+     * SaveMessageRequest
+     * @description Request model for saving a message
+     */
+    SaveMessageRequest: {
+      /** Id */
+      id: string;
+      /** Role */
+      role: string;
+      /** Content */
+      content: string;
+      /** Timestamp */
+      timestamp: string;
+      /** Status */
+      status?: string | null;
+      /** Queries */
+      queries?: {
+          [key: string]: unknown;
+        }[] | null;
+      /** Overall Summary */
+      overall_summary?: string | null;
+    };
+    /**
+     * ThreadListResponse
+     * @description Response model for list of threads
+     */
+    ThreadListResponse: {
+      /** Threads */
+      threads: components["schemas"]["ThreadResponse"][];
+    };
+    /**
+     * ThreadResponse
+     * @description Response model for a chat thread
+     */
+    ThreadResponse: {
+      /** Id */
+      id: string;
+      /** Title */
+      title: string;
+      /** Last Message */
+      last_message: string;
+      /** Timestamp */
+      timestamp: string;
+      /** Message Count */
+      message_count: number;
+    };
+    /**
+     * UpdateMessageRequest
+     * @description Request model for updating a message
+     */
+    UpdateMessageRequest: {
+      /** Content */
+      content?: string | null;
+      /** Status */
+      status?: string | null;
+      /** Queries */
+      queries?: {
+          [key: string]: unknown;
+        }[] | null;
+      /** Overall Summary */
+      overall_summary?: string | null;
+    };
+    /**
+     * UpdateThreadRequest
+     * @description Request model for updating a thread
+     */
+    UpdateThreadRequest: {
+      /** Title */
+      title?: string | null;
+      /** Last Message */
+      last_message?: string | null;
+      /** Message Count */
+      message_count?: number | null;
+    };
     /** ValidationError */
     ValidationError: {
       /** Location */
@@ -212,6 +396,10 @@ export interface components {
       msg: string;
       /** Error Type */
       type: string;
+      /** Input */
+      input?: unknown;
+      /** Context */
+      ctx?: Record<string, never>;
     };
   };
   responses: never;
@@ -226,6 +414,7 @@ export type $defs = Record<string, never>;
 export type external = Record<string, never>;
 
 export interface operations {
+
   /**
    * Root
    * @description Root endpoint with API information
@@ -355,6 +544,221 @@ export interface operations {
       200: {
         content: {
           "application/json": unknown;
+        };
+      };
+    };
+  };
+  /**
+   * List Threads
+   * @description List all chat threads, most recent first
+   */
+  list_threads_threads_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ThreadListResponse"];
+        };
+      };
+    };
+  };
+  /**
+   * Create Thread
+   * @description Create a new chat thread
+   */
+  create_thread_threads_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateThreadRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        content: {
+          "application/json": components["schemas"]["ThreadResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Delete All Threads
+   * @description Delete all chat threads and messages
+   */
+  delete_all_threads_threads_delete: {
+    responses: {
+      /** @description Successful Response */
+      204: {
+        content: never;
+      };
+    };
+  };
+  /**
+   * Delete Thread
+   * @description Delete a chat thread and all its messages
+   */
+  delete_thread_threads__thread_id__delete: {
+    parameters: {
+      path: {
+        thread_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        content: never;
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Update Thread
+   * @description Update a chat thread's metadata
+   */
+  update_thread_threads__thread_id__patch: {
+    parameters: {
+      path: {
+        thread_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateThreadRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ThreadResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * List Messages
+   * @description List all messages for a thread, ordered by creation time
+   */
+  list_messages_threads__thread_id__messages_get: {
+    parameters: {
+      path: {
+        thread_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ChatMessageModel"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Save Message
+   * @description Save a new message to a thread
+   */
+  save_message_threads__thread_id__messages_post: {
+    parameters: {
+      path: {
+        thread_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SaveMessageRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        content: {
+          "application/json": components["schemas"]["ChatMessageModel"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Update Message
+   * @description Update an existing message (e.g., after streaming completes)
+   */
+  update_message_threads__thread_id__messages__message_id__patch: {
+    parameters: {
+      path: {
+        thread_id: string;
+        message_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateMessageRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ChatMessageModel"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Bulk Import
+   * @description Import threads and messages from localStorage in bulk
+   */
+  bulk_import_threads_import_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BulkImportRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
