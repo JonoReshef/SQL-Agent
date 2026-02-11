@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useChatThreads } from '@/hooks/useChatThreads';
 import { useChatStream } from '@/hooks/useChatStream';
-import { generateUUID } from '@/lib/utils';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatMessages } from './ChatMessages';
 import { ChatInput } from './ChatInput';
@@ -14,6 +13,7 @@ export function ChatInterface() {
   const [isClient, setIsClient] = useState(false);
   const [anticipateComplexity, setAnticipateComplexity] = useState(false);
   const streamingMessageIdRef = useRef<string | null>(null);
+  const pendingMessageRef = useRef<string | null>(null);
 
   // Prevent hydration errors by only rendering client-specific code after mount
   useEffect(() => {
@@ -31,6 +31,7 @@ export function ChatInterface() {
     updateThreadTitle,
     addMessage,
     updateMessageById,
+    updateThreadMetadata,
     isLoading,
     isInitialised,
   } = useChatThreads();
@@ -38,12 +39,16 @@ export function ChatInterface() {
   const {
     sendMessage,
     isStreaming,
+    streamingThreadId,
     currentResponse,
     currentStatus,
     queries,
     overallSummary,
     error,
     clearError,
+    userMessageId,
+    assistantMessageId,
+    threadTitle,
   } = useChatStream();
 
   // Create initial thread if none exists (only after init completes)
@@ -65,49 +70,60 @@ export function ChatInterface() {
     message: string,
     threadId: string
   ) => {
-    // 1. Add user message
-    const userMessage: ChatMessage = {
-      id: generateUUID(),
-      role: 'user',
-      content: message,
-      timestamp: new Date(),
-      status: 'complete',
-    };
-    addMessage(userMessage);
-
-    // 2. Add assistant placeholder with streaming status
-    const assistantId = generateUUID();
-    streamingMessageIdRef.current = assistantId;
-    const assistantMessage: ChatMessage = {
-      id: assistantId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-      status: 'streaming',
-    };
-    addMessage(assistantMessage);
+    // Store the pending message text so we can create the ChatMessage
+    // once the backend confirms with user_message_created event
+    pendingMessageRef.current = message;
+    streamingMessageIdRef.current = null;
 
     try {
-      // 3. Start streaming
       await sendMessage(message, threadId, anticipateComplexity);
     } catch (err) {
       console.error('Error sending message:', err);
-      const errorMessage: ChatMessage = {
-        id: generateUUID(),
-        role: 'system',
-        content: `Error: ${error || 'Failed to send message'}`,
+    }
+  };
+
+  // When backend confirms user message was created, add it to the originating thread
+  useEffect(() => {
+    if (userMessageId && pendingMessageRef.current && streamingThreadId) {
+      const userMessage: ChatMessage = {
+        id: userMessageId,
+        role: 'user',
+        content: pendingMessageRef.current,
         timestamp: new Date(),
         status: 'complete',
       };
-      addMessage(errorMessage);
+      addMessage(streamingThreadId, userMessage);
+      pendingMessageRef.current = null;
     }
-  };
+  }, [userMessageId, streamingThreadId, addMessage]);
+
+  // When backend confirms assistant placeholder, add it to the originating thread
+  useEffect(() => {
+    if (assistantMessageId && streamingThreadId) {
+      streamingMessageIdRef.current = assistantMessageId;
+      const assistantMessage: ChatMessage = {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+        status: 'streaming',
+      };
+      addMessage(streamingThreadId, assistantMessage);
+    }
+  }, [assistantMessageId, streamingThreadId, addMessage]);
+
+  // When backend provides a thread title, update the originating thread metadata
+  useEffect(() => {
+    if (threadTitle && streamingThreadId) {
+      updateThreadMetadata(streamingThreadId, { title: threadTitle });
+    }
+  }, [threadTitle, streamingThreadId, updateThreadMetadata]);
 
   // Update streaming message by ID as content arrives
   useEffect(() => {
     const messageId = streamingMessageIdRef.current;
-    if (messageId && currentResponse) {
-      updateMessageById(messageId, {
+    if (messageId && currentResponse && streamingThreadId) {
+      updateMessageById(streamingThreadId, messageId, {
         content: currentResponse,
         status: isStreaming ? 'streaming' : 'complete',
         queries: !isStreaming && queries.length > 0 ? queries : undefined,
@@ -125,23 +141,24 @@ export function ChatInterface() {
     isStreaming,
     queries,
     overallSummary,
+    streamingThreadId,
     updateMessageById,
   ]);
 
-  // Display errors
+  // Display errors in the current thread (not scoped to streaming thread)
   useEffect(() => {
-    if (error) {
+    if (error && currentThreadId) {
       const errorMessage: ChatMessage = {
-        id: generateUUID(),
+        id: crypto.randomUUID(),
         role: 'system',
         content: `Error: ${error}`,
         timestamp: new Date(),
         status: 'complete',
       };
-      addMessage(errorMessage);
+      addMessage(currentThreadId, errorMessage);
       clearError();
     }
-  }, [error, addMessage, clearError]);
+  }, [error, currentThreadId, addMessage, clearError]);
 
   // Prevent hydration errors - only render after client mount
   if (!isClient) {
@@ -233,11 +250,11 @@ export function ChatInterface() {
           </div>
         </div>
 
-        {/* Messages */}
+        {/* Messages — only show streaming UI if this is the thread being streamed */}
         <ChatMessages
           messages={currentMessages}
-          isStreaming={isStreaming}
-          streamingStatus={currentStatus}
+          isStreaming={isStreaming && currentThreadId === streamingThreadId}
+          streamingStatus={isStreaming && currentThreadId === streamingThreadId ? currentStatus : undefined}
         />
 
         {/* Input */}

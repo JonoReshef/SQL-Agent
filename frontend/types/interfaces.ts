@@ -124,12 +124,16 @@ export type StreamEventType =
   | 'summary'
   | 'status'
   | 'end'
-  | 'error';
+  | 'error'
+  | 'user_message_created'
+  | 'assistant_message_created';
 
 export interface StreamEvent {
   type: StreamEventType;
   content?: string;
   queries?: QueryExecution[];
+  message_id?: string;
+  thread_title?: string | null;
 }
 
 // ============================================================================

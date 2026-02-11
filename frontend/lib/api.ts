@@ -65,6 +65,8 @@ export interface StreamCallbacks {
   onStatus: (status: string) => void;
   onComplete: () => void;
   onError: (error: string) => void;
+  onUserMessageCreated?: (messageId: string, threadTitle?: string | null) => void;
+  onAssistantMessageCreated?: (messageId: string) => void;
 }
 
 export function streamChatMessage(
@@ -81,6 +83,8 @@ export function streamChatMessage(
     onStatus,
     onComplete,
     onError,
+    onUserMessageCreated,
+    onAssistantMessageCreated,
   } = callbacks;
 
   let isComplete = false;
@@ -190,6 +194,18 @@ export function streamChatMessage(
         if (!isComplete) {
           onComplete();
           isComplete = true;
+        }
+        break;
+
+      case 'user_message_created':
+        if (event.message_id && onUserMessageCreated) {
+          onUserMessageCreated(event.message_id, event.thread_title);
+        }
+        break;
+
+      case 'assistant_message_created':
+        if (event.message_id && onAssistantMessageCreated) {
+          onAssistantMessageCreated(event.message_id);
         }
         break;
 

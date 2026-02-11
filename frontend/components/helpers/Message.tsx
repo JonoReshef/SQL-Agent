@@ -14,6 +14,7 @@ interface MessageProps {
   queries?: QueryExecution[];
   overallSummary?: string;
   isStreaming?: boolean;
+  isInterrupted?: boolean;
 }
 
 export function Message({
@@ -23,6 +24,7 @@ export function Message({
   queries,
   overallSummary,
   isStreaming = false,
+  isInterrupted = false,
 }: MessageProps) {
   const [showDetails, setShowDetails] = useState(false);
   const isUser = role === 'user';
@@ -50,6 +52,11 @@ export function Message({
           >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </div>
+          {isInterrupted && (
+            <div className='text-xs text-amber-600 mt-2 italic'>
+              Response was interrupted
+            </div>
+          )}
           <div
             className={`text-xs mt-2 flex items-center justify-between ${
               isUser ? 'text-primary-100' : 'text-gray-500'

@@ -50,18 +50,26 @@ export function ChatMessages({
         </div>
       )}
 
-      {messages.map((message) => (
-        <div key={message.id}>
-          <Message
-            role={message.role}
-            content={message.content}
-            timestamp={message.timestamp}
-            queries={message.queries}
-            overallSummary={message.overallSummary}
-            isStreaming={message.status === 'streaming'}
-          />
-        </div>
-      ))}
+      {messages.map((message, index) => {
+        const isLastMessage = index === messages.length - 1;
+        const messageIsStreaming = message.status === 'streaming';
+        const isInterrupted =
+          messageIsStreaming && !isStreaming && !isLastMessage;
+
+        return (
+          <div key={message.id}>
+            <Message
+              role={message.role}
+              content={message.content}
+              timestamp={message.timestamp}
+              queries={message.queries}
+              overallSummary={message.overallSummary}
+              isStreaming={messageIsStreaming && isStreaming}
+              isInterrupted={isInterrupted}
+            />
+          </div>
+        );
+      })}
 
       {/* Streaming status indicator (only show if there's a status and not actively displaying streamed content) */}
       {isStreaming && streamingStatus && (

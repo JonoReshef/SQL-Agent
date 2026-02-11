@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   fetchThreads,
   createThreadApi,
@@ -8,18 +8,16 @@ import {
   deleteThreadApi,
   deleteAllThreadsApi,
   fetchMessages,
-  saveMessageApi,
-  updateMessageApi,
-  bulkImportApi,
 } from '@/lib/api';
-import { generateUUID, extractTitle } from '@/lib/utils';
-import type { Thread, ChatMessage, ChatMessageModel, ThreadResponse } from '@/types/interfaces';
+import { generateUUID } from '@/lib/utils';
+import type {
+  Thread,
+  ChatMessage,
+  ChatMessageModel,
+  ThreadResponse,
+} from '@/types/interfaces';
 
-// localStorage keys used by the old implementation (for migration)
-const THREADS_KEY = 'westbrand_threads';
 const CURRENT_THREAD_KEY = 'westbrand_current';
-const MESSAGES_KEY_PREFIX = 'westbrand_messages_';
-const MIGRATION_DONE_KEY = 'westbrand_migration_done';
 
 export interface UseChatThreadsReturn {
   threads: Thread[];
@@ -30,26 +28,16 @@ export interface UseChatThreadsReturn {
   deleteThread: (threadId: string) => void;
   clearAllThreads: () => void;
   updateThreadTitle: (threadId: string, title: string) => void;
-  addMessage: (message: ChatMessage) => void;
-  updateMessageById: (id: string, updates: Partial<ChatMessage>) => void;
+  addMessage: (threadId: string, message: ChatMessage) => void;
+  updateMessageById: (
+    threadId: string,
+    id: string,
+    updates: Partial<ChatMessage>,
+  ) => void;
+  updateThreadMetadata: (threadId: string, updates: Partial<Thread>) => void;
   isLoading: boolean;
   isInitialised: boolean;
   error: string | null;
-}
-
-function chatMessageToApi(msg: ChatMessage): ChatMessageModel {
-  return {
-    id: msg.id,
-    role: msg.role,
-    content: msg.content,
-    timestamp:
-      msg.timestamp instanceof Date
-        ? msg.timestamp.toISOString()
-        : msg.timestamp,
-    status: msg.status ?? null,
-    queries: msg.queries ?? null,
-    overall_summary: msg.overallSummary ?? null,
-  };
 }
 
 function apiToThread(t: ThreadResponse): Thread {
@@ -76,19 +64,30 @@ function apiToChatMessage(m: ChatMessageModel): ChatMessage {
 
 /**
  * Custom hook for managing chat threads and messages via the backend API.
- * On first load, migrates any existing localStorage data to the database.
+ *
+ * Messages are stored in a thread-indexed map so that operations targeting a
+ * specific thread (e.g. adding a streamed message) always land in the correct
+ * bucket — even if the user has switched to a different thread in the meantime.
  */
 export function useChatThreads(): UseChatThreadsReturn {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
-  const [currentMessages, setCurrentMessages] = useState<ChatMessage[]>([]);
+  const [messagesByThread, setMessagesByThread] = useState<
+    Record<string, ChatMessage[]>
+  >({});
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialised, setIsInitialised] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initialised = useRef(false);
 
+  // Derive currentMessages from the thread-indexed store
+  const currentMessages = useMemo(
+    () => (currentThreadId ? (messagesByThread[currentThreadId] ?? []) : []),
+    [currentThreadId, messagesByThread],
+  );
+
   // ------------------------------------------------------------------
-  // Initialisation: migrate localStorage then load threads from API
+  // Initialisation: load threads from API
   // ------------------------------------------------------------------
   useEffect(() => {
     if (initialised.current) return;
@@ -97,9 +96,6 @@ export function useChatThreads(): UseChatThreadsReturn {
     const init = async () => {
       setIsLoading(true);
       try {
-        // Migrate localStorage data if not already done
-        await migrateLocalStorage();
-
         // Load threads from API
         const apiThreads = await fetchThreads();
         const mapped = apiThreads.map(apiToThread);
@@ -112,7 +108,7 @@ export function useChatThreads(): UseChatThreadsReturn {
           if (parsed && mapped.some((t) => t.id === parsed)) {
             setCurrentThreadId(parsed);
             const msgs = await fetchMessages(parsed);
-            setCurrentMessages(msgs.map(apiToChatMessage));
+            setMessagesByThread({ [parsed]: msgs.map(apiToChatMessage) });
           }
         }
       } catch (err) {
@@ -135,59 +131,6 @@ export function useChatThreads(): UseChatThreadsReturn {
   }, [currentThreadId]);
 
   // ------------------------------------------------------------------
-  // localStorage → API migration (runs once)
-  // ------------------------------------------------------------------
-  async function migrateLocalStorage() {
-    if (typeof window === 'undefined') return;
-    if (localStorage.getItem(MIGRATION_DONE_KEY)) return;
-
-    const storedThreads = localStorage.getItem(THREADS_KEY);
-    if (!storedThreads) {
-      localStorage.setItem(MIGRATION_DONE_KEY, '1');
-      return;
-    }
-
-    try {
-      const parsedThreads: Thread[] = JSON.parse(storedThreads);
-      if (!parsedThreads.length) {
-        localStorage.setItem(MIGRATION_DONE_KEY, '1');
-        return;
-      }
-
-      const threadPayloads = parsedThreads.map((t) => ({
-        id: t.id,
-        title: t.title,
-      }));
-
-      const messagesPayload: Record<string, ChatMessageModel[]> = {};
-      for (const t of parsedThreads) {
-        const raw = localStorage.getItem(`${MESSAGES_KEY_PREFIX}${t.id}`);
-        if (raw) {
-          try {
-            const msgs: ChatMessage[] = JSON.parse(raw);
-            messagesPayload[t.id] = msgs.map(chatMessageToApi);
-          } catch {
-            // skip malformed message data
-          }
-        }
-      }
-
-      await bulkImportApi(threadPayloads, messagesPayload);
-
-      // Clean up old localStorage keys
-      localStorage.removeItem(THREADS_KEY);
-      for (const t of parsedThreads) {
-        localStorage.removeItem(`${MESSAGES_KEY_PREFIX}${t.id}`);
-      }
-      localStorage.setItem(MIGRATION_DONE_KEY, '1');
-      console.log('Successfully migrated localStorage data to database');
-    } catch (err) {
-      console.error('Migration failed, will retry next load:', err);
-      // Don't mark as done so it retries
-    }
-  }
-
-  // ------------------------------------------------------------------
   // Thread operations
   // ------------------------------------------------------------------
 
@@ -203,11 +146,11 @@ export function useChatThreads(): UseChatThreadsReturn {
 
     setThreads((prev) => [newThread, ...prev]);
     setCurrentThreadId(newThreadId);
-    setCurrentMessages([]);
+    setMessagesByThread((prev) => ({ ...prev, [newThreadId]: [] }));
 
     // Fire-and-forget API call
     createThreadApi(newThreadId, 'New Chat').catch((err) =>
-      console.error('Failed to persist new thread:', err)
+      console.error('Failed to persist new thread:', err),
     );
 
     return newThreadId;
@@ -219,7 +162,10 @@ export function useChatThreads(): UseChatThreadsReturn {
 
     try {
       const msgs = await fetchMessages(threadId);
-      setCurrentMessages(msgs.map(apiToChatMessage));
+      setMessagesByThread((prev) => ({
+        ...prev,
+        [threadId]: msgs.map(apiToChatMessage),
+      }));
       setCurrentThreadId(threadId);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -239,129 +185,87 @@ export function useChatThreads(): UseChatThreadsReturn {
             setTimeout(() => switchThread(remaining[0].id), 0);
           } else {
             setCurrentThreadId(null);
-            setCurrentMessages([]);
           }
         }
 
         return remaining;
       });
 
+      setMessagesByThread((prev) => {
+        const next = { ...prev };
+        delete next[threadId];
+        return next;
+      });
+
       // Fire-and-forget API call
       deleteThreadApi(threadId).catch((err) =>
-        console.error('Failed to delete thread from DB:', err)
+        console.error('Failed to delete thread from DB:', err),
       );
     },
-    [currentThreadId, switchThread]
+    [currentThreadId, switchThread],
   );
 
   const clearAllThreads = useCallback(() => {
     setThreads([]);
     setCurrentThreadId(null);
-    setCurrentMessages([]);
+    setMessagesByThread({});
 
     deleteAllThreadsApi().catch((err) =>
-      console.error('Failed to delete all threads from DB:', err)
+      console.error('Failed to delete all threads from DB:', err),
     );
   }, []);
 
   const updateThreadTitle = useCallback((threadId: string, title: string) => {
     setThreads((prev) =>
       prev.map((thread) =>
-        thread.id === threadId ? { ...thread, title } : thread
-      )
+        thread.id === threadId ? { ...thread, title } : thread,
+      ),
     );
 
     updateThreadApi(threadId, { title }).catch((err) =>
-      console.error('Failed to update thread title in DB:', err)
+      console.error('Failed to update thread title in DB:', err),
     );
   }, []);
 
   // ------------------------------------------------------------------
-  // Message operations
+  // Message operations — always target a specific thread by ID
   // ------------------------------------------------------------------
 
   const addMessage = useCallback(
-    (message: ChatMessage) => {
-      if (!currentThreadId) return;
-
-      setCurrentMessages((prev) => [...prev, message]);
-
-      // Update thread metadata in local state
-      setThreads((prevThreads) =>
-        prevThreads.map((thread) => {
-          if (thread.id === currentThreadId) {
-            const newTitle =
-              thread.title === 'New Chat' && message.role === 'user'
-                ? extractTitle(message.content)
-                : thread.title;
-
-            return {
-              ...thread,
-              title: newTitle,
-              lastMessage: message.content,
-              timestamp: message.timestamp,
-              messageCount: thread.messageCount + 1,
-            };
-          }
-          return thread;
-        })
-      );
-
-      // Persist to API
-      const threadId = currentThreadId;
-      saveMessageApi(threadId, chatMessageToApi(message)).catch((err) =>
-        console.error('Failed to save message to DB:', err)
-      );
-
-      // Update thread title if it changed
-      const thread = threads.find((t) => t.id === currentThreadId);
-      if (thread?.title === 'New Chat' && message.role === 'user') {
-        const newTitle = extractTitle(message.content);
-        updateThreadApi(threadId, { title: newTitle }).catch((err) =>
-          console.error('Failed to update thread title in DB:', err)
-        );
-      }
+    (threadId: string, message: ChatMessage) => {
+      setMessagesByThread((prev) => ({
+        ...prev,
+        [threadId]: [...(prev[threadId] ?? []), message],
+      }));
     },
-    [currentThreadId, threads]
+    [],
   );
 
   const updateMessageById = useCallback(
-    (id: string, updates: Partial<ChatMessage>) => {
-      if (!currentThreadId) return;
-
-      setCurrentMessages((prev) =>
-        prev.map((msg) => (msg.id === id ? { ...msg, ...updates } : msg))
-      );
-
-      // Update thread metadata if content changed
-      if (updates.content) {
-        setThreads((prevThreads) =>
-          prevThreads.map((thread) =>
-            thread.id === currentThreadId
-              ? {
-                  ...thread,
-                  lastMessage: updates.content!,
-                  timestamp: updates.timestamp ?? thread.timestamp,
-                }
-              : thread
-          )
-        );
-      }
-
-      // Persist to API
-      const apiUpdates: Record<string, unknown> = {};
-      if (updates.content !== undefined) apiUpdates.content = updates.content;
-      if (updates.status !== undefined) apiUpdates.status = updates.status;
-      if (updates.queries !== undefined) apiUpdates.queries = updates.queries;
-      if (updates.overallSummary !== undefined) apiUpdates.overall_summary = updates.overallSummary;
-
-      if (Object.keys(apiUpdates).length > 0) {
-        updateMessageApi(currentThreadId, id, apiUpdates as any).catch((err) =>
-          console.error('Failed to update message in DB:', err)
-        );
-      }
+    (threadId: string, id: string, updates: Partial<ChatMessage>) => {
+      setMessagesByThread((prev) => {
+        const messages = prev[threadId];
+        if (!messages) return prev;
+        return {
+          ...prev,
+          [threadId]: messages.map((msg) =>
+            msg.id === id ? { ...msg, ...updates } : msg,
+          ),
+        };
+      });
     },
-    [currentThreadId]
+    [],
+  );
+
+  const updateThreadMetadata = useCallback(
+    (threadId: string, updates: Partial<Thread>) => {
+      setThreads((prev) =>
+        prev.map((thread) =>
+          thread.id === threadId ? { ...thread, ...updates } : thread,
+        ),
+      );
+    },
+    [],
   );
 
   return {
@@ -375,6 +279,7 @@ export function useChatThreads(): UseChatThreadsReturn {
     updateThreadTitle,
     addMessage,
     updateMessageById,
+    updateThreadMetadata,
     isLoading,
     isInitialised,
     error,

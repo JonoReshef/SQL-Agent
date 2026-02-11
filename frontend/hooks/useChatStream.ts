@@ -11,12 +11,16 @@ export interface UseChatStreamReturn {
     anticipateComplexity?: boolean
   ) => Promise<void>;
   isStreaming: boolean;
+  streamingThreadId: string | null;
   currentResponse: string;
   currentStatus: string;
   queries: QueryExecution[];
   overallSummary: string;
   error: string | null;
   clearError: () => void;
+  userMessageId: string | null;
+  assistantMessageId: string | null;
+  threadTitle: string | null;
 }
 
 /**
@@ -29,6 +33,10 @@ export function useChatStream(): UseChatStreamReturn {
   const [queries, setQueries] = useState<QueryExecution[]>([]);
   const [overallSummary, setOverallSummary] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [userMessageId, setUserMessageId] = useState<string | null>(null);
+  const [assistantMessageId, setAssistantMessageId] = useState<string | null>(null);
+  const [threadTitle, setThreadTitle] = useState<string | null>(null);
+  const [streamingThreadId, setStreamingThreadId] = useState<string | null>(null);
 
   const cleanupRef = useRef<(() => void) | null>(null);
 
@@ -105,11 +113,15 @@ export function useChatStream(): UseChatStreamReturn {
 
       // Reset state
       setIsStreaming(true);
+      setStreamingThreadId(threadId);
       setCurrentResponse('');
       setCurrentStatus('');
       setQueries([]);
       setOverallSummary('');
       setError(null);
+      setUserMessageId(null);
+      setAssistantMessageId(null);
+      setThreadTitle(null);
 
       // Reset buffer
       tokenBufferRef.current = '';
@@ -164,6 +176,15 @@ export function useChatStream(): UseChatStreamReturn {
             setCurrentStatus('');
             cleanupRef.current = null;
           },
+
+          onUserMessageCreated: (messageId: string, title?: string | null) => {
+            setUserMessageId(messageId);
+            if (title) setThreadTitle(title);
+          },
+
+          onAssistantMessageCreated: (messageId: string) => {
+            setAssistantMessageId(messageId);
+          },
         },
         anticipateComplexity
       );
@@ -190,11 +211,15 @@ export function useChatStream(): UseChatStreamReturn {
   return {
     sendMessage,
     isStreaming,
+    streamingThreadId,
     currentResponse,
     currentStatus,
     queries,
     overallSummary,
     error,
     clearError,
+    userMessageId,
+    assistantMessageId,
+    threadTitle,
   };
 }

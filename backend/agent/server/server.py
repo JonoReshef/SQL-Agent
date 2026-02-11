@@ -1,6 +1,11 @@
 """FastAPI server for SQL chat agent"""
 
+import asyncio
 import json
+import queue
+import uuid
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, cast
 
@@ -30,6 +35,27 @@ from agent.models.server import (
     UpdateThreadRequest,
 )
 
+# Queue event types for stream worker → SSE generator communication
+@dataclass
+class StreamEvent:
+    """A pre-formatted SSE string to forward to the client."""
+    sse_data: str
+
+@dataclass
+class StreamEnd:
+    """Sentinel: stream complete, DB finalized."""
+    pass
+
+@dataclass
+class StreamError:
+    """Sentinel: error occurred, DB finalized."""
+    sse_data: str
+
+
+# Reusable thread pool for stream workers
+_stream_executor = ThreadPoolExecutor(max_workers=10, thread_name_prefix="stream-worker")
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="WestBrand SQL Chat Agent",
@@ -57,6 +83,18 @@ def get_graph():
     if _graph is None:
         _graph = create_chat_graph()
     return _graph
+
+
+def extract_title(text: str, max_length: int = 50) -> str:
+    """Extract first meaningful sentence from text for thread title."""
+    cleaned = text.strip()
+    cleaned = " ".join(cleaned.split())
+    import re
+    match = re.match(r"^[^.!?]+[.!?]", cleaned)
+    first_sentence = match.group(0) if match else cleaned
+    if len(first_sentence) <= max_length:
+        return first_sentence
+    return first_sentence[: max_length - 3] + "..."
 
 
 @app.get("/")
@@ -147,151 +185,241 @@ async def chat(request: ChatRequest) -> ChatResponse:
         )
 
 
+def _stream_worker(q: queue.Queue, request: ChatRequest) -> None:  # type: ignore[type-arg]
+    """
+    Run LLM streaming + DB persistence in a background thread.
+
+    Pushes SSE-formatted events into `q`. Always finalizes the DB,
+    even if the SSE client disconnects mid-stream.
+    """
+    assistant_message_id: str | None = None
+    full_response = ""
+    queries_payload: list[dict[str, Any]] | None = None
+    summary_payload: str | None = None
+
+    try:
+        print(
+            f"Starting stream for thread: {request.thread_id}, message: {request.message[:50]}...",
+            flush=True,
+        )
+
+        # Validate request
+        if not request.message or not request.message.strip():
+            raise ValueError("Message cannot be empty")
+
+        graph = get_graph()
+        print("Graph retrieved successfully", flush=True)
+
+        config = {"configurable": {"thread_id": request.thread_id}}
+
+        # ── Persist user message BEFORE streaming ──
+        user_message_id = str(uuid.uuid4())
+        thread_title: str | None = None
+
+        with get_db_session() as session:
+            # Auto-create thread if it doesn't exist
+            thread = session.get(ChatThread, request.thread_id)
+            if not thread:
+                thread = ChatThread(id=request.thread_id, title="New Chat")
+                session.add(thread)
+                session.flush()
+
+            # Insert user message
+            user_msg = ChatMessageRecord(
+                id=user_message_id,
+                thread_id=request.thread_id,
+                role="user",
+                content=request.message,
+                status="complete",
+            )
+            session.add(user_msg)
+
+            # Update thread metadata
+            current_count = cast("int | None", thread.message_count) or 0
+            thread.message_count = current_count + 1  # type: ignore[assignment]
+            thread.last_message = request.message  # type: ignore[assignment]
+
+            # Auto-title if still "New Chat"
+            if cast(str, thread.title) == "New Chat":
+                thread_title = extract_title(request.message)
+                thread.title = thread_title  # type: ignore[assignment]
+
+        # Emit user_message_created event
+        q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'user_message_created', 'message_id': user_message_id, 'thread_title': thread_title})}\n\n"))
+
+        # ── Persist assistant placeholder BEFORE streaming ──
+        assistant_message_id = str(uuid.uuid4())
+
+        with get_db_session() as session:
+            assistant_msg = ChatMessageRecord(
+                id=assistant_message_id,
+                thread_id=request.thread_id,
+                role="assistant",
+                content="",
+                status="streaming",
+            )
+            session.add(assistant_msg)
+
+            thread = session.get(ChatThread, request.thread_id)
+            if thread:
+                current_count = cast("int | None", thread.message_count) or 0
+                thread.message_count = current_count + 1  # type: ignore[assignment]
+
+        # Emit assistant_message_created event
+        q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'assistant_message_created', 'message_id': assistant_message_id})}\n\n"))
+
+        # ── Stream LLM response ──
+        print("Starting stream...", flush=True)
+        last_event = None
+
+        # Initial status event
+        q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'status', 'content': 'Initiating workflow'})}\n\n"))
+
+        for stream_mode, event in graph.stream(
+            {
+                "user_question": request.message,
+                "anticipate_complexity": request.anticipate_complexity,
+            },
+            config,  # type: ignore
+            stream_mode=["values", "messages"],
+        ):
+            # Handle complete state updates
+            if stream_mode == "values":
+                event_update = ChatState.model_validate(event)
+                last_event = event_update
+
+                if "status_update" in event and event_update.status_update:
+                    q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'status', 'content': event_update.status_update})}\n\n"))
+
+            elif stream_mode == "messages":
+                message_chunk: AIMessageChunk = (
+                    event[0] if isinstance(event, tuple) else event
+                )  # type: ignore
+                metadata = (
+                    event[1] if isinstance(event, tuple) and len(event) > 1 else {}
+                )
+
+                node_name = metadata.get("langgraph_node", "")
+                if node_name == "generate_query":
+                    if hasattr(message_chunk, "content") and message_chunk.content:
+                        token = str(message_chunk.content)
+                        if token:
+                            full_response += token
+                            q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"))
+
+        # ── Finalize assistant message AFTER streaming ──
+        if last_event:
+            if last_event.executed_queries_enriched:
+                queries_payload = []
+                for qe in last_event.executed_queries_enriched:
+                    queries_payload.append(
+                        {
+                            "query": qe.query,
+                            "explanation": (
+                                qe.query_explanation.description
+                                if qe.query_explanation
+                                else "No explanation available"
+                            ),
+                            "result_summary": (
+                                qe.query_explanation.result_summary
+                                if qe.query_explanation
+                                else "No result summary available"
+                            ),
+                        }
+                    )
+                q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'queries', 'queries': queries_payload})}\n\n"))
+
+            if last_event.overall_summary:
+                summary_payload = last_event.overall_summary
+                q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'summary', 'content': summary_payload})}\n\n"))
+
+            # Fallback: If no tokens were streamed but there's a final message
+            if not full_response and last_event.messages:
+                last_message = last_event.messages[-1]
+                if (
+                    hasattr(last_message, "content")
+                    and last_message.content
+                    and last_message.__class__.__name__ == "AIMessage"
+                ):
+                    full_response = str(last_message.content)
+                    q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'message', 'content': full_response})}\n\n"))
+
+        # Send end event
+        q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'end'})}\n\n"))
+        q.put(StreamEnd())
+
+    except Exception as e:
+        error_message = (
+            str(e) if str(e) else "An unexpected error occurred during streaming"
+        )
+        error_type = type(e).__name__
+        print(f"Stream error ({error_type}): {error_message}", flush=True)
+        import traceback
+
+        traceback.print_exc()
+
+        error_data = json.dumps({"type": "error", "content": error_message})
+        q.put(StreamEvent(sse_data=f"data: {error_data}\n\n"))
+        q.put(StreamError(sse_data=f"data: {error_data}\n\n"))
+
+    finally:
+        # ── DB finalization always runs, even if client disconnected ──
+        if assistant_message_id:
+            try:
+                with get_db_session() as session:
+                    assistant_record = session.get(ChatMessageRecord, assistant_message_id)
+                    if assistant_record:
+                        assistant_record.content = full_response  # type: ignore[assignment]
+                        assistant_record.status = "complete"  # type: ignore[assignment]
+                        if queries_payload:
+                            assistant_record.queries = queries_payload  # type: ignore[assignment]
+                        if summary_payload:
+                            assistant_record.overall_summary = summary_payload  # type: ignore[assignment]
+
+                    thread = session.get(ChatThread, request.thread_id)
+                    if thread and full_response:
+                        truncated = full_response[:200] + "..." if len(full_response) > 200 else full_response
+                        thread.last_message = truncated  # type: ignore[assignment]
+            except Exception as db_err:
+                print(f"DB finalization error: {db_err}", flush=True)
+
+
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
     """
     Streaming chat endpoint using Server-Sent Events (SSE).
 
-    Streams tokens and events in real-time as the agent processes the request.
-
-    Args:
-        request: ChatRequest with message and thread_id
-
-    Returns:
-        StreamingResponse with SSE events
+    LLM execution and DB persistence run in a background thread that always
+    completes, even if the SSE client disconnects. The SSE generator is a
+    thin consumer that reads from a queue.
     """
-    import asyncio
+    q: queue.Queue = queue.Queue()  # type: ignore[type-arg]
+    future = _stream_executor.submit(_stream_worker, q, request)
 
-    def sync_event_generator():
-        """Generate SSE events from graph stream (synchronous)"""
+    async def sse_generator():
+        loop = asyncio.get_event_loop()
         try:
-            print(
-                f"Starting stream for thread: {request.thread_id}, message: {request.message[:50]}...",
-                flush=True,
-            )
-
-            # Validate request
-            if not request.message or not request.message.strip():
-                raise ValueError("Message cannot be empty")
-
-            graph = get_graph()
-            print("Graph retrieved successfully", flush=True)
-
-            config = {"configurable": {"thread_id": request.thread_id}}
-
-            # Use synchronous stream with multiple modes:
-            # - "values": Complete state updates (status, queries, summary)
-            # - "messages": Token-by-token streaming from LLM
-            print("Starting stream...", flush=True)
-            last_event = None
-            full_response = ""  # Fallback accumulator
-
-            # Initial status event
-            yield f"data: {json.dumps({'type': 'status', 'content': 'Initiating workflow'})}\n\n"
-
-            for stream_mode, event in graph.stream(
-                {
-                    "user_question": request.message,
-                    "anticipate_complexity": request.anticipate_complexity,
-                },
-                config,  # type: ignore
-                stream_mode=["values", "messages"],
-            ):
-                # Handle complete state updates
-                if stream_mode == "values":
-                    # When we have a values update we are returned the full state
-                    event_update = ChatState.model_validate(event)
-
-                    # Store last event for final summary
-                    last_event = event_update
-
-                    # Send status updates to frontend
-                    if "status_update" in event and event_update.status_update:
-                        yield f"data: {json.dumps({'type': 'status', 'content': event_update.status_update})}\n\n"
-
-                elif stream_mode == "messages":
-                    # Handle token-by-token streaming
-                    # Event is a tuple: (message_chunk, metadata)
-                    message_chunk: AIMessageChunk = (
-                        event[0] if isinstance(event, tuple) else event
-                    )  # type: ignore
-                    metadata = (
-                        event[1] if isinstance(event, tuple) and len(event) > 1 else {}
+            while True:
+                try:
+                    item = await loop.run_in_executor(
+                        None, lambda: q.get(timeout=0.1)
                     )
+                except queue.Empty:
+                    if future.done():
+                        # Worker finished and queue is drained
+                        break
+                    await asyncio.sleep(0)
+                    continue
 
-                    # Only stream tokens from generate_query node
-                    node_name = metadata.get("langgraph_node", "")
-                    if node_name == "generate_query":
-                        # Check for content attribute (text tokens)
-                        if hasattr(message_chunk, "content") and message_chunk.content:
-                            token = str(message_chunk.content)
-                            if token:
-                                full_response += token
-                                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
-
-            # After stream completes, send queries and summary from last event
-            if last_event:
-                # Send executed queries before end event for transparency
-                if last_event.executed_queries_enriched:
-                    # Store only the last executed queries for final transparency
-                    executed_queries = []
-                    for qe in last_event.executed_queries_enriched:
-                        executed_queries.append(
-                            {
-                                "query": qe.query,
-                                "explanation": (
-                                    qe.query_explanation.description
-                                    if qe.query_explanation
-                                    else "No explanation available"
-                                ),
-                                "result_summary": (
-                                    qe.query_explanation.result_summary
-                                    if qe.query_explanation
-                                    else "No result summary available"
-                                ),
-                            }
-                        )
-
-                    yield f"data: {json.dumps({'type': 'queries', 'queries': executed_queries})}\n\n"
-
-                # Send overall summary if available
-                if last_event.overall_summary:
-                    yield f"data: {json.dumps({'type': 'summary', 'content': last_event.overall_summary})}\n\n"
-
-                # Fallback: If no tokens were streamed but there's a final message, send it
-                if not full_response and last_event.messages:
-                    last_message = last_event.messages[-1]
-                    if (
-                        hasattr(last_message, "content")
-                        and last_message.content
-                        and last_message.__class__.__name__ == "AIMessage"
-                    ):
-                        yield f"data: {json.dumps({'type': 'message', 'content': last_message.content})}\n\n"
-
-            # Send end event
-            yield f"data: {json.dumps({'type': 'end'})}\n\n"
-
-        except Exception as e:
-            error_message = (
-                str(e) if str(e) else "An unexpected error occurred during streaming"
-            )
-            error_type = type(e).__name__
-            print(f"Stream error ({error_type}): {error_message}", flush=True)
-            import traceback
-
-            traceback.print_exc()
-            error_data = json.dumps({"type": "error", "content": error_message})
-            yield f"data: {error_data}\n\n"
-
-    async def async_wrapper():
-        """Wrap synchronous generator in async context"""
-        for chunk in sync_event_generator():
-            yield chunk
-            # Small yield to prevent blocking
-            await asyncio.sleep(0)
+                if isinstance(item, (StreamEnd, StreamError)):
+                    break
+                yield item.sse_data
+                await asyncio.sleep(0)
+        except asyncio.CancelledError:
+            pass  # Client disconnected — worker keeps running to completion
 
     return StreamingResponse(
-        async_wrapper(),
+        sse_generator(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -383,6 +511,27 @@ async def startup_create_chat_tables():
     """Create chat_threads and chat_messages tables if they don't exist"""
     engine = get_engine()
     create_all_tables(engine)
+
+
+@app.on_event("startup")
+async def cleanup_stale_streaming_messages():
+    """Mark any orphaned 'streaming' messages as complete on server start."""
+    with get_db_session() as session:
+        stale = session.query(ChatMessageRecord).filter(
+            ChatMessageRecord.status == "streaming"
+        ).all()
+        for msg in stale:
+            msg.status = "complete"  # type: ignore[assignment]
+            if not msg.content:
+                msg.content = "[Response interrupted]"  # type: ignore[assignment]
+        if stale:
+            print(f"Cleaned up {len(stale)} stale streaming message(s)", flush=True)
+
+
+@app.on_event("shutdown")
+async def shutdown_stream_executor():
+    """Drain the stream worker thread pool on shutdown."""
+    _stream_executor.shutdown(wait=True)
 
 
 # ============================================================================
