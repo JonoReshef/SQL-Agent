@@ -231,15 +231,12 @@ export function useChatThreads(): UseChatThreadsReturn {
   // Message operations — always target a specific thread by ID
   // ------------------------------------------------------------------
 
-  const addMessage = useCallback(
-    (threadId: string, message: ChatMessage) => {
-      setMessagesByThread((prev) => ({
-        ...prev,
-        [threadId]: [...(prev[threadId] ?? []), message],
-      }));
-    },
-    [],
-  );
+  const addMessage = useCallback((threadId: string, message: ChatMessage) => {
+    setMessagesByThread((prev) => ({
+      ...prev,
+      [threadId]: [...(prev[threadId] ?? []), message],
+    }));
+  }, []);
 
   const updateMessageById = useCallback(
     (threadId: string, id: string, updates: Partial<ChatMessage>) => {

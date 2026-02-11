@@ -35,25 +35,33 @@ from agent.models.server import (
     UpdateThreadRequest,
 )
 
+
 # Queue event types for stream worker → SSE generator communication
 @dataclass
 class StreamEvent:
     """A pre-formatted SSE string to forward to the client."""
+
     sse_data: str
+
 
 @dataclass
 class StreamEnd:
     """Sentinel: stream complete, DB finalized."""
+
     pass
+
 
 @dataclass
 class StreamError:
     """Sentinel: error occurred, DB finalized."""
+
     sse_data: str
 
 
 # Reusable thread pool for stream workers
-_stream_executor = ThreadPoolExecutor(max_workers=10, thread_name_prefix="stream-worker")
+_stream_executor = ThreadPoolExecutor(
+    max_workers=10, thread_name_prefix="stream-worker"
+)
 
 
 # Initialize FastAPI app
@@ -90,6 +98,7 @@ def extract_title(text: str, max_length: int = 50) -> str:
     cleaned = text.strip()
     cleaned = " ".join(cleaned.split())
     import re
+
     match = re.match(r"^[^.!?]+[.!?]", cleaned)
     first_sentence = match.group(0) if match else cleaned
     if len(first_sentence) <= max_length:
@@ -245,7 +254,11 @@ def _stream_worker(q: queue.Queue, request: ChatRequest) -> None:  # type: ignor
                 thread.title = thread_title  # type: ignore[assignment]
 
         # Emit user_message_created event
-        q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'user_message_created', 'message_id': user_message_id, 'thread_title': thread_title})}\n\n"))
+        q.put(
+            StreamEvent(
+                sse_data=f"data: {json.dumps({'type': 'user_message_created', 'message_id': user_message_id, 'thread_title': thread_title})}\n\n"
+            )
+        )
 
         # ── Persist assistant placeholder BEFORE streaming ──
         assistant_message_id = str(uuid.uuid4())
@@ -266,14 +279,22 @@ def _stream_worker(q: queue.Queue, request: ChatRequest) -> None:  # type: ignor
                 thread.message_count = current_count + 1  # type: ignore[assignment]
 
         # Emit assistant_message_created event
-        q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'assistant_message_created', 'message_id': assistant_message_id})}\n\n"))
+        q.put(
+            StreamEvent(
+                sse_data=f"data: {json.dumps({'type': 'assistant_message_created', 'message_id': assistant_message_id})}\n\n"
+            )
+        )
 
         # ── Stream LLM response ──
         print("Starting stream...", flush=True)
         last_event = None
 
         # Initial status event
-        q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'status', 'content': 'Initiating workflow'})}\n\n"))
+        q.put(
+            StreamEvent(
+                sse_data=f"data: {json.dumps({'type': 'status', 'content': 'Initiating workflow'})}\n\n"
+            )
+        )
 
         for stream_mode, event in graph.stream(
             {
@@ -289,7 +310,11 @@ def _stream_worker(q: queue.Queue, request: ChatRequest) -> None:  # type: ignor
                 last_event = event_update
 
                 if "status_update" in event and event_update.status_update:
-                    q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'status', 'content': event_update.status_update})}\n\n"))
+                    q.put(
+                        StreamEvent(
+                            sse_data=f"data: {json.dumps({'type': 'status', 'content': event_update.status_update})}\n\n"
+                        )
+                    )
 
             elif stream_mode == "messages":
                 message_chunk: AIMessageChunk = (
@@ -305,7 +330,11 @@ def _stream_worker(q: queue.Queue, request: ChatRequest) -> None:  # type: ignor
                         token = str(message_chunk.content)
                         if token:
                             full_response += token
-                            q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"))
+                            q.put(
+                                StreamEvent(
+                                    sse_data=f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+                                )
+                            )
 
         # ── Finalize assistant message AFTER streaming ──
         if last_event:
@@ -327,11 +356,19 @@ def _stream_worker(q: queue.Queue, request: ChatRequest) -> None:  # type: ignor
                             ),
                         }
                     )
-                q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'queries', 'queries': queries_payload})}\n\n"))
+                q.put(
+                    StreamEvent(
+                        sse_data=f"data: {json.dumps({'type': 'queries', 'queries': queries_payload})}\n\n"
+                    )
+                )
 
             if last_event.overall_summary:
                 summary_payload = last_event.overall_summary
-                q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'summary', 'content': summary_payload})}\n\n"))
+                q.put(
+                    StreamEvent(
+                        sse_data=f"data: {json.dumps({'type': 'summary', 'content': summary_payload})}\n\n"
+                    )
+                )
 
             # Fallback: If no tokens were streamed but there's a final message
             if not full_response and last_event.messages:
@@ -342,7 +379,11 @@ def _stream_worker(q: queue.Queue, request: ChatRequest) -> None:  # type: ignor
                     and last_message.__class__.__name__ == "AIMessage"
                 ):
                     full_response = str(last_message.content)
-                    q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'message', 'content': full_response})}\n\n"))
+                    q.put(
+                        StreamEvent(
+                            sse_data=f"data: {json.dumps({'type': 'message', 'content': full_response})}\n\n"
+                        )
+                    )
 
         # Send end event
         q.put(StreamEvent(sse_data=f"data: {json.dumps({'type': 'end'})}\n\n"))
@@ -367,7 +408,9 @@ def _stream_worker(q: queue.Queue, request: ChatRequest) -> None:  # type: ignor
         if assistant_message_id:
             try:
                 with get_db_session() as session:
-                    assistant_record = session.get(ChatMessageRecord, assistant_message_id)
+                    assistant_record = session.get(
+                        ChatMessageRecord, assistant_message_id
+                    )
                     if assistant_record:
                         assistant_record.content = full_response  # type: ignore[assignment]
                         assistant_record.status = "complete"  # type: ignore[assignment]
@@ -378,7 +421,11 @@ def _stream_worker(q: queue.Queue, request: ChatRequest) -> None:  # type: ignor
 
                     thread = session.get(ChatThread, request.thread_id)
                     if thread and full_response:
-                        truncated = full_response[:200] + "..." if len(full_response) > 200 else full_response
+                        truncated = (
+                            full_response[:200] + "..."
+                            if len(full_response) > 200
+                            else full_response
+                        )
                         thread.last_message = truncated  # type: ignore[assignment]
             except Exception as db_err:
                 print(f"DB finalization error: {db_err}", flush=True)
@@ -401,9 +448,7 @@ async def chat_stream(request: ChatRequest):
         try:
             while True:
                 try:
-                    item = await loop.run_in_executor(
-                        None, lambda: q.get(timeout=0.1)
-                    )
+                    item = await loop.run_in_executor(None, lambda: q.get(timeout=0.1))
                 except queue.Empty:
                     if future.done():
                         # Worker finished and queue is drained
@@ -517,12 +562,14 @@ async def startup_create_chat_tables():
 async def cleanup_stale_streaming_messages():
     """Mark any orphaned 'streaming' messages as complete on server start."""
     with get_db_session() as session:
-        stale = session.query(ChatMessageRecord).filter(
-            ChatMessageRecord.status == "streaming"
-        ).all()
+        stale = (
+            session.query(ChatMessageRecord)
+            .filter(ChatMessageRecord.status == "streaming")
+            .all()
+        )
         for msg in stale:
             msg.status = "complete"  # type: ignore[assignment]
-            if not msg.content:
+            if not cast(str, msg.content):
                 msg.content = "[Response interrupted]"  # type: ignore[assignment]
         if stale:
             print(f"Cleaned up {len(stale)} stale streaming message(s)", flush=True)
@@ -561,14 +608,8 @@ def _thread_to_response(thread: ChatThread) -> ThreadResponse:
 async def list_threads():
     """List all chat threads, most recent first"""
     with get_db_session() as session:
-        threads = (
-            session.query(ChatThread)
-            .order_by(ChatThread.updated_at.desc())
-            .all()
-        )
-        return ThreadListResponse(
-            threads=[_thread_to_response(t) for t in threads]
-        )
+        threads = session.query(ChatThread).order_by(ChatThread.updated_at.desc()).all()
+        return ThreadListResponse(threads=[_thread_to_response(t) for t in threads])
 
 
 @app.post("/threads", response_model=ThreadResponse, status_code=201)
@@ -636,7 +677,9 @@ def _message_to_model(msg: ChatMessageRecord) -> ChatMessageModel:
     role = cast(str, msg.role)
     content = cast("str | None", msg.content) or ""
     created_at = cast("datetime | None", msg.created_at)
-    ts = created_at.isoformat() if created_at else datetime.now(timezone.utc).isoformat()
+    ts = (
+        created_at.isoformat() if created_at else datetime.now(timezone.utc).isoformat()
+    )
     status = cast("str | None", msg.status)
     queries = cast("list[dict[str, Any]] | None", msg.queries)
     overall_summary = cast("str | None", msg.overall_summary)
@@ -668,7 +711,9 @@ async def list_messages(thread_id: str):
         return [_message_to_model(m) for m in messages]
 
 
-@app.post("/threads/{thread_id}/messages", response_model=ChatMessageModel, status_code=201)
+@app.post(
+    "/threads/{thread_id}/messages", response_model=ChatMessageModel, status_code=201
+)
 async def save_message(thread_id: str, request: SaveMessageRequest):
     """Save a new message to a thread"""
     with get_db_session() as session:
@@ -681,7 +726,11 @@ async def save_message(thread_id: str, request: SaveMessageRequest):
         if existing:
             return _message_to_model(existing)
 
-        created_at = datetime.fromisoformat(request.timestamp) if request.timestamp else datetime.now(timezone.utc)
+        created_at = (
+            datetime.fromisoformat(request.timestamp)
+            if request.timestamp
+            else datetime.now(timezone.utc)
+        )
         msg = ChatMessageRecord(
             id=request.id,
             thread_id=thread_id,
@@ -702,8 +751,12 @@ async def save_message(thread_id: str, request: SaveMessageRequest):
         return _message_to_model(msg)
 
 
-@app.patch("/threads/{thread_id}/messages/{message_id}", response_model=ChatMessageModel)
-async def update_message(thread_id: str, message_id: str, request: UpdateMessageRequest):
+@app.patch(
+    "/threads/{thread_id}/messages/{message_id}", response_model=ChatMessageModel
+)
+async def update_message(
+    thread_id: str, message_id: str, request: UpdateMessageRequest
+):
     """Update an existing message (e.g., after streaming completes)"""
     with get_db_session() as session:
         msg = session.get(ChatMessageRecord, message_id)
@@ -763,7 +816,11 @@ async def bulk_import(request: BulkImportRequest):
                 if existing_msg:
                     continue
 
-                created_at = datetime.fromisoformat(msg_req.timestamp) if msg_req.timestamp else datetime.now(timezone.utc)
+                created_at = (
+                    datetime.fromisoformat(msg_req.timestamp)
+                    if msg_req.timestamp
+                    else datetime.now(timezone.utc)
+                )
                 msg = ChatMessageRecord(
                     id=msg_req.id,
                     thread_id=thread_id,

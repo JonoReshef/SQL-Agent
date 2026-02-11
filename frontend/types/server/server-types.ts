@@ -3,16 +3,15 @@
  * Do not make direct changes to the file.
  */
 
-
 export interface paths {
-  "/": {
+  '/': {
     /**
      * Root
      * @description Root endpoint with API information
      */
-    get: operations["root__get"];
+    get: operations['root__get'];
   };
-  "/chat": {
+  '/chat': {
     /**
      * Chat
      * @description Non-streaming chat endpoint.
@@ -28,24 +27,20 @@ export interface paths {
      * Raises:
      *     HTTPException: If graph execution fails
      */
-    post: operations["chat_chat_post"];
+    post: operations['chat_chat_post'];
   };
-  "/chat/stream": {
+  '/chat/stream': {
     /**
      * Chat Stream
      * @description Streaming chat endpoint using Server-Sent Events (SSE).
      *
-     * Streams tokens and events in real-time as the agent processes the request.
-     *
-     * Args:
-     *     request: ChatRequest with message and thread_id
-     *
-     * Returns:
-     *     StreamingResponse with SSE events
+     * LLM execution and DB persistence run in a background thread that always
+     * completes, even if the SSE client disconnects. The SSE generator is a
+     * thin consumer that reads from a queue.
      */
-    post: operations["chat_stream_chat_stream_post"];
+    post: operations['chat_stream_chat_stream_post'];
   };
-  "/history/{thread_id}": {
+  '/history/{thread_id}': {
     /**
      * Get History
      * @description Get conversation history for a thread.
@@ -61,69 +56,69 @@ export interface paths {
      * Raises:
      *     HTTPException: If history retrieval fails
      */
-    get: operations["get_history_history__thread_id__get"];
+    get: operations['get_history_history__thread_id__get'];
   };
-  "/health": {
+  '/health': {
     /**
      * Health Check
      * @description Health check endpoint
      */
-    get: operations["health_check_health_get"];
+    get: operations['health_check_health_get'];
   };
-  "/threads": {
+  '/threads': {
     /**
      * List Threads
      * @description List all chat threads, most recent first
      */
-    get: operations["list_threads_threads_get"];
+    get: operations['list_threads_threads_get'];
     /**
      * Create Thread
      * @description Create a new chat thread
      */
-    post: operations["create_thread_threads_post"];
+    post: operations['create_thread_threads_post'];
     /**
      * Delete All Threads
      * @description Delete all chat threads and messages
      */
-    delete: operations["delete_all_threads_threads_delete"];
+    delete: operations['delete_all_threads_threads_delete'];
   };
-  "/threads/{thread_id}": {
+  '/threads/{thread_id}': {
     /**
      * Delete Thread
      * @description Delete a chat thread and all its messages
      */
-    delete: operations["delete_thread_threads__thread_id__delete"];
+    delete: operations['delete_thread_threads__thread_id__delete'];
     /**
      * Update Thread
      * @description Update a chat thread's metadata
      */
-    patch: operations["update_thread_threads__thread_id__patch"];
+    patch: operations['update_thread_threads__thread_id__patch'];
   };
-  "/threads/{thread_id}/messages": {
+  '/threads/{thread_id}/messages': {
     /**
      * List Messages
      * @description List all messages for a thread, ordered by creation time
      */
-    get: operations["list_messages_threads__thread_id__messages_get"];
+    get: operations['list_messages_threads__thread_id__messages_get'];
     /**
      * Save Message
      * @description Save a new message to a thread
      */
-    post: operations["save_message_threads__thread_id__messages_post"];
+    post: operations['save_message_threads__thread_id__messages_post'];
   };
-  "/threads/{thread_id}/messages/{message_id}": {
+  '/threads/{thread_id}/messages/{message_id}': {
     /**
      * Update Message
      * @description Update an existing message (e.g., after streaming completes)
      */
-    patch: operations["update_message_threads__thread_id__messages__message_id__patch"];
+    patch: operations['update_message_threads__thread_id__messages__message_id__patch'];
   };
-  "/threads/import": {
+  '/threads/import': {
     /**
      * Bulk Import
      * @description Import threads and messages from localStorage in bulk
      */
-    post: operations["bulk_import_threads_import_post"];
+    post: operations['bulk_import_threads_import_post'];
   };
 }
 
@@ -137,13 +132,13 @@ export interface components {
      */
     BulkImportRequest: {
       /** Threads */
-      threads: components["schemas"]["CreateThreadRequest"][];
+      threads: components['schemas']['CreateThreadRequest'][];
       /**
        * Messages
        * @description Map of thread_id to list of messages
        */
       messages?: {
-        [key: string]: components["schemas"]["SaveMessageRequest"][];
+        [key: string]: components['schemas']['SaveMessageRequest'][];
       };
     };
     /**
@@ -162,9 +157,11 @@ export interface components {
       /** Status */
       status?: string | null;
       /** Queries */
-      queries?: {
-          [key: string]: unknown;
-        }[] | null;
+      queries?:
+        | {
+            [key: string]: unknown;
+          }[]
+        | null;
       /** Overall Summary */
       overall_summary?: string | null;
     };
@@ -209,7 +206,7 @@ export interface components {
        * Executed Queries
        * @description SQL queries executed with explanations and summaries
        */
-      executed_queries?: components["schemas"]["QueryExecutionResponse"][];
+      executed_queries?: components['schemas']['QueryExecutionResponse'][];
     };
     /**
      * CheckpointData
@@ -225,7 +222,7 @@ export interface components {
        * Messages
        * @description Messages in this checkpoint
        */
-      messages?: components["schemas"]["MessageHistory"][];
+      messages?: components['schemas']['MessageHistory'][];
       /**
        * Timestamp
        * @description ISO timestamp when checkpoint was created
@@ -259,7 +256,7 @@ export interface components {
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
-      detail?: components["schemas"]["ValidationError"][];
+      detail?: components['schemas']['ValidationError'][];
     };
     /**
      * HistoryResponse
@@ -275,7 +272,7 @@ export interface components {
        * History
        * @description List of checkpoint states with messages
        */
-      history?: components["schemas"]["CheckpointData"][];
+      history?: components['schemas']['CheckpointData'][];
     };
     /**
      * MessageHistory
@@ -330,9 +327,11 @@ export interface components {
       /** Status */
       status?: string | null;
       /** Queries */
-      queries?: {
-          [key: string]: unknown;
-        }[] | null;
+      queries?:
+        | {
+            [key: string]: unknown;
+          }[]
+        | null;
       /** Overall Summary */
       overall_summary?: string | null;
     };
@@ -342,7 +341,7 @@ export interface components {
      */
     ThreadListResponse: {
       /** Threads */
-      threads: components["schemas"]["ThreadResponse"][];
+      threads: components['schemas']['ThreadResponse'][];
     };
     /**
      * ThreadResponse
@@ -370,9 +369,11 @@ export interface components {
       /** Status */
       status?: string | null;
       /** Queries */
-      queries?: {
-          [key: string]: unknown;
-        }[] | null;
+      queries?:
+        | {
+            [key: string]: unknown;
+          }[]
+        | null;
       /** Overall Summary */
       overall_summary?: string | null;
     };
@@ -414,7 +415,6 @@ export type $defs = Record<string, never>;
 export type external = Record<string, never>;
 
 export interface operations {
-
   /**
    * Root
    * @description Root endpoint with API information
@@ -424,7 +424,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": unknown;
+          'application/json': unknown;
         };
       };
     };
@@ -447,20 +447,20 @@ export interface operations {
   chat_chat_post: {
     requestBody: {
       content: {
-        "application/json": components["schemas"]["ChatRequest"];
+        'application/json': components['schemas']['ChatRequest'];
       };
     };
     responses: {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["ChatResponse"];
+          'application/json': components['schemas']['ChatResponse'];
         };
       };
       /** @description Validation Error */
       422: {
         content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
@@ -469,31 +469,27 @@ export interface operations {
    * Chat Stream
    * @description Streaming chat endpoint using Server-Sent Events (SSE).
    *
-   * Streams tokens and events in real-time as the agent processes the request.
-   *
-   * Args:
-   *     request: ChatRequest with message and thread_id
-   *
-   * Returns:
-   *     StreamingResponse with SSE events
+   * LLM execution and DB persistence run in a background thread that always
+   * completes, even if the SSE client disconnects. The SSE generator is a
+   * thin consumer that reads from a queue.
    */
   chat_stream_chat_stream_post: {
     requestBody: {
       content: {
-        "application/json": components["schemas"]["ChatRequest"];
+        'application/json': components['schemas']['ChatRequest'];
       };
     };
     responses: {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": unknown;
+          'application/json': unknown;
         };
       };
       /** @description Validation Error */
       422: {
         content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
@@ -523,13 +519,13 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["HistoryResponse"];
+          'application/json': components['schemas']['HistoryResponse'];
         };
       };
       /** @description Validation Error */
       422: {
         content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
@@ -543,7 +539,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": unknown;
+          'application/json': unknown;
         };
       };
     };
@@ -557,7 +553,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["ThreadListResponse"];
+          'application/json': components['schemas']['ThreadListResponse'];
         };
       };
     };
@@ -569,20 +565,20 @@ export interface operations {
   create_thread_threads_post: {
     requestBody: {
       content: {
-        "application/json": components["schemas"]["CreateThreadRequest"];
+        'application/json': components['schemas']['CreateThreadRequest'];
       };
     };
     responses: {
       /** @description Successful Response */
       201: {
         content: {
-          "application/json": components["schemas"]["ThreadResponse"];
+          'application/json': components['schemas']['ThreadResponse'];
         };
       };
       /** @description Validation Error */
       422: {
         content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
@@ -617,7 +613,7 @@ export interface operations {
       /** @description Validation Error */
       422: {
         content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
@@ -634,20 +630,20 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["UpdateThreadRequest"];
+        'application/json': components['schemas']['UpdateThreadRequest'];
       };
     };
     responses: {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["ThreadResponse"];
+          'application/json': components['schemas']['ThreadResponse'];
         };
       };
       /** @description Validation Error */
       422: {
         content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
@@ -666,13 +662,13 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["ChatMessageModel"][];
+          'application/json': components['schemas']['ChatMessageModel'][];
         };
       };
       /** @description Validation Error */
       422: {
         content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
@@ -689,20 +685,20 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["SaveMessageRequest"];
+        'application/json': components['schemas']['SaveMessageRequest'];
       };
     };
     responses: {
       /** @description Successful Response */
       201: {
         content: {
-          "application/json": components["schemas"]["ChatMessageModel"];
+          'application/json': components['schemas']['ChatMessageModel'];
         };
       };
       /** @description Validation Error */
       422: {
         content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
@@ -720,20 +716,20 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["UpdateMessageRequest"];
+        'application/json': components['schemas']['UpdateMessageRequest'];
       };
     };
     responses: {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["ChatMessageModel"];
+          'application/json': components['schemas']['ChatMessageModel'];
         };
       };
       /** @description Validation Error */
       422: {
         content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
@@ -745,20 +741,20 @@ export interface operations {
   bulk_import_threads_import_post: {
     requestBody: {
       content: {
-        "application/json": components["schemas"]["BulkImportRequest"];
+        'application/json': components['schemas']['BulkImportRequest'];
       };
     };
     responses: {
       /** @description Successful Response */
       201: {
         content: {
-          "application/json": unknown;
+          'application/json': unknown;
         };
       };
       /** @description Validation Error */
       422: {
         content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
