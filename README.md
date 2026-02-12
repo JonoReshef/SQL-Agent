@@ -73,6 +73,10 @@ uv sync
 
 If using a VSCode like product, the `.vscode/launch.json` is already setup to debug using the `Full-stack` configuration.
 
+### Perform load testing
+
+See [load testing](backend/loadtests/README.md) for details.
+
 ## Product Configuration
 
 This is the key product of this project. Effectively the way that a construction company would identify/structure/prioritize the details of their products is encoded in this way.

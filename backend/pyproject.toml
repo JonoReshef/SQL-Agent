@@ -67,6 +67,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "debugpy>=1.8.20",
+    "locust>=2.43.3",
     "pytest>=9.0.2",
     "pytest-async>=0.1.1",
     "pytest-cov>=7.0.0",
