@@ -12,17 +12,30 @@ from sqlalchemy.pool import NullPool
 # Load environment variables
 load_dotenv()
 
-# Database configuration from environment
-DB_HOST = os.getenv("PGHOST", "localhost")
-DB_PORT = os.getenv("PGPORT", "5432")
-DB_NAME = os.getenv("PGDATABASE", "postgres")
-DB_USER = os.getenv("PGUSER", "WestBrandService")
-DB_PASSWORD = os.getenv("PGPASSWORD", "")
 
-# Construct connection string
-DATABASE_URL = (
-    f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
+def _get_database_url() -> str:
+    """
+    Get database URL, preferring DATABASE_URL env var if set,
+    otherwise constructing from individual PG* variables.
+    """
+    # Prefer explicit DATABASE_URL (used in Docker/production)
+    if url := os.getenv("DATABASE_URL"):
+        # Ensure we use psycopg driver
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+psycopg://", 1)
+        return url
+
+    # Fall back to individual PG* variables (local development)
+    db_host = os.getenv("PGHOST", "localhost")
+    db_port = os.getenv("PGPORT", "5432")
+    db_name = os.getenv("PGDATABASE", "postgres")
+    db_user = os.getenv("PGUSER", "WestBrandService")
+    db_password = os.getenv("PGPASSWORD", "")
+
+    return f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+
+
+DATABASE_URL = _get_database_url()
 
 
 def get_engine(echo: bool = False) -> Engine:
